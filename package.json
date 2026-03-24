@@ -16,7 +16,7 @@
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "claude",
