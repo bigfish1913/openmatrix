@@ -19,10 +19,11 @@ describe('QuestionGenerator', () => {
       const result = generator.generate(parsedTask);
 
       expect(result.length).toBeGreaterThanOrEqual(1);
-      expect(result[0].question).toBe('tech_stack');
-      expect(result[0].type).toBe('single');
-      expect(result[0].options).toBeDefined();
-      expect(result[0].required).toBe(true);
+      const techQuestion = result.find(q => q.id === 'tech_stack');
+      expect(techQuestion).toBeDefined();
+      expect(techQuestion?.type).toBe('multiple');
+      expect(techQuestion?.options).toBeDefined();
+      expect(techQuestion?.required).toBe(true);
     });
 
     it('should create priority question when multiple goals', () => {
@@ -37,12 +38,12 @@ describe('QuestionGenerator', () => {
       const result = generator.generate(parsedTask);
 
       // With 3 goals and no constraints/deliverables, should have at least tech_stack and priority questions
-      expect(result.length).toBeGreaterThanOrEqual(1);
-      const priorityQuestion = result.find(q => q.question === 'priority');
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      const priorityQuestion = result.find(q => q.id === 'priority');
       expect(priorityQuestion).toBeDefined();
-      expect(result[0].type).toBe('single');
-      expect(result[0].options).toBeDefined();
-      expect(result[0].required).toBe(true);
+      expect(priorityQuestion?.type).toBe('multiple');
+      expect(priorityQuestion?.options).toBeDefined();
+      expect(priorityQuestion?.required).toBe(true);
     });
 
     it('should return no questions for simple task', () => {

@@ -46,7 +46,7 @@ export abstract class BaseAgent {
     public readonly id: string,
     public readonly agentType: AgentType
   ) {
-    this.capabilities = [];
+    // capabilities is defined by subclass
   }
 
   abstract execute(taskId: string, context: AgentContext): Promise<AgentResult>;

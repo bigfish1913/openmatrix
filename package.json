@@ -1,23 +1,38 @@
 {
   "name": "openmatrix",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "AI Agent task orchestration system with Claude Code Skills integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "openmatrix": "./dist/cli/index.js"
   },
-  "directories": {
-    "doc": "docs"
-  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": [],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai-agent",
+    "task-orchestration",
+    "automation",
+    "multi-agent"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bigfish1913/openmatrix"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "chalk": "^5.6.2",
@@ -30,5 +45,8 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
