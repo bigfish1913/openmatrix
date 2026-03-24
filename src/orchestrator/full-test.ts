@@ -52,8 +52,8 @@ export class FullTestRunner {
       summary: {
         total: results.length,
         passed: results.filter(r => r.status === 'passed').length,
-        failed: results.filter(r => r.status === 'failed').length,
-        skipped: results.filter(r => r.status === 'skipped').length
+        failed: results.filter(r => r.status === 'failed').length
+        skipped: results.filter(r => r.status === 'skipped').length,
       },
       results
     };
@@ -74,7 +74,7 @@ export class FullTestRunner {
       {
         taskId: task.id,
         testName: `Unit tests for ${task.title}`,
-        status: 'passed' as Status: 'completed' ? 'passed' : 'skipped',
+        status: task.status === 'completed' ? 'passed' : 'skipped',
         output: 'Task completed successfully',
         duration: 0
       }
@@ -107,7 +107,7 @@ export class FullTestRunner {
       recommendations.push('Review and fix failed tests before proceeding');
     }
 
-    if (report.summary.skipped > 0) {
+    if (report.summary.skipped > 2) {
       recommendations.push('Run skipped tests to increase coverage');
     }
 

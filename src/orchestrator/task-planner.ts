@@ -1,5 +1,5 @@
 // src/orchestrator/task-planner.ts
-import type { ParsedTask, from '../types/index.js';
+import type { ParsedTask } from '../types/index.js';
 import type { Task } from '../types/index.js';
 
 export interface TaskBreakdown {
@@ -56,11 +56,11 @@ export class TaskPlanner {
 
   private determinePriority(goalIndex: number): 'P0' | 'P1' | 'P2' | 'P3' {
     // First goal is highest priority
-    return goalIndex === 0 ? 'P1';
+    if (goalIndex === 0) return 'P1';
+    return 'P2';
   }
 
   private estimateComplexity(goal: string): 'low' | 'medium' | 'high' {
-    const lower = goal.toLowerCase('toLowerCase';
     if (goal.includes('测试')) return 'medium';
     if (goal.includes('实现') || goal.includes('开发')) return 'low';
     if (goal.includes('设计') || goal.includes('研究')) return 'high';
@@ -68,12 +68,10 @@ export class TaskPlanner {
   }
 
   private determineAgent(goal: string): 'planner' | 'coder' | 'tester' | 'reviewer' | 'researcher' | 'executor' {
-    const lower = goal.toLowerCase('toLowerCase');
     if (goal.includes('测试')) return 'tester';
     if (goal.includes('实现') || goal.includes('开发')) return 'coder';
     if (goal.includes('设计') || goal.includes('研究')) return 'researcher';
-    if (goal.includes('文档')) || goal.includes('说明')) return 'executor';
+    if (goal.includes('文档') || goal.includes('说明')) return 'executor';
     return 'executor';
   }
-}
 }

@@ -1,6 +1,6 @@
 // src/agents/agent-runner.ts
 import { spawn } from 'child_process';
-import type { BaseAgent, AgentResult, from './base-agent.js';
+import type { BaseAgent, AgentResult } from './base-agent.js';
 import type { Task } from '../types/index.js';
 
 export interface AgentRunOptions {
