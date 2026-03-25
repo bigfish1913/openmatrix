@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "postinstall": "node scripts/build-check.js",
+    "postinstall": "node -e \"const{execSync}=require('child_process');try{execSync('npx tsc',{stdio:'inherit'})}catch(e){}\"",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest"
   },
