@@ -4,10 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// Change to home directory to avoid cwd issues
+process.chdir(os.homedir());
+
 try {
-  // Get the package skills directory
-  const packageDir = path.dirname(__dirname);
-  const skillsDir = path.join(packageDir, 'skills');
+  // Get the package skills directory - use the path relative to this script
+  const scriptDir = __dirname;
+  const skillsDir = path.join(scriptDir, '..', 'skills');
 
   // Get user's .claude directory
   const claudeDir = path.join(os.homedir(), '.claude');
@@ -21,7 +24,6 @@ try {
   } catch (mkdirErr) {
     console.log(`⚠️  Cannot create ${commandsDir}`);
     console.log(`   Please run: mkdir -p ${commandsDir}`);
-    console.log(`   Then reinstall openmatrix.`);
     process.exit(0);
   }
 
@@ -36,7 +38,7 @@ try {
         fs.copyFileSync(src, dest);
         console.log(`✓ Installed: om:${path.basename(file, '.md')}`);
       } catch (copyErr) {
-        console.log(`⚠️  Skipped: om:${path.basename(file, '.md')} (permission denied)`);
+        console.log(`⚠️  Skipped: om:${path.basename(file, '.md')} (${copyErr.message})`);
       }
     });
 
@@ -46,7 +48,4 @@ try {
   }
 } catch (err) {
   console.log('OpenMatrix skills installation skipped:', err.message);
-  console.log('\nTo install manually:');
-  console.log('  mkdir -p ~/.claude/commands/om');
-  console.log('  cp node_modules/openmatrix/skills/*.md ~/.claude/commands/om/');
 }
