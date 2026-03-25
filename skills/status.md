@@ -2,6 +2,11 @@
 name: om:status
 description: 查看当前任务执行状态
 ---
+
+<NO-OTHER-SKILLS>
+执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+</NO-OTHER-SKILLS>
+
 <objective>
 显示 OpenMatrix 任务执行状态概览。
 </objective>

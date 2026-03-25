@@ -3,6 +3,10 @@ name: om:start
 description: 启动新的任务执行周期
 ---
 
+<NO-OTHER-SKILLS>
+执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+</NO-OTHER-SKILLS>
+
 <objective>
 解析任务文档，通过 3-7 个问题澄清需求，确认后启动执行。
 </objective>

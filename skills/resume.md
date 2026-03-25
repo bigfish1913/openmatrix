@@ -3,6 +3,10 @@ name: om:resume
 description: 恢复中断或暂停的任务执行
 ---
 
+<NO-OTHER-SKILLS>
+执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+</NO-OTHER-SKILLS>
+
 <objective>
 恢复因中断、超时、失败等原因暂停的任务。
 </objective>

@@ -3,6 +3,10 @@ name: om:approve
 description: 审批待处理项（包括计划、合并、部署、Meeting）
 ---
 
+<NO-OTHER-SKILLS>
+执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+</NO-OTHER-SKILLS>
+
 <objective>
 处理所有需要人工决策的待审批项。
 </objective>
