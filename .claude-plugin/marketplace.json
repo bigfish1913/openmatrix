@@ -1,0 +1,21 @@
+{
+  "name": "OpenMatrix",
+  "owner": "bigfish1913",
+  "description": "AI Agent task orchestration system with Claude Code Skills integration",
+  "plugins": [
+    {
+      "name": "openmatrix",
+      "description": "Task orchestration with multi-agent workflow (planner, coder, tester, reviewer)",
+      "source": "github:bigfish1913/openmatrix",
+      "skills": [
+        "om:start",
+        "om:status",
+        "om:approve",
+        "om:resume",
+        "om:retry",
+        "om:report",
+        "om:meeting"
+      ]
+    }
+  ]
+}
