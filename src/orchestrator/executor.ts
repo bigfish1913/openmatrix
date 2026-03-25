@@ -99,13 +99,8 @@ export class OrchestratorExecutor {
     const executableTasks = await this.scheduler.getParallelTasks();
 
     if (executableTasks.length === 0) {
-      // 3. 检查是否全部完成
+      // 3. 获取所有任务
       const allTasks = await this.stateManager.listTasks();
-      const allCompleted = this.checkAllCompleted(allTasks);
-
-      if (allCompleted) {
-        return this.createCompletedResult(state);
-      }
 
       // 4. 检查是否有失败任务需要重试
       const failedTasks = allTasks.filter(t => t.status === 'failed');
@@ -115,15 +110,29 @@ export class OrchestratorExecutor {
 
       // 5. 检查是否有阻塞任务
       const blockedTasks = allTasks.filter(t => t.status === 'blocked');
-      if (blockedTasks.length > 0) {
-        return await this.createBlockedResult(blockedTasks, state);
+
+      // 6. 检查剩余可执行任务（排除 blocked/failed/completed）
+      const remainingTasks = allTasks.filter(t =>
+        t.status !== 'blocked' &&
+        t.status !== 'failed' &&
+        t.status !== 'completed'
+      );
+
+      // 7. 如果只剩下阻塞任务或没有剩余任务，算完成
+      if (remainingTasks.length === 0) {
+        return await this.createCompletedResult(state);
       }
 
-      // 6. 无任务可执行，等待中
+      // 8. 如果有阻塞任务
+      if (blockedTasks.length > 0) {
+        return await this.handleBlockedTasks(blockedTasks, state);
+      }
+
+      // 9. 无任务可执行，等待中
       return this.createWaitingResult([], state);
     }
 
-    // 7. 准备 Subagent 任务
+    // 10. 准备 Subagent 任务
     const subagentTasks = await this.agentRunner.prepareSubagentTasks(executableTasks);
 
     // 8. 更新任务状态为 scheduled
@@ -211,9 +220,22 @@ export class OrchestratorExecutor {
   }
 
   /**
-   * 创建完成结果
+   * 创建完成结果 - 检查是否有待处理的 Meeting
    */
-  private createCompletedResult(state: GlobalState): ExecutionResult {
+  private async createCompletedResult(state: GlobalState): Promise<ExecutionResult> {
+    // 检查是否有待处理的 meeting 审批
+    const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
+    const pendingMeetings = pendingApprovals.filter(a => a.type === 'meeting');
+
+    if (pendingMeetings.length > 0) {
+      return {
+        status: 'waiting_approval',
+        subagentTasks: [],
+        message: `✅ 所有非阻塞任务已完成！\n\n📋 有待确认的 Meeting (${pendingMeetings.length}个):\n${pendingMeetings.map(m => `  - ${m.taskId}: ${m.title}`).join('\n')}\n\n请使用 /om:approve 确认或处理这些阻塞问题`,
+        statistics: this.getStatistics(state)
+      };
+    }
+
     return {
       status: 'completed',
       subagentTasks: [],
@@ -235,21 +257,29 @@ export class OrchestratorExecutor {
   }
 
   /**
-   * 创建阻塞结果 - 同时自动创建 Meeting 审批
+   * 处理阻塞任务 - 创建 Meeting 审批并跳过该任务
+   *
+   * 在 auto 模式下:
+   * 1. 标记任务为 blocked 状态
+   * 2. 创建 Meeting 审批记录
+   * 3. 跳过该任务，继续执行其他可执行任务
+   * 4. 所有 Meeting 留到最后统一处理
    */
-  private async createBlockedResult(blockedTasks: Task[], state: GlobalState): Promise<ExecutionResult> {
+  private async handleBlockedTasks(blockedTasks: Task[], state: GlobalState): Promise<ExecutionResult> {
     const reasons = blockedTasks.map(t => t.error || '未知原因').join('; ');
 
-    // 自动为每个阻塞任务创建 Meeting 审批
     for (const task of blockedTasks) {
-      // 检查是否已有该任务的 pending meeting 审批
+      // 1. 标记任务为 blocked
+      await this.scheduler.markTaskBlocked(task.id, task.error || '未知原因');
+
+      // 2. 检查是否已有该任务的 pending meeting 审批
       const existingApprovals = await this.stateManager.getApprovalsByStatus('pending');
       const hasExistingMeeting = existingApprovals.some(
         a => a.taskId === task.id && a.type === 'meeting'
       );
 
       if (!hasExistingMeeting) {
-        // 获取受影响的下游任务
+        // 3. 创建 Meeting 审批（但不暂停执行）
         const allTasks = await this.stateManager.listTasks();
         const impactedTasks = allTasks
           .filter(t => t.dependencies.includes(task.id))
@@ -261,14 +291,16 @@ export class OrchestratorExecutor {
           impactedTasks.length > 0 ? impactedTasks : ['无下游任务受影响']
         );
 
-        console.log(`🔴 自动创建 Meeting: ${task.id} - ${task.error}`);
+        console.log(`🔴 任务阻塞，已创建 Meeting: ${task.id} - ${task.error}`);
       }
     }
 
+    // 4. 返回 continue，继续执行其他任务
+    // 阻塞的任务被标记为 blocked，调度器会自动跳过它们
     return {
-      status: 'waiting_approval',
+      status: 'continue',
       subagentTasks: [],
-      message: `${blockedTasks.length} 个任务被阻塞，已自动创建 Meeting 审批: ${reasons}`,
+      message: `${blockedTasks.length} 个任务被阻塞，已跳过，继续执行其他任务。Meeting 记录待最后统一处理。原因: ${reasons}`,
       statistics: this.getStatistics(state)
     };
   }
