@@ -14,7 +14,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npx tsc",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
     "prepare": "npm run build",
