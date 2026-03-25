@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "openmatrix": "./dist/cli/index.js"
+    "openmatrix": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -17,7 +17,7 @@
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "postinstall": "node scripts/install-skills.js"
   },
   "keywords": [
