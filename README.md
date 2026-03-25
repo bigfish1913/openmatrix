@@ -41,10 +41,12 @@
 
 - 🤖 **6种 Agent 类型**: Planner, Coder, Tester, Reviewer, Researcher, Executor
 - 🔄 **自动状态流转**: 智能状态机管理任务生命周期
-- ✅ **关键节点确认**: Plan/Merge/Deploy/Meeting 审批流程
+- ✅ **关键节点确认**: Plan/Merge/Deploy 审批流程
+- 🔴 **Meeting 机制**: 阻塞问题和决策点交互式处理
 - 🔁 **自动重试**: 指数退避重试机制
 - 📊 **完整报告**: 任务执行统计和报告生成
 - 💾 **状态持久化**: 文件系统存储，支持中断恢复
+- ⚡ **三种执行模式**: confirm-all / confirm-key / auto
 
 ---
 
@@ -79,6 +81,7 @@ cd ~/.claude/commands/om
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/status.md
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/start.md
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/approve.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/meeting.md
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/resume.md
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/retry.md
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/report.md
@@ -170,9 +173,10 @@ npm install && npm run build && npm link
 
 | 命令 | 说明 |
 |------|------|
-| `/om:start` | 启动新任务 |
+| `/om:start` | 启动新任务，交互式问答后执行 |
 | `/om:status` | 查看任务状态 |
-| `/om:approve` | 审批决策 (Plan/Merge/Deploy/Meeting) |
+| `/om:approve` | 审批决策 (Plan/Merge/Deploy) |
+| `/om:meeting` | 查看和处理 Meeting（阻塞问题/决策） |
 | `/om:resume` | 恢复中断任务 |
 | `/om:retry` | 重试失败任务 |
 | `/om:report` | 生成执行报告 |
@@ -182,7 +186,8 @@ npm install && npm run build && npm link
 ```bash
 openmatrix start <task.md>    # 启动任务
 openmatrix status             # 查看状态
-openmatrix approve [id]       # 审批
+openmatrix approve [id]       # 审批 (plan/merge/deploy)
+openmatrix meeting [id]       # 处理 Meeting (阻塞/决策)
 openmatrix resume [task-id]   # 恢复
 openmatrix retry [task-id]    # 重试
 openmatrix report             # 报告
@@ -207,11 +212,36 @@ openmatrix report             # 报告
 4. 通知 CLI 继续执行
 ```
 
-**`/om:resume`**
+**`/om:meeting`** (新增)
 ```
-1. 读取 state.json 当前状态
-2. 启动 CLI 恢复执行
-3. 展示恢复进度
+1. 列出所有待处理 Meeting
+2. 展示 Meeting 详情（阻塞原因/决策问题）
+3. 用户选择处理方式：
+   - 💡 提供信息（解决阻塞）
+   - ⏭️ 跳过任务（标记可选）
+   - 🔄 重试（使用新信息）
+   - ✏️ 修改方案（调整任务）
+   - ✅ 做出决策（技术选型）
+4. 更新任务状态，恢复执行
+```
+
+**执行流程（含 Meeting）**
+```
+/om:start 启动任务
+    ↓
+执行任务中...
+├── 任务A 完成 ✓
+├── 任务B 阻塞 → 创建 Meeting → 跳过，继续 ↷
+├── 任务C 完成 ✓
+└── 任务D 阻塞 → 创建 Meeting → 跳过，继续 ↷
+    ↓
+执行完成!
+📋 有待处理的 Meeting (2个)
+    ↓
+/om:meeting 交互式处理
+├── 选择 Meeting
+├── 选择操作（提供信息/跳过/重试等）
+└── 解决问题，任务恢复
 ```
 
 ---
@@ -236,8 +266,7 @@ openmatrix report             # 报告
 │   │   └── artifacts/           # 产出物
 │   └── TASK-002/
 ├── agents/
-│   ├── runs/                    # Agent 执行记录
-│   └── pool.json                # Agent 池状态
+│   └── runs/                    # Agent 执行记录
 ├── approvals/
 │   ├── pending/                 # 待确认项
 │   └── history/                 # 已确认历史
@@ -351,12 +380,37 @@ pending → scheduled → in_progress → verify → accept → completed
 
 ### 确认管理 (ApprovalManager)
 
-| 审批类型 | 触发时机 | 命令 |
-|---------|---------|------|
-| `plan` | 任务计划完成后 | `/om:approve` |
-| `merge` | 代码合并前 | `/om:approve` |
-| `deploy` | 部署前 | `/om:approve` |
-| `meeting` | 阻塞问题 | `/om:approve` |
+**常规审批** (通过 `/om:approve` 处理)
+
+| 审批类型 | 触发时机 | 命令 | 说明 |
+|---------|---------|------|------|
+| `plan` | 任务计划完成后 | `/om:approve` | 确认任务拆解方案 |
+| `merge` | 代码合并前 | `/om:approve` | 确认合并请求 |
+| `deploy` | 部署前 | `/om:approve` | 确认部署操作 |
+
+**Meeting** (通过 `/om:meeting` 处理)
+
+| 类型 | 触发时机 | 命令 | 处理方式 |
+|------|---------|------|---------|
+| `meeting` (阻塞) | 任务执行遇到阻塞 | `/om:meeting` | 提供信息/跳过/重试/修改 |
+| `meeting` (决策) | 需要技术方案决策 | `/om:meeting` | 选择方案/自定义决策 |
+
+**Meeting 操作流程**
+```
+执行任务中遇到阻塞/决策点
+    ↓
+创建 Meeting 记录（不暂停执行）
+    ↓
+跳过该任务，继续执行其他任务
+    ↓
+执行完成，提示有待处理 Meeting
+    ↓
+用户执行 /om:meeting
+    ↓
+交互式选择并解决问题
+    ↓
+恢复任务或标记完成
+```
 
 ### 6种 Agent
 
@@ -369,16 +423,24 @@ pending → scheduled → in_progress → verify → accept → completed
 | **Researcher** | 搜索资料、知识检索 | 问题、关键词 | 研究报告、参考资料 | WebSearch, WebFetch, Read |
 | **Executor** | 执行命令、文件操作 | 命令列表、操作说明 | 执行结果、日志 | Bash, Read, Write |
 
-### Agent 执行流程
+### Agent 执行流程 (Subagent 模式)
 
 ```
-1. 接收任务 (Orchestrator 通过 IPC 派发)
-2. 构建上下文 (读取任务定义、加载相关文件)
-3. 生成 Prompt (系统提示词 + 任务提示词 + 上下文)
-4. 调用 Claude API (流式响应、Tool Use 循环、超时控制)
-5. 产出结果 (success/failed/needs_approval)
-6. 上报结果 (写入状态文件)
+1. Orchestrator 准备 SubagentTask
+2. Skill 调用 Agent 工具执行 Subagent
+3. Subagent 在隔离环境中执行任务
+4. 产出结果 (success/failed/needs_approval)
+5. 上报结果 (写入状态文件)
+6. Skill 读取状态，决定下一步
 ```
+
+**执行模式**
+
+| 模式 | 说明 | 适用场景 |
+|------|------|---------|
+| `confirm-all` | 每阶段后暂停确认 | 重要任务，需精细控制 |
+| `confirm-key` | 仅在 plan/merge/deploy 暂停 | 常规任务，平衡自动与控制 |
+| `auto` | 全自动，无暂停 | 简单任务，最大化自动化 |
 
 ---
 
@@ -472,21 +534,6 @@ npm run build
 # 测试
 npm test
 ```
-
----
-
-## 实现状态
-
-| 模块 | 状态 |
-|------|------|
-| 调度引擎 (Scheduler) | ✅ 完成 |
-| 状态机 (StateMachine) | ✅ 完成 |
-| 确认管理器 (ApprovalManager) | ✅ 完成 |
-| 重试管理器 (RetryManager) | ✅ 完成 |
-| AgentRunner | ✅ 完成 |
-| 6种 Agent | ✅ 完成 |
-| CLI 命令 | ✅ 完成 |
-| Claude Code Skills | ✅ 完成 |
 
 ---
 
