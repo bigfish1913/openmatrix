@@ -12,11 +12,15 @@ description: 全自动执行任务 - 无阻塞，bypass permissions
 </objective>
 
 <process>
-1. **检查当前状态**
+1. **检查并初始化 .openmatrix 目录**
+   - 检查 `.openmatrix/` 目录是否存在
+   - 如果不存在，CLI 会自动创建
+
+2. **检查当前状态**
    - 读取 `.openmatrix/state.json`
    - 如果 `status === 'running'`，提示用户先完成或暂停
 
-2. **解析参数**
+3. **解析参数**
    - `$ARGUMENTS` 可能包含:
      - 任务描述或文件路径
      - `--quality <level>` 质量级别 (strict|balanced|fast)，默认 strict
@@ -29,29 +33,42 @@ description: 全自动执行任务 - 无阻塞，bypass permissions
    /om:auto task.md --quality balanced
    ```
 
-3. **解析任务输入**
+4. **解析任务输入**
    - 如果提供文件路径 → 读取文件内容
    - 如果是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问任务**
 
-4. **直接执行 (无交互式问答)**
+5. **直接执行 (无交互式问答)**
    - 跳过所有澄清问题
    - 使用默认质量配置 (strict 除非指定)
    - 设置 `approvalPoints: []` (bypass permissions)
 
-5. **调用 CLI**
+6. **调用 CLI**
    ```bash
    openmatrix auto --quality <level> --json
    ```
 
-6. **执行循环 (全自动)**
+7. **执行循环 (全自动)**
 
    ```
    while (有待执行任务) {
      1. 读取状态文件获取 SubagentTask
      2. 调用 Agent 工具执行 Subagent
-     3. Subagent 完成后，更新状态文件
-     4. Git 提交 (如果配置了自动提交)
+     3. Subagent 完成后，更新状态文件:
+        ```bash
+        openmatrix complete <taskId> --success/--failed
+        ```
+     4. **Git 自动提交** (每个子任务完成后):
+        ```bash
+        git add -A
+        git commit -m "feat(task-id): 任务标题
+
+        - 修改内容1
+        - 修改内容2
+
+        任务ID: TASK-XXX
+        RunID: run-XXX"
+        ```
      5. Phase 验收测试
      6. **自动批准所有审批点**:
         - plan/merge/deploy → 自动批准 ✓
@@ -60,7 +77,19 @@ description: 全自动执行任务 - 无阻塞，bypass permissions
    }
    ```
 
-7. **执行完成后展示 Meeting**
+8. **执行完成 - 最终 Git 提交**
+
+   所有任务完成后，执行最终提交:
+   ```bash
+   git add -A
+   git commit -m "feat: 完成所有任务 (auto mode)
+
+   RunID: run-XXX
+   任务数: N
+   完成时间: YYYY-MM-DD HH:mm:ss"
+   ```
+
+9. **展示 Meeting (如果有)**
    如果有 pending 的 Meeting，列出供用户后续处理:
    ```
    执行完成!
