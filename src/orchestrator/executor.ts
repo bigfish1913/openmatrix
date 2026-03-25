@@ -146,21 +146,21 @@ export class OrchestratorExecutor {
    * 仅在失败/异常时才暂停
    */
   private async checkApprovals(state: GlobalState): Promise<Approval[]> {
-    // auto 模式: approvalPoints 为空，跳过所有审批
+    // auto 模式: approvalPoints 为空，跳过所有审批（包括 meeting）
     if (state.config.approvalPoints.length === 0) {
-      // 自动批准所有待审批项
+      // 自动批准所有待审批项（包括 meeting）
+      // meeting 类型自动记录但不暂停执行，最后统一汇总
       const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
       for (const approval of pendingApprovals) {
-        // 只自动批准 plan, merge, deploy 类型，meeting 类型仍需人工确认
-        if (approval.type !== 'meeting' && approval.type !== 'custom') {
-          await this.approvalManager.processDecision({
-            approvalId: approval.id,
-            decision: 'approve',
-            comment: 'Auto-approved in fully automatic mode',
-            decidedBy: 'system',
-            decidedAt: new Date().toISOString()
-          });
-        }
+        await this.approvalManager.processDecision({
+          approvalId: approval.id,
+          decision: 'approve',
+          comment: approval.type === 'meeting'
+            ? 'Auto-approved in auto mode - meeting recorded for final review'
+            : 'Auto-approved in fully automatic mode',
+          decidedBy: 'system',
+          decidedAt: new Date().toISOString()
+        });
       }
       return [];
     }
