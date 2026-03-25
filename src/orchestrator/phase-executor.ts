@@ -1,7 +1,7 @@
 // src/orchestrator/phase-executor.ts
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
-import { AgentRunner, type SubagentTask } from '../agents/agent-runner.js';
+import { AgentRunner, type SubagentTask, type UserContext } from '../agents/agent-runner.js';
 import { GitCommitManager } from './git-commit-manager.js';
 import type { Task, AgentType } from '../types/index.js';
 
@@ -45,6 +45,8 @@ export class PhaseExecutor {
   private gitCommitManager: GitCommitManager;
   private isAutoMode: boolean = false;
   private runId: string = '';
+  private userContext: UserContext = {};
+  private minTestCoverage: number = 60; // 默认最低覆盖率 60%
 
   constructor(
     stateManager: StateManager,
@@ -75,6 +77,36 @@ export class PhaseExecutor {
    */
   setRunId(runId: string): void {
     this.runId = runId;
+  }
+
+  /**
+   * 设置用户上下文
+   */
+  setUserContext(context: UserContext): void {
+    this.userContext = context;
+    this.agentRunner.setUserContext(context);
+
+    // 从用户上下文解析覆盖率要求
+    if (context.testCoverage) {
+      const match = context.testCoverage.match(/(\d+)/);
+      if (match) {
+        this.minTestCoverage = parseInt(match[1], 10);
+      }
+    }
+  }
+
+  /**
+   * 设置最低测试覆盖率
+   */
+  setMinTestCoverage(coverage: number): void {
+    this.minTestCoverage = coverage;
+  }
+
+  /**
+   * 获取最低测试覆盖率
+   */
+  getMinTestCoverage(): number {
+    return this.minTestCoverage;
   }
 
   /**
@@ -173,46 +205,78 @@ export class PhaseExecutor {
   }
 
   /**
-   * 构建开发阶段提示词
+   * 构建开发阶段提示词 (增强版: 注入验收标准和用户上下文)
    */
   private buildDevelopPrompt(task: Task): string {
-    return `# 开发阶段 (Develop Phase)
+    const parts: string[] = [];
+
+    parts.push(`# 开发阶段 (Develop Phase)
 
 ## 任务信息
 - ID: ${task.id}
 - 标题: ${task.title}
 - 描述: ${task.description}
-- 优先级: ${task.priority}
+- 优先级: ${task.priority}`);
 
-## 目标
-完成功能实现，确保代码可编译。
+    // 注入用户上下文
+    if (this.userContext.objective) {
+      parts.push(`
+## 整体目标
+${this.userContext.objective}`);
+    }
 
-## 要求
+    if (this.userContext.techStack && this.userContext.techStack.length > 0) {
+      parts.push(`
+## 技术栈要求
+${this.userContext.techStack.map(t => `- ${t}`).join('\n')}`);
+    }
+
+    // 注入验收标准
+    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+      parts.push(`
+## 验收标准 (必须全部满足)
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
+    }
+
+    parts.push(`
+## 开发要求
 1. 根据任务描述编写代码
 2. 遵循项目代码规范
 3. 编写必要的注释
 4. 处理边界情况和错误
+5. 确保代码可编译
+
+## 编码规范
+- 遵循 SOLID 原则
+- 使用有意义的变量名和函数名
+- 保持函数简短，单一职责
+- 避免重复代码 (DRY)
+- 验证所有输入参数
+- 处理所有异常情况
 
 ## 输出要求
 完成后，在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
 - \`result.md\` - 实现说明
 - \`changes.txt\` - 变更文件列表
 
-## 注意事项
-- 不要破坏现有功能
-- 保持向后兼容
-- 使用项目已有的工具函数
-- 代码必须可编译
-`;
+## 完成检查清单
+- [ ] 代码可编译
+- [ ] 边界情况已处理
+- [ ] 错误处理完善
+- [ ] 无安全隐患
+- [ ] 代码风格一致
+- [ ] 验收标准全部满足
+`);
+    return parts.join('\n');
   }
 
   /**
-   * 构建验证阶段提示词
-   *
-   * 增强版: 包含完整的测试和 Build 验证
+   * 构建验证阶段提示词 (增强版: 严格测试和覆盖率要求)
    */
   private buildVerifyPrompt(task: Task): string {
-    return `# 验证阶段 (Verify Phase)
+    const parts: string[] = [];
+
+    parts.push(`# 验证阶段 (Verify Phase)
 
 ## 任务信息
 - ID: ${task.id}
@@ -222,7 +286,17 @@ export class PhaseExecutor {
 1. **代码审查 (Code Review)** - 代码质量和最佳实践
 2. **运行测试 (Run Tests)** - 单元测试和集成测试
 3. **Build 测试 (Build Check)** - 编译和打包验证
+4. **覆盖率检查 (Coverage Check)** - 确保测试覆盖率达标`);
 
+    // 注入验收标准
+    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+      parts.push(`
+## 验收标准验证
+必须验证以下标准已满足:
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
+    }
+
+    parts.push(`
 ## 代码审查要点
 - 可读性和可维护性
 - 设计模式使用
@@ -232,7 +306,7 @@ export class PhaseExecutor {
 
 ## 自动化验证命令
 
-### 1. 编译检查
+### 1. 编译检查 (必须通过)
 \`\`\`bash
 npm run build
 \`\`\`
@@ -250,11 +324,17 @@ npm ci --dry-run 2>/dev/null || npm install --dry-run 2>/dev/null || echo "Depen
 \`\`\`
 **预期**: 依赖可正常安装
 
-### 4. 运行测试
+### 4. 运行测试 (必须通过)
 \`\`\`bash
 npm test
 \`\`\`
 **预期**: 所有测试通过
+
+### 5. 测试覆盖率检查
+\`\`\`bash
+npm test -- --coverage 2>/dev/null || npm run test:coverage 2>/dev/null || echo "Coverage check skipped"
+\`\`\`
+**最低覆盖率要求**: ${this.minTestCoverage}%
 
 ## 验证报告格式
 
@@ -289,7 +369,16 @@ npm test
 - 通过: [数量]
 - 失败: [数量]
 - 跳过: [数量]
-- 覆盖率: [百分比]
+
+### 5. 覆盖率
+- 语句: X%
+- 分支: Y%
+- 函数: Z%
+- 行: W%
+- **是否达标**: ✅ (>= ${this.minTestCoverage}%) / ❌ (< ${this.minTestCoverage}%)
+
+### 6. 验收标准检查
+${task.acceptanceCriteria?.map((c, i) => `${i + 1}. [✅/❌] ${c}`).join('\n') || '无验收标准'}
 
 ## 总结
 [✅ 所有检查通过 / ❌ 存在问题需要修复]
@@ -314,36 +403,61 @@ VERIFY_FAILED
 2. [问题描述]
 \`\`\`
 
+## 严格检查要求
+- ⚠️ 编译失败 = 验证失败
+- ⚠️ 测试失败 = 验证失败
+- ⚠️ 覆盖率 < ${this.minTestCoverage}% = 验证失败 (警告，可继续)
+- ⚠️ 验收标准未满足 = 验证失败
+
 ## 注意事项
 - 确保所有修改的文件都已保存
 - 测试失败时，记录失败原因
 - 不要跳过任何验证步骤
 - 如果项目没有配置某个脚本，标记为"跳过"而非"失败"
-`;
+`);
+    return parts.join('\n');
   }
 
   /**
-   * 构建验收阶段提示词
+   * 构建验收阶段提示词 (增强版: 验收标准检查)
    */
   private buildAcceptPrompt(task: Task): string {
-    return `# 验收阶段 (Accept Phase)
+    const parts: string[] = [];
+
+    parts.push(`# 验收阶段 (Accept Phase)
 
 ## 任务信息
 - ID: ${task.id}
 - 标题: ${task.title}
-- 描述: ${task.description}
+- 描述: ${task.description}`);
 
-## 验收标准
-1. 功能是否按需求实现
-2. 测试是否通过
-3. 文档是否更新
-4. 是否可以合并
+    // 注入验收标准
+    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+      parts.push(`
+## 验收标准 (必须全部满足)
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
+    }
 
-## 检查清单
+    parts.push(`
+## 验收检查清单
 - [ ] 功能演示/验证
-- [ ] 测试报告
+- [ ] 测试报告 (verify-report.md 已生成)
 - [ ] 代码审查通过
-- [ ] 文档已更新
+- [ ] 文档已更新 (如需要)
+- [ ] 所有验收标准已满足
+
+## 验收流程
+
+### 1. 检查验证阶段结果
+读取 \`.openmatrix/tasks/${task.id}/artifacts/verify-report.md\`
+确认所有检查项已通过
+
+### 2. 验证验收标准
+逐项检查验收标准是否满足
+
+### 3. 最终确认
+- 确认代码可以合并
+- 确认无遗留问题
 
 ## 输出要求
 在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
@@ -360,8 +474,17 @@ ACCEPT_PASSED
 ACCEPT_NEEDS_MODIFICATION
 修改建议:
 1. [建议]
+2. [建议]
 \`\`\`
-`;
+
+如果验收失败，输出:
+\`\`\`
+ACCEPT_FAILED
+失败原因:
+1. [原因]
+\`\`\`
+`);
+    return parts.join('\n');
   }
 
   /**

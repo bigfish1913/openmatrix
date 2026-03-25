@@ -41,6 +41,12 @@ export interface Task {
   error: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 验收标准 */
+  acceptanceCriteria?: string[];
+  /** 关联的测试任务 ID */
+  testTaskId?: string;
+  /** 任务所属阶段 */
+  phase?: 'design' | 'develop' | 'verify' | 'accept';
 }
 
 // ============ Agent Types ============

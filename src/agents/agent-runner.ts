@@ -42,15 +42,32 @@ export interface SubagentTask {
 }
 
 /**
+ * 用户上下文信息
+ */
+export interface UserContext {
+  objective?: string;
+  techStack?: string[];
+  testCoverage?: string;
+  documentationLevel?: string;
+  additionalContext?: Record<string, string>;
+}
+
+/**
  * AgentRunner - 使用 Subagent 执行任务
  *
  * 通过 Claude Code 的 Agent 工具启动子 Agent 执行任务
+ *
+ * 增强版特性:
+ * - 注入用户上下文到提示词
+ * - 注入验收标准
+ * - 注入代码上下文
  */
 export class AgentRunner {
   private stateManager: StateManager;
   private approvalManager: ApprovalManager;
   private config: AgentRunnerConfig;
   private runningAgents: Map<string, any> = new Map();
+  private userContext: UserContext = {};
 
   constructor(
     stateManager: StateManager,
@@ -64,6 +81,20 @@ export class AgentRunner {
       taskTimeout: 120000,
       ...config
     };
+  }
+
+  /**
+   * 设置用户上下文
+   */
+  setUserContext(context: UserContext): void {
+    this.userContext = context;
+  }
+
+  /**
+   * 获取用户上下文
+   */
+  getUserContext(): UserContext {
+    return this.userContext;
   }
 
   /**
@@ -265,10 +296,12 @@ ${agentPrompt.instructions}
   }
 
   /**
-   * 构建任务上下文
+   * 构建任务上下文 (增强版: 注入用户上下文)
    */
   private buildContext(task: Task): string {
-    return `
+    const parts: string[] = [];
+
+    parts.push(`
 ## 任务信息
 
 - ID: ${task.id}
@@ -287,7 +320,43 @@ ${task.dependencies.length > 0
 
 - 最大执行时间: ${task.timeout / 1000} 秒
 - 失败重试次数: 3
-`;
+`);
+
+    // 注入用户上下文
+    if (this.userContext.objective) {
+      parts.push(`
+## 整体目标
+
+${this.userContext.objective}
+`);
+    }
+
+    if (this.userContext.techStack && this.userContext.techStack.length > 0) {
+      parts.push(`
+## 技术栈要求
+
+${this.userContext.techStack.map(t => `- ${t}`).join('\n')}
+`);
+    }
+
+    if (this.userContext.testCoverage) {
+      parts.push(`
+## 测试要求
+
+覆盖率要求: ${this.userContext.testCoverage}
+`);
+    }
+
+    // 注入验收标准
+    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+      parts.push(`
+## 验收标准
+
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+`);
+    }
+
+    return parts.join('\n');
   }
 
   /**
@@ -338,7 +407,7 @@ ${task.dependencies.length > 0
   }
 
   /**
-   * Coder Agent 提示词
+   * Coder Agent 提示词 (增强版)
    */
   private getCoderPrompt(task: Task): string {
     return `
@@ -352,6 +421,32 @@ ${task.dependencies.length > 0
 4. 确保代码可编译
 5. 处理边界情况
 
+## 编码规范
+
+### 代码质量
+- 遵循 SOLID 原则
+- 使用有意义的变量名和函数名
+- 保持函数简短，单一职责
+- 避免重复代码 (DRY)
+
+### 错误处理
+- 验证所有输入参数
+- 使用 try-catch 处理异常
+- 提供有意义的错误信息
+- 记录错误日志
+
+### 安全性
+- 不硬编码敏感信息
+- 验证用户输入
+- 使用参数化查询
+- 遵循最小权限原则
+
+### 性能
+- 避免不必要的循环
+- 使用高效的数据结构
+- 考虑内存使用
+- 异步处理耗时操作
+
 ## 输出要求
 
 - 代码文件路径清晰
@@ -364,11 +459,20 @@ ${task.dependencies.length > 0
 - 不要破坏现有功能
 - 保持向后兼容
 - 使用项目已有的工具函数
+- 每个函数添加简短注释说明用途
+
+## 完成检查清单
+
+- [ ] 代码可编译
+- [ ] 边界情况已处理
+- [ ] 错误处理完善
+- [ ] 无安全隐患
+- [ ] 代码风格一致
 `;
   }
 
   /**
-   * Tester Agent 提示词
+   * Tester Agent 提示词 (增强版)
    */
   private getTesterPrompt(task: Task): string {
     return `
@@ -382,12 +486,42 @@ ${task.dependencies.length > 0
 4. 生成测试报告
 5. 验证修复效果
 
-## 测试覆盖
+## 测试原则
 
-- 正常流程
-- 边界情况
-- 异常处理
-- 性能测试（如需要）
+### AAA 模式
+每个测试用例遵循 Arrange-Act-Assert 模式:
+\`\`\`typescript
+describe('MyFunction', () => {
+  it('should do something', () => {
+    // Arrange - 准备测试数据
+    const input = 'test';
+
+    // Act - 执行被测试的函数
+    const result = myFunction(input);
+
+    // Assert - 验证结果
+    expect(result).toBe('expected');
+  });
+});
+\`\`\`
+
+### 测试覆盖
+- **正常流程**: 主要功能路径
+- **边界情况**: 空值、极值、特殊字符
+- **异常处理**: 错误输入、网络失败
+- **并发场景**: 竞态条件 (如适用)
+
+### 命名规范
+- 测试文件: \`.test.ts\` 或 \`.spec.ts\`
+- 描述清晰: \`it('should return user when id exists')\`
+- 使用 describe 分组相关测试
+
+## 必须测试的场景
+
+1. **基本功能**: 每个公开方法至少一个测试
+2. **输入验证**: 无效输入、空值、边界值
+3. **错误处理**: 异常抛出、错误返回
+4. **状态变化**: 修改操作的前后状态
 
 ## 输出格式
 
@@ -403,41 +537,72 @@ ${task.dependencies.length > 0
 - 语句: X%
 - 分支: Y%
 - 函数: Z%
+- 行: W%
+
+## 测试用例清单
+| 用例 | 描述 | 状态 |
+|-----|------|------|
+| 1   | ...  | ✅   |
 
 ## 问题列表
 1. [问题描述]
 \`\`\`
+
+## 完成检查清单
+
+- [ ] 所有公开方法已测试
+- [ ] 边界情况已覆盖
+- [ ] 异常处理已验证
+- [ ] 测试全部通过
+- [ ] 覆盖率达标
 `;
   }
 
   /**
-   * Reviewer Agent 提示词
+   * Reviewer Agent 提示词 (增强版)
    */
   private getReviewerPrompt(task: Task): string {
     return `
 你是一个 Reviewer Agent，负责代码审查。
 
-## 审查要点
+## 审查流程
 
-1. 代码质量
-   - 可读性
-   - 可维护性
-   - 复杂度
+### 1. 代码质量审查
+- **可读性**: 命名清晰、逻辑直观、注释适当
+- **可维护性**: 模块化、低耦合、单一职责
+- **复杂度**: 避免过深的嵌套、圈复杂度合理
 
-2. 最佳实践
-   - 设计模式
-   - 代码复用
-   - 错误处理
+### 2. 最佳实践审查
+- **设计模式**: 是否正确使用设计模式
+- **代码复用**: 是否存在重复代码
+- **错误处理**: 异常处理是否完善
+- **类型安全**: TypeScript 类型定义是否准确
 
-3. 安全性
-   - 输入验证
-   - 敏感数据处理
-   - 权限控制
+### 3. 安全性审查
+- **输入验证**: 所有外部输入是否验证
+- **敏感数据**: 是否有敏感信息泄露风险
+- **权限控制**: 访问控制是否正确
+- **注入风险**: SQL/XSS/命令注入检查
 
-4. 性能
-   - 算法效率
-   - 资源使用
-   - 潜在瓶颈
+### 4. 性能审查
+- **算法效率**: 时间复杂度是否合理
+- **资源使用**: 内存、文件句柄是否正确释放
+- **潜在瓶颈**: 是否有性能问题
+- **异步处理**: 异步操作是否正确
+
+### 5. 测试审查
+- **覆盖率**: 测试是否充分
+- **边界情况**: 边界条件是否测试
+- **Mock 使用**: 是否正确使用 Mock
+
+## 严重程度定义
+
+| 级别 | 说明 | 处理方式 |
+|-----|------|---------|
+| **Critical** | 安全漏洞、数据丢失风险 | 必须立即修复 |
+| **High** | 功能缺陷、性能问题 | 本次必须修复 |
+| **Medium** | 代码质量、可维护性 | 建议修复 |
+| **Low** | 代码风格、优化建议 | 可选修复 |
 
 ## 输出格式
 
@@ -447,14 +612,31 @@ ${task.dependencies.length > 0
 ## 总体评价
 [通过/需要修改/拒绝]
 
+## 统计
+- 文件数: X
+- 问题数: Critical(Y), High(Z), Medium(W), Low(V)
+
 ## 问题列表
-| 严重程度 | 文件 | 行号 | 问题描述 |
-|---------|------|------|---------|
-| High    | x.ts | 10   | ...     |
+| 严重程度 | 文件 | 行号 | 问题描述 | 建议 |
+|---------|------|------|---------|------|
+| High    | x.ts | 10   | ...     | ...  |
+
+## 亮点
+1. [值得肯定的实现]
 
 ## 建议
-1. [建议1]
+1. [改进建议]
 \`\`\`
+
+## 审查检查清单
+
+- [ ] 代码可读性良好
+- [ ] 无安全漏洞
+- [ ] 错误处理完善
+- [ ] 性能可接受
+- [ ] 测试覆盖充分
+- [ ] 无重复代码
+- [ ] 符合项目规范
 `;
   }
 
