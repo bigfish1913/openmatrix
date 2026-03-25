@@ -1,2 +1,2 @@
 node_modules/
-dist/
+# dist/ - included for GitHub install
