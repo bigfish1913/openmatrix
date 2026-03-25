@@ -113,7 +113,7 @@ flowchart TB
         direction TB
         G1["Gate 1: 编译检查<br/>npm run build"]
         G2["Gate 2: 测试运行<br/>npm test"]
-        G3["Gate 3: 覆盖率检查<br/>>= 60%/80%"]
+        G3["Gate 3: 覆盖率检查<br/>>20%/60%/80%"]
         G4["Gate 4: Lint 检查<br/>无 error"]
         G5["Gate 5: 安全扫描<br/>npm audit"]
         G6["Gate 6: 验收标准<br/>用户定义"]

@@ -4,7 +4,8 @@
       "Bash(npm publish:*)",
       "Bash(npm test:*)",
       "Bash(npm run:*)",
-      "Bash(npm search:*)"
+      "Bash(npm search:*)",
+      "Bash(node dist/cli/index.js auto --help)"
     ]
   }
 }

@@ -6,12 +6,12 @@
 
 *自动化 ≠ 牺牲质量 | 高质量 ≠ 手动操作*
 
-[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://badge.fury.io/js/openmatrix)
+[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://www.npmjs.com/package/openmatrix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
 
-**[中文文档](README_CN.md)** | **[English](README_EN.md)**
+**[中文](README.md)** | **[English](README_EN.md)**
 
 </div>
 
@@ -67,14 +67,38 @@
 
 ### 安装
 
+**方式一: NPM 安装 (推荐)**
+
+```bash
+# 全局安装
+npm install -g openmatrix
+
+# 安装后自动复制 Skills 到 ~/.claude/commands/om/
+# 如果自动复制失败，手动执行:
+npx openmatrix --install-skills
+```
+
+**方式二: 从源码安装**
+
 ```bash
 # 克隆并安装
 git clone https://github.com/bigfish1913/openmatrix.git
 cd openmatrix && npm install && npm run build && npm link
 
-# 复制 Skills
+# 复制 Skills (如果 postinstall 未自动执行)
 mkdir -p ~/.claude/commands/om
 cp skills/*.md ~/.claude/commands/om/
+```
+
+### 验证安装
+
+```bash
+# 检查 CLI 是否可用
+openmatrix --version
+
+# 检查 Skills 是否安装成功
+ls ~/.claude/commands/om/
+# 应显示: start.md  auto.md  status.md  approve.md  meeting.md  resume.md  retry.md  report.md
 ```
 
 ### 第一次使用
@@ -100,9 +124,11 @@ cp skills/*.md ~/.claude/commands/om/
 
 | 级别 | TDD | 覆盖率 | Lint | 安全 | AI验收 | 适用场景 |
 |:----:|:---:|:------:|:----:|:----:|:------:|---------|
-| **strict** | ✅ | 80% | ✅ 严格 | ✅ | ✅ | 🏭 **生产代码** |
-| **balanced** | ❌ | 60% | ✅ | ✅ | ✅ | 📦 日常开发 |
-| **fast** | ❌ | 0% | ❌ | ❌ | ❌ | 🏃 快速原型 |
+| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ✅ | 🏭 **生产代码** |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 📦 日常开发 |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 🏃 快速原型 |
+
+> strict 可配置为 100%。默认 >80% 覆盖核心业务逻辑。
 
 ### 2️⃣ 六道质量门禁 (Verify 阶段)
 
@@ -112,7 +138,7 @@ cp skills/*.md ~/.claude/commands/om/
 ├─────────────────────────────────────────────────────────────┤
 │  🚪 Gate 1: 编译检查     npm run build     → 必须通过       │
 │  🚪 Gate 2: 测试运行     npm test         → 必须通过       │
-│  🚪 Gate 3: 覆盖率检查   >= 60%/80%       → 可配置         │
+│  🚪 Gate 3: 覆盖率检查   >20%/60%/80%    → 可配置         │
 │  🚪 Gate 4: Lint 检查    无 error         → 可配置         │
 │  🚪 Gate 5: 安全扫描     npm audit        → 无高危漏洞     │
 │  🚪 Gate 6: 验收标准     用户定义         → 必须全部满足   │
@@ -184,12 +210,91 @@ Accept 阶段由 Reviewer Agent 执行:
 | 命令 | 用途 |
 |------|------|
 | `/om:start` | 启动新任务 (第一个问题选质量级别) |
+| `/om:auto` | 🚀 **全自动执行** - 无阻塞、无确认、直接完成 |
 | `/om:status` | 查看状态 |
 | `/om:approve` | 审批决策 |
 | `/om:meeting` | 处理阻塞问题 |
 | `/om:resume` | 恢复中断 |
 | `/om:retry` | 重试失败 |
 | `/om:report` | 生成报告 |
+
+### `/om:start` 执行流程 (含 Meeting 机制)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                            执行阶段                                       │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  TASK-001 ✅ ──→ TASK-002 ⚠️阻塞 ──→ 创建Meeting ──→ 跳过 ↷             │
+│                      │                                                   │
+│                      ↓                                                   │
+│  TASK-003 ✅ ──→ TASK-004 ✅ ──→ TASK-005 ✅ ──→ 所有任务执行完成        │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         Meeting 自动检测                                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│                    ┌─────────────────────┐                               │
+│                    │ 有 pending Meeting? │                               │
+│                    └──────────┬──────────┘                               │
+│                          ╱    \                                          │
+│                        否      是                                        │
+│                        │       │                                         │
+│                        ▼       ▼                                         │
+│                   ┌───────┐ ┌─────────────────────────────┐              │
+│                   │ 完成! │ │  📋 交互式处理 Meeting       │              │
+│                   └───────┘ │  ┌─────────────────────────┐│              │
+│                             │  │ [1] TASK-002: 数据库连接││              │
+│                             │  │     💡提供信息 / ⏭️跳过  ││              │
+│                             │  │ [2] TASK-005: API决策   ││              │
+│                             │  │     🤔选择方案          ││              │
+│                             │  └─────────────────────────┘│              │
+│                             └──────────────┬──────────────┘              │
+│                                            │                              │
+│                                            ▼                              │
+│                             ┌─────────────────────────────┐              │
+│                             │   用户提供信息/选择方案      │              │
+│                             │         ↓                   │              │
+│                             │   🔄 重新执行阻塞任务        │              │
+│                             │   TASK-002 ✅               │              │
+│                             └──────────────┬──────────────┘              │
+│                                            │                              │
+└────────────────────────────────────────────┼──────────────────────────────┘
+                                             │
+                                             ▼
+                                      ┌───────────┐
+                                      │  完成! 🎉  │
+                                      └───────────┘
+```
+
+### `/om:auto` 全自动模式
+
+**适用场景**: CI/CD、自动化脚本、无需人工干预的任务
+
+```bash
+/om:auto 实现用户登录功能              # 默认 strict 模式
+/om:auto --mode=balanced 添加API接口   # 指定 balanced 模式
+/om:auto --fast 创建CLI工具            # 快速原型模式
+```
+
+**特点**:
+- ❌ 无审批点确认
+- ❌ 无 Phase 间暂停
+- ❌ Meeting 自动跳过 (记录但不阻塞)
+- ✅ 默认 strict 质量级别
+- ✅ 适合 CI/CD 集成
+
+**与 `/om:start` 对比**:
+
+| 特性 | `/om:start` | `/om:auto` |
+|------|-------------|------------|
+| 质量级别 | 交互式选择 | 参数指定/默认 strict |
+| 审批确认 | 根据配置 | 全部跳过 |
+| Meeting | 交互式处理 | 自动跳过 |
+| 适用场景 | 日常开发 | CI/CD、自动化 |
 
 ---
 
@@ -266,6 +371,8 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Meeting 机制
 - [x] 质量报告
 - [x] AI 验收
+- [x] `/om:auto` 全自动模式
+- [x] Meeting 自动处理
 - [ ] VSCode 扩展
 - [ ] Python/Go 支持
 - [ ] CI/CD 集成

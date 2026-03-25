@@ -12,11 +12,19 @@ description: 启动新的任务执行周期
 </objective>
 
 <process>
-1. **检查当前状态**
+1. **检查并初始化 .openmatrix 目录**
+   - 检查 `.openmatrix/` 目录是否存在
+   - 如果不存在，调用 CLI 初始化:
+     ```bash
+     openmatrix start --init-only
+     ```
+   - 这会创建 `.openmatrix/`、`.openmatrix/tasks/`、`.openmatrix/approvals/` 目录
+
+2. **检查当前状态**
    - 读取 `.openmatrix/state.json`
    - 如果 `status === 'running'`，提示用户先完成或暂停
 
-2. **检查 Git 仓库**
+3. **检查 Git 仓库**
    - 检查当前目录是否存在 `.git` 文件夹
    - 如果没有：
      - 询问用户是否初始化 Git 仓库 (使用 AskUserQuestion)
@@ -25,12 +33,12 @@ description: 启动新的任务执行周期
    - 检查是否有远程仓库配置:
      - 如果没有远程仓库，提示用户添加: `git remote add origin <url>`
 
-3. **解析任务输入**
+4. **解析任务输入**
    - 如果 `$ARGUMENTS` 提供文件路径 → 读取文件内容
    - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
 
-4. **⚠️ 交互式问答 (必须执行)**
+5. **⚠️ 交互式问答 (必须执行)**
 
    **重要**: 除非用户明确指定 `--skip-questions`，否则必须执行交互式问答。
 
@@ -156,7 +164,7 @@ description: 启动新的任务执行周期
   审批点: plan, merge
 ```
 
-6. **执行模式确认** (使用 AskUserQuestion)
+7. **执行模式确认** (使用 AskUserQuestion)
 
 ```typescript
 AskUserQuestion({
@@ -182,7 +190,7 @@ AskUserQuestion({
 })
 ```
 
-7. **开始执行** (⚠️ 严格模式)
+8. **开始执行** (⚠️ 严格模式)
 
 **重要**: 从此步骤开始，除非遇到 meeting 审批或失败，否则**不得暂停询问用户**。
 
@@ -360,9 +368,11 @@ $ARGUMENTS
 
 | 级别 | TDD | 覆盖率 | Lint | 安全扫描 | AI验收 | 适用场景 |
 |------|:---:|:------:|:----:|:--------:|:------:|---------|
-| **strict** | ✅ | 80% | ✅ 严格 | ✅ | ✅ | 生产代码、核心功能 |
-| **balanced** | ❌ | 60% | ✅ | ✅ | ✅ | 日常开发 (默认) |
-| **fast** | ❌ | 0% | ❌ | ❌ | ❌ | 快速原型、POC |
+| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ✅ | 生产代码、核心功能 |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 日常开发 (默认) |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 快速原型、POC |
+
+> strict 可配置为 100%。80% 覆盖核心业务逻辑，100% 成本高收益低。
 
 ### strict 模式 (推荐生产代码)
 ```

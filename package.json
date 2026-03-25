@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "node scripts/install-skills.js"
   },
   "keywords": [
     "claude",

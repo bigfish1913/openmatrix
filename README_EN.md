@@ -6,12 +6,12 @@
 
 *Automation ≠ Sacrificing Quality | High Quality ≠ Manual Work*
 
-[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://badge.fury.io/js/openmatrix)
+[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://www.npmjs.com/package/openmatrix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
 
-**[中文文档](README_CN.md)** | **[English](README_EN.md)**
+**[中文文档](README.md)** | **[English](README_EN.md)**
 
 </div>
 
@@ -100,9 +100,11 @@ cp skills/*.md ~/.claude/commands/om/
 
 | Level | TDD | Coverage | Lint | Security | AI Accept | Use Case |
 |:-----:|:---:|:--------:|:----:|:--------:|:---------:|----------|
-| **strict** | ✅ | 80% | ✅ Strict | ✅ | ✅ | 🏭 **Production Code** |
-| **balanced** | ❌ | 60% | ✅ | ✅ | ✅ | 📦 Daily Development |
-| **fast** | ❌ | 0% | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
+| **strict** | ✅ | >80% | ✅ Strict | ✅ | ✅ | 🏭 **Production Code** |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 📦 Daily Development |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
+
+> strict can be configured to 100%. Default >80% covers core business logic.
 
 ### 2️⃣ Six Quality Gates (Verify Phase)
 
@@ -112,7 +114,7 @@ cp skills/*.md ~/.claude/commands/om/
 ├─────────────────────────────────────────────────────────────┤
 │  🚪 Gate 1: Build Check    npm run build     → Must pass    │
 │  🚪 Gate 2: Test Run       npm test         → Must pass    │
-│  🚪 Gate 3: Coverage Check >= 60%/80%       → Configurable │
+│  🚪 Gate 3: Coverage Check >20%/60%/80%    → Configurable │
 │  🚪 Gate 4: Lint Check     No errors        → Configurable │
 │  🚪 Gate 5: Security Scan  npm audit        → No high-risk │
 │  🚪 Gate 6: Acceptance     User defined     → All must met │
@@ -184,12 +186,91 @@ Accept Phase executed by Reviewer Agent:
 | Command | Purpose |
 |---------|---------|
 | `/om:start` | Start new task (first question selects quality level) |
+| `/om:auto` | 🚀 **Full auto execution** - No blocking, no confirmation, direct completion |
 | `/om:status` | View status |
 | `/om:approve` | Approve decisions |
 | `/om:meeting` | Handle blockers |
 | `/om:resume` | Resume interruption |
 | `/om:retry` | Retry failures |
 | `/om:report` | Generate report |
+
+### `/om:start` Execution Flow (with Meeting Mechanism)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          Execution Phase                                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  TASK-001 ✅ ──→ TASK-002 ⚠️blocked ──→ Create Meeting ──→ Skip ↷       │
+│                      │                                                   │
+│                      ↓                                                   │
+│  TASK-003 ✅ ──→ TASK-004 ✅ ──→ TASK-005 ✅ ──→ All tasks done          │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        Meeting Auto Detection                            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│                    ┌─────────────────────┐                               │
+│                    │ Pending Meetings?   │                               │
+│                    └──────────┬──────────┘                               │
+│                          ╱    \                                          │
+│                        No      Yes                                       │
+│                        │       │                                         │
+│                        ▼       ▼                                         │
+│                   ┌───────┐ ┌─────────────────────────────┐              │
+│                   │ Done! │ │  📋 Interactive Meeting     │              │
+│                   └───────┘ │  ┌─────────────────────────┐│              │
+│                             │  │ [1] TASK-002: DB conn   ││              │
+│                             │  │     💡Provide / ⏭️Skip   ││              │
+│                             │  │ [2] TASK-005: API choice ││              │
+│                             │  │     🤔Select option     ││              │
+│                             │  └─────────────────────────┘│              │
+│                             └──────────────┬──────────────┘              │
+│                                            │                              │
+│                                            ▼                              │
+│                             ┌─────────────────────────────┐              │
+│                             │   User provides info/choice │              │
+│                             │         ↓                   │              │
+│                             │   🔄 Re-execute blocked     │              │
+│                             │   TASK-002 ✅               │              │
+│                             └──────────────┬──────────────┘              │
+│                                            │                              │
+└────────────────────────────────────────────┼──────────────────────────────┘
+                                             │
+                                             ▼
+                                      ┌───────────┐
+                                      │  Done! 🎉  │
+                                      └───────────┘
+```
+
+### `/om:auto` Full Auto Mode
+
+**Use Cases**: CI/CD, automation scripts, tasks without human intervention
+
+```bash
+/om:auto Implement user login feature           # Default strict mode
+/om:auto --mode=balanced Add API endpoint       # Specify balanced mode
+/om:auto --fast Create CLI tool                 # Fast prototype mode
+```
+
+**Features**:
+- ❌ No approval confirmations
+- ❌ No phase pauses
+- ❌ Meetings auto-skipped (logged but non-blocking)
+- ✅ Default strict quality level
+- ✅ CI/CD integration ready
+
+**Comparison with `/om:start`**:
+
+| Feature | `/om:start` | `/om:auto` |
+|---------|-------------|------------|
+| Quality Level | Interactive selection | Parameter/default strict |
+| Approval Confirm | Per config | All skipped |
+| Meeting | Interactive handling | Auto-skipped |
+| Use Case | Daily development | CI/CD, automation |
 
 ---
 
@@ -266,6 +347,8 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Meeting Mechanism
 - [x] Quality Reports
 - [x] AI Acceptance
+- [x] `/om:auto` Full Auto Mode
+- [x] Auto Meeting Handling
 - [ ] VSCode Extension
 - [ ] Python/Go Support
 - [ ] CI/CD Integration
