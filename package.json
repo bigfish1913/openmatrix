@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "npx tsc",
-    "prepare": "npm run build",
+    "postinstall": "npm run build",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest"
   },
