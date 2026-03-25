@@ -2,6 +2,7 @@
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
 import { AgentRunner, type SubagentTask } from '../agents/agent-runner.js';
+import { GitCommitManager } from './git-commit-manager.js';
 import type { Task, AgentType } from '../types/index.js';
 
 export type Phase = 'develop' | 'verify' | 'accept';
@@ -32,11 +33,18 @@ export interface BuildTestResult {
  * 1. Develop - 开发实现
  * 2. Verify - 代码审查 + 测试 + Build 测试
  * 3. Accept - 最终验收
+ *
+ * 在 auto 模式下 (isAutoMode=true):
+ * - 阶段间自动流转，无需确认
+ * - 仅在失败/异常时暂停
  */
 export class PhaseExecutor {
   private stateManager: StateManager;
   private approvalManager: ApprovalManager;
   private agentRunner: AgentRunner;
+  private gitCommitManager: GitCommitManager;
+  private isAutoMode: boolean = false;
+  private runId: string = '';
 
   constructor(
     stateManager: StateManager,
@@ -45,6 +53,42 @@ export class PhaseExecutor {
     this.stateManager = stateManager;
     this.approvalManager = approvalManager;
     this.agentRunner = new AgentRunner(stateManager, approvalManager);
+    this.gitCommitManager = new GitCommitManager();
+  }
+
+  /**
+   * 设置自动模式
+   */
+  setAutoMode(auto: boolean): void {
+    this.isAutoMode = auto;
+  }
+
+  /**
+   * 获取自动模式状态
+   */
+  getAutoMode(): boolean {
+    return this.isAutoMode;
+  }
+
+  /**
+   * 设置 Run ID (用于提交信息)
+   */
+  setRunId(runId: string): void {
+    this.runId = runId;
+  }
+
+  /**
+   * 设置是否启用自动提交
+   */
+  setAutoCommit(enabled: boolean): void {
+    this.gitCommitManager.setEnabled(enabled);
+  }
+
+  /**
+   * 获取 GitCommitManager 实例
+   */
+  getGitCommitManager(): GitCommitManager {
+    return this.gitCommitManager;
   }
 
   /**
@@ -164,6 +208,8 @@ export class PhaseExecutor {
 
   /**
    * 构建验证阶段提示词
+   *
+   * 增强版: 包含完整的测试和 Build 验证
    */
   private buildVerifyPrompt(task: Task): string {
     return `# 验证阶段 (Verify Phase)
@@ -173,38 +219,88 @@ export class PhaseExecutor {
 - 标题: ${task.title}
 
 ## 验证目标
-1. 代码审查 (Code Review)
-2. 运行测试 (Run Tests)
-3. Build 测试 (Build Check)
+1. **代码审查 (Code Review)** - 代码质量和最佳实践
+2. **运行测试 (Run Tests)** - 单元测试和集成测试
+3. **Build 测试 (Build Check)** - 编译和打包验证
 
 ## 代码审查要点
 - 可读性和可维护性
 - 设计模式使用
 - 错误处理
 - 安全性检查
+- 性能考量
 
-## Build 测试要求
-执行以下命令并记录结果:
+## 自动化验证命令
+
+### 1. 编译检查
 \`\`\`bash
-# 1. 编译检查
 npm run build
+\`\`\`
+**预期**: 无编译错误
 
-# 2. 静态分析 (如果有)
-npm run lint || echo "No lint script"
+### 2. 静态分析
+\`\`\`bash
+npm run lint || echo "No lint script configured"
+\`\`\`
+**预期**: 无严重错误 (允许 warning)
 
-# 3. 依赖验证
-npm ci --dry-run || npm install --dry-run
+### 3. 依赖验证
+\`\`\`bash
+npm ci --dry-run 2>/dev/null || npm install --dry-run 2>/dev/null || echo "Dependency check skipped"
+\`\`\`
+**预期**: 依赖可正常安装
 
-# 4. 测试
+### 4. 运行测试
+\`\`\`bash
 npm test
 \`\`\`
+**预期**: 所有测试通过
 
-## 输出要求
+## 验证报告格式
+
 在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
-- \`verify-report.md\` - 验证报告
-- \`build-result.txt\` - Build 测试结果
 
-## 结果格式
+### verify-report.md
+\`\`\`markdown
+# 验证报告
+
+## 任务信息
+- Task ID: ${task.id}
+- 标题: ${task.title}
+- 验证时间: [当前时间]
+
+## 验证结果
+
+### 1. 编译检查
+- 状态: ✅ 通过 / ❌ 失败
+- 详情: [编译输出摘要]
+
+### 2. 静态分析
+- 状态: ✅ 通过 / ⚠️ 警告 / ❌ 失败
+- 问题数: [数量]
+- 详情: [lint 输出摘要]
+
+### 3. 依赖验证
+- 状态: ✅ 通过 / ❌ 失败
+- 详情: [依赖检查结果]
+
+### 4. 测试结果
+- 状态: ✅ 通过 / ❌ 失败
+- 通过: [数量]
+- 失败: [数量]
+- 跳过: [数量]
+- 覆盖率: [百分比]
+
+## 总结
+[✅ 所有检查通过 / ❌ 存在问题需要修复]
+
+## 问题列表 (如有)
+1. [问题描述]
+2. [问题描述]
+\`\`\`
+
+## 最终输出
+
 如果所有检查通过，输出:
 \`\`\`
 VERIFY_PASSED
@@ -217,6 +313,12 @@ VERIFY_FAILED
 1. [问题描述]
 2. [问题描述]
 \`\`\`
+
+## 注意事项
+- 确保所有修改的文件都已保存
+- 测试失败时，记录失败原因
+- 不要跳过任何验证步骤
+- 如果项目没有配置某个脚本，标记为"跳过"而非"失败"
 `;
   }
 
@@ -264,6 +366,11 @@ ACCEPT_NEEDS_MODIFICATION
 
   /**
    * 处理阶段结果
+   *
+   * 在 auto 模式下:
+   * - 自动进入下一阶段，needsApproval = false
+   * - 仅在失败时暂停
+   * - 自动提交代码 (如果启用)
    */
   async processPhaseResult(
     task: Task,
@@ -287,6 +394,7 @@ ACCEPT_NEEDS_MODIFICATION
 
       // 设置下一阶段
       let nextPhase: Phase | undefined;
+      // auto 模式下不需要审批，仅在 accept 阶段且非 auto 模式时需要
       let needsApproval = false;
 
       if (phase === 'develop') {
@@ -305,12 +413,35 @@ ACCEPT_NEEDS_MODIFICATION
           startedAt: now
         };
         updates.status = 'accept';
-        needsApproval = true;
+        // 仅在非 auto 模式下需要审批
+        needsApproval = !this.isAutoMode;
       } else if (phase === 'accept') {
         updates.status = 'completed';
       }
 
       await this.stateManager.updateTask(task.id, updates);
+
+      // 自动提交代码
+      if (this.runId) {
+        try {
+          const commitResult = await this.gitCommitManager.commit({
+            taskId: task.id,
+            taskTitle: task.title,
+            runId: this.runId,
+            phase,
+            changes: [],
+            impactScope: []
+          });
+
+          if (commitResult.success) {
+            console.log(`✅ Git 提交成功: ${commitResult.commitHash}`);
+          } else if (commitResult.message !== 'No changes to commit') {
+            console.log(`⚠️ Git 提交跳过: ${commitResult.message || commitResult.error}`);
+          }
+        } catch (error) {
+          console.error(`❌ Git 提交失败: ${error}`);
+        }
+      }
 
       return {
         phase,
@@ -334,7 +465,8 @@ ACCEPT_NEEDS_MODIFICATION
         error: result.error,
         duration: 0,
         artifacts: [],
-        needsApproval: false
+        // 失败时总是需要审批/确认
+        needsApproval: true
       };
     }
   }

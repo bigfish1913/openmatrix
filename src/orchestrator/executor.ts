@@ -4,6 +4,7 @@ import { AgentRunner, type SubagentTask } from '../agents/agent-runner.js';
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
 import { StateMachine } from './state-machine.js';
+import { PhaseExecutor } from './phase-executor.js';
 import type { Task, GlobalState, Approval } from '../types/index.js';
 
 export interface ExecutorConfig {
@@ -43,6 +44,7 @@ export class OrchestratorExecutor {
   private stateManager: StateManager;
   private approvalManager: ApprovalManager;
   private stateMachine: StateMachine;
+  private phaseExecutor: PhaseExecutor;
   private config: ExecutorConfig;
 
   constructor(
@@ -69,6 +71,14 @@ export class OrchestratorExecutor {
     });
 
     this.stateMachine = new StateMachine();
+    this.phaseExecutor = new PhaseExecutor(stateManager, approvalManager);
+  }
+
+  /**
+   * 获取 PhaseExecutor 实例
+   */
+  getPhaseExecutor(): PhaseExecutor {
+    return this.phaseExecutor;
   }
 
   /**
@@ -131,8 +141,30 @@ export class OrchestratorExecutor {
 
   /**
    * 检查审批点
+   *
+   * 在 auto 模式下 (approvalPoints 为空数组)，跳过所有审批
+   * 仅在失败/异常时才暂停
    */
   private async checkApprovals(state: GlobalState): Promise<Approval[]> {
+    // auto 模式: approvalPoints 为空，跳过所有审批
+    if (state.config.approvalPoints.length === 0) {
+      // 自动批准所有待审批项
+      const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
+      for (const approval of pendingApprovals) {
+        // 只自动批准 plan, merge, deploy 类型，meeting 类型仍需人工确认
+        if (approval.type !== 'meeting' && approval.type !== 'custom') {
+          await this.approvalManager.processDecision({
+            approvalId: approval.id,
+            decision: 'approve',
+            comment: 'Auto-approved in fully automatic mode',
+            decidedBy: 'system',
+            decidedAt: new Date().toISOString()
+          });
+        }
+      }
+      return [];
+    }
+
     const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
 
     // 过滤出当前需要处理的审批

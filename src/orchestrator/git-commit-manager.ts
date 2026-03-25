@@ -1,0 +1,286 @@
+// src/orchestrator/git-commit-manager.ts
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import type { Task } from '../types/index.js';
+
+const execAsync = promisify(exec);
+
+export interface CommitInfo {
+  taskId: string;
+  taskTitle: string;
+  runId: string;
+  phase: 'develop' | 'verify' | 'accept';
+  changes: string[];
+  impactScope: string[];
+}
+
+export interface CommitResult {
+  success: boolean;
+  commitHash?: string;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * GitCommitManager - Git 自动提交管理器
+ *
+ * 功能:
+ * 1. 自动生成详细提交信息
+ * 2. 包含任务名、修改内容、影响范围
+ * 3. 支持每个子任务完成后自动提交
+ */
+export class GitCommitManager {
+  private repoPath: string;
+  private enabled: boolean = true;
+
+  constructor(repoPath: string = process.cwd()) {
+    this.repoPath = repoPath;
+  }
+
+  /**
+   * 设置是否启用自动提交
+   */
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+  }
+
+  /**
+   * 检查是否在 Git 仓库中
+   */
+  async isGitRepo(): Promise<boolean> {
+    try {
+      await execAsync('git rev-parse --is-inside-work-tree', { cwd: this.repoPath });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 获取当前分支名
+   */
+  async getCurrentBranch(): Promise<string> {
+    const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.repoPath });
+    return stdout.trim();
+  }
+
+  /**
+   * 获取未提交的文件列表
+   */
+  async getUncommittedFiles(): Promise<string[]> {
+    try {
+      const { stdout } = await execAsync('git status --porcelain', { cwd: this.repoPath });
+      return stdout
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => line.slice(3).trim());
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 获取已修改的文件差异统计
+   */
+  async getDiffStats(): Promise<Map<string, { additions: number; deletions: number }>> {
+    const stats = new Map<string, { additions: number; deletions: number }>();
+
+    try {
+      const { stdout } = await execAsync('git diff --stat', { cwd: this.repoPath });
+      const lines = stdout.split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        const match = line.match(/^(.+?)\s+\|\s+(\d+)\s+([+-]+)/);
+        if (match) {
+          const file = match[1].trim();
+          const changes = match[3] || '';
+          stats.set(file, {
+            additions: (changes.match(/\+/g) || []).length,
+            deletions: (changes.match(/-/g) || []).length
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return stats;
+  }
+
+  /**
+   * 分析影响范围
+   */
+  async analyzeImpactScope(files: string[]): Promise<string[]> {
+    const scopes = new Set<string>();
+
+    for (const file of files) {
+      // 根据文件路径分析影响范围
+      if (file.includes('src/cli/')) scopes.add('CLI');
+      if (file.includes('src/orchestrator/')) scopes.add('Orchestrator');
+      if (file.includes('src/agents/')) scopes.add('Agents');
+      if (file.includes('src/storage/')) scopes.add('Storage');
+      if (file.includes('src/types/')) scopes.add('Types');
+      if (file.includes('skills/')) scopes.add('Skills');
+      if (file.includes('docs/')) scopes.add('Documentation');
+      if (file.includes('tests/')) scopes.add('Tests');
+      if (file.endsWith('.md')) scopes.add('Documentation');
+      if (file.endsWith('package.json')) scopes.add('Dependencies');
+      if (file.endsWith('tsconfig.json')) scopes.add('TypeScript Config');
+    }
+
+    return Array.from(scopes);
+  }
+
+  /**
+   * 生成提交信息
+   */
+  generateCommitMessage(info: CommitInfo): string {
+    const lines: string[] = [];
+
+    // 标题行 - 包含任务 ID 和标题
+    const phaseEmoji = {
+      develop: '✨',
+      verify: '✅',
+      accept: '🎉'
+    };
+
+    const title = info.taskTitle.length > 50
+      ? info.taskTitle.slice(0, 47) + '...'
+      : info.taskTitle;
+
+    lines.push(`${phaseEmoji[info.phase]} (${info.taskId}): ${title}`);
+    lines.push('');
+
+    // 修改内容
+    if (info.changes.length > 0) {
+      lines.push('## 修改内容');
+      for (const change of info.changes.slice(0, 10)) {
+        lines.push(`- ${change}`);
+      }
+      if (info.changes.length > 10) {
+        lines.push(`- ... 及其他 ${info.changes.length - 10} 项修改`);
+      }
+      lines.push('');
+    }
+
+    // 影响范围
+    if (info.impactScope.length > 0) {
+      lines.push('## 影响范围');
+      lines.push(`模块: ${info.impactScope.join(', ')}`);
+      lines.push('');
+    }
+
+    // 元数据
+    lines.push('---');
+    lines.push(`Task-ID: ${info.taskId}`);
+    lines.push(`Run-ID: ${info.runId}`);
+    lines.push(`Phase: ${info.phase}`);
+    lines.push(`Co-Authored-By: OpenMatrix Agent <agent@openmatrix.dev>`);
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 执行提交
+   */
+  async commit(info: CommitInfo): Promise<CommitResult> {
+    if (!this.enabled) {
+      return { success: false, message: 'Auto-commit is disabled' };
+    }
+
+    try {
+      // 检查是否在 Git 仓库中
+      if (!await this.isGitRepo()) {
+        return { success: false, error: 'Not a git repository' };
+      }
+
+      // 获取未提交的文件
+      const files = await this.getUncommittedFiles();
+      if (files.length === 0) {
+        return { success: false, message: 'No changes to commit' };
+      }
+
+      // 分析影响范围
+      const impactScope = await this.analyzeImpactScope(files);
+
+      // 更新 commit info
+      const fullInfo: CommitInfo = {
+        ...info,
+        changes: files,
+        impactScope: info.impactScope.length > 0 ? info.impactScope : impactScope
+      };
+
+      // 生成提交信息
+      const commitMessage = this.generateCommitMessage(fullInfo);
+
+      // 添加所有文件
+      await execAsync('git add -A', { cwd: this.repoPath });
+
+      // 执行提交
+      const { stdout } = await execAsync(
+        `git commit -m "${commitMessage.replace(/"/g, '\\"')}"`,
+        { cwd: this.repoPath }
+      );
+
+      // 提取 commit hash
+      const hashMatch = stdout.match(/\[.+?\s+([a-f0-9]+)\]/);
+      const commitHash = hashMatch ? hashMatch[1] : undefined;
+
+      return {
+        success: true,
+        commitHash,
+        message: `Committed ${files.length} files`
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * 提交任务完成
+   */
+  async commitTaskCompletion(task: Task, runId: string): Promise<CommitResult> {
+    return this.commit({
+      taskId: task.id,
+      taskTitle: task.title,
+      runId,
+      phase: 'develop',
+      changes: [],
+      impactScope: []
+    });
+  }
+
+  /**
+   * 提交验证阶段完成
+   */
+  async commitVerifyComplete(task: Task, runId: string, testResults: string[]): Promise<CommitResult> {
+    return this.commit({
+      taskId: task.id,
+      taskTitle: task.title,
+      runId,
+      phase: 'verify',
+      changes: testResults,
+      impactScope: ['Tests']
+    });
+  }
+
+  /**
+   * 提交验收阶段完成
+   */
+  async commitAcceptComplete(task: Task, runId: string): Promise<CommitResult> {
+    return this.commit({
+      taskId: task.id,
+      taskTitle: task.title,
+      runId,
+      phase: 'accept',
+      changes: [],
+      impactScope: []
+    });
+  }
+}
