@@ -13,26 +13,22 @@ description: 启动新的任务执行周期
 
 <process>
 1. **检查当前状态**
-   - 如果已有运行中的任务，提示用户先完成或暂停
+   - 读取 `.openmatrix/state.json`
+   - 如果 `status === 'running'`，提示用户先完成或暂停
 
 2. **解析任务输入**
-   - 如果提供文件路径 → 读取文件内容
-   - 如果提供任务描述 → 直接使用
-   - 如果无参数 → 询问用户要执行的任务
+   - 如果 `$ARGUMENTS` 提供文件路径 → 读取文件内容
+   - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
+   - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
 
-3. **交互式问题生成 (使用 AskUserQuestion 工具)**
+3. **⚠️ 交互式问答 (必须执行)**
 
-   **重要**: 必须使用 `AskUserQuestion` 工具进行交互式问答，而不是直接输出文本。
+   **重要**: 除非用户明确指定 `--skip-questions`，否则必须执行交互式问答。
 
-   a) 分析任务内容，识别不确定项
-   b) 根据任务复杂度生成 3-7 个问题
-   c) **逐个提问** - 使用 AskUserQuestion 一次问一个问题
-   d) **多轮追问** - 根据回答动态生成后续问题
+   使用 `AskUserQuestion` 工具，逐个提出以下问题：
 
-   示例调用:
-
+   **问题 1: 任务目标**
    ```typescript
-   // 第一个问题
    AskUserQuestion({
      questions: [{
        question: "这个任务的主要目标是什么？",
@@ -48,28 +44,69 @@ description: 启动新的任务执行周期
    })
    ```
 
-   e) 如果用户选择"其他"，触发追问:
-
+   **问题 2: 技术栈** (根据任务内容动态生成)
    ```typescript
-   // 追问 (条件触发)
+   AskUserQuestion({
+     questions: [{
+       question: "使用什么技术栈？",
+       header: "技术栈",
+       options: [
+         { label: "TypeScript", description: "类型安全的 JavaScript" },
+         { label: "Python", description: "Python 语言" },
+         { label: "Go", description: "Go 语言" },
+         { label: "其他", description: "其他技术栈" }
+       ],
+       multiSelect: true
+     }]
+   })
+   ```
+
+   **问题 3: 测试要求**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: "测试覆盖率要求？",
+       header: "测试",
+       options: [
+         { label: ">80% (严格)", description: "完整单元测试和集成测试" },
+         { label: ">60% (标准)", description: "核心功能测试" },
+         { label: ">40% (基础)", description: "关键路径测试" },
+         { label: "无要求", description: "不强制测试" }
+       ],
+       multiSelect: false
+     }]
+   })
+   ```
+
+   **问题 4: 文档要求**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: "需要什么级别的文档？",
+       header: "文档",
+       options: [
+         { label: "完整文档", description: "API + 使用指南 + 架构" },
+         { label: "基础文档", description: "README + API" },
+         { label: "最小文档", description: "仅 README" },
+         { label: "无需文档", description: "不生成文档" }
+       ],
+       multiSelect: false
+     }]
+   })
+   ```
+
+   **多轮追问**: 如果用户选择"其他"，必须追问详情：
+   ```typescript
    if (answer.includes("其他")) {
      AskUserQuestion({
        questions: [{
-         question: "请详细描述任务目标:",
+         question: "请详细描述:",
          header: "详情",
-         options: [] // 允许用户自由输入
+         options: [] // 允许自由输入
        }]
      })
    }
    ```
-
-   f) 问题类型覆盖:
-   - **目标澄清** - 明确要做什么
-   - **技术选择** - 确定技术栈
-   - **范围界定** - 包含/排除什么
-   - **质量要求** - 测试、文档标准
-   - **约束条件** - 时间、资源限制
-   - **风险识别** - 潜在问题和依赖
 
 4. **任务拆解**
    - 根据用户回答拆解任务

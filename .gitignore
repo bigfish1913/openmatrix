@@ -1,3 +1,4 @@
 node_modules/
 # dist/ - included for GitHub install
 dist/
+.openmatrix*
