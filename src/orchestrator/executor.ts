@@ -106,7 +106,7 @@ export class OrchestratorExecutor {
       // 5. 检查是否有阻塞任务
       const blockedTasks = allTasks.filter(t => t.status === 'blocked');
       if (blockedTasks.length > 0) {
-        return this.createBlockedResult(blockedTasks, state);
+        return await this.createBlockedResult(blockedTasks, state);
       }
 
       // 6. 无任务可执行，等待中
@@ -203,14 +203,40 @@ export class OrchestratorExecutor {
   }
 
   /**
-   * 创建阻塞结果
+   * 创建阻塞结果 - 同时自动创建 Meeting 审批
    */
-  private createBlockedResult(blockedTasks: Task[], state: GlobalState): ExecutionResult {
+  private async createBlockedResult(blockedTasks: Task[], state: GlobalState): Promise<ExecutionResult> {
     const reasons = blockedTasks.map(t => t.error || '未知原因').join('; ');
+
+    // 自动为每个阻塞任务创建 Meeting 审批
+    for (const task of blockedTasks) {
+      // 检查是否已有该任务的 pending meeting 审批
+      const existingApprovals = await this.stateManager.getApprovalsByStatus('pending');
+      const hasExistingMeeting = existingApprovals.some(
+        a => a.taskId === task.id && a.type === 'meeting'
+      );
+
+      if (!hasExistingMeeting) {
+        // 获取受影响的下游任务
+        const allTasks = await this.stateManager.listTasks();
+        const impactedTasks = allTasks
+          .filter(t => t.dependencies.includes(task.id))
+          .map(t => `${t.id}: ${t.title}`);
+
+        await this.approvalManager.createMeetingApproval(
+          task.id,
+          task.error || '未知原因',
+          impactedTasks.length > 0 ? impactedTasks : ['无下游任务受影响']
+        );
+
+        console.log(`🔴 自动创建 Meeting: ${task.id} - ${task.error}`);
+      }
+    }
+
     return {
-      status: 'failed',
+      status: 'waiting_approval',
       subagentTasks: [],
-      message: `${blockedTasks.length} 个任务被阻塞: ${reasons}`,
+      message: `${blockedTasks.length} 个任务被阻塞，已自动创建 Meeting 审批: ${reasons}`,
       statistics: this.getStatistics(state)
     };
   }
