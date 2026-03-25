@@ -1,0 +1,267 @@
+# OpenMatrix 执行流程图
+
+## 完整流程概览
+
+```mermaid
+flowchart TB
+    subgraph Input["🎯 用户输入"]
+        A["/om:start 实现用户登录功能"]
+    end
+
+    subgraph QA["📋 阶段 0: 交互式问答"]
+        Q0["Q0: 选择质量级别?"]
+        Q0 --> Q0A["🚀 strict"]
+        Q0 --> Q0B["⚖️ balanced"]
+        Q0 --> Q0C["⚡ fast"]
+        Q1["Q1: 任务目标?"]
+        Q2["Q2: 技术栈?"]
+        Q3["Q3: 文档要求?"]
+    end
+
+    subgraph Plan["📐 阶段 1: 任务规划"]
+        P1["Planner Agent"]
+        P2["生成执行计划"]
+        P3["子任务列表 + 依赖图"]
+    end
+
+    subgraph Exec["⚙️ 阶段 2: 任务执行"]
+        direction TB
+        E1["执行子任务"]
+        E2{"有阻塞?"}
+        E3["创建 Meeting"]
+        E4["继续执行其他任务"]
+        E5["全部完成"]
+    end
+
+    A --> Q0
+    Q0 --> Q1 --> Q2 --> Q3
+    Q3 --> P1 --> P2 --> P3
+    P3 --> E1
+    E1 --> E2
+    E2 -->|是| E3 --> E4 --> E1
+    E2 -->|否| E5
+```
+
+## 质量级别执行流程
+
+### strict 模式 (推荐生产代码)
+
+```mermaid
+flowchart LR
+    subgraph TDD["🧪 TDD 阶段"]
+        T1["Tester 编写测试"]
+        T2["测试必须失败<br/>(RED)"]
+    end
+
+    subgraph Dev["✨ 开发阶段"]
+        D1["Coder 编写代码"]
+        D2["测试必须通过<br/>(GREEN)"]
+    end
+
+    subgraph Ver["✅ 验证阶段"]
+        V1["6 道质量门禁"]
+    end
+
+    subgraph Acc["🎉 验收阶段"]
+        A1["AI Reviewer"]
+        A2["最终确认"]
+    end
+
+    T1 --> T2 --> D1 --> D2 --> V1 --> A1 --> A2
+```
+
+### balanced 模式 (日常开发)
+
+```mermaid
+flowchart LR
+    subgraph Dev["✨ 开发阶段"]
+        D1["Coder 编写代码"]
+    end
+
+    subgraph Ver["✅ 验证阶段"]
+        V1["4 道质量门禁"]
+    end
+
+    subgraph Acc["🎉 验收阶段"]
+        A1["AI Reviewer"]
+        A2["最终确认"]
+    end
+
+    D1 --> V1 --> A1 --> A2
+```
+
+### fast 模式 (快速原型)
+
+```mermaid
+flowchart LR
+    subgraph Dev["✨ 开发阶段"]
+        D1["Coder 编写代码"]
+    end
+
+    subgraph Done["🏁 完成"]
+        E1["结束"]
+    end
+
+    D1 --> E1
+```
+
+## 六道质量门禁
+
+```mermaid
+flowchart TB
+    subgraph Gates["🚪 6 Quality Gates"]
+        direction TB
+        G1["Gate 1: 编译检查<br/>npm run build"]
+        G2["Gate 2: 测试运行<br/>npm test"]
+        G3["Gate 3: 覆盖率检查<br/>>= 60%/80%"]
+        G4["Gate 4: Lint 检查<br/>无 error"]
+        G5["Gate 5: 安全扫描<br/>npm audit"]
+        G6["Gate 6: 验收标准<br/>用户定义"]
+
+        G1 --> G2 --> G3 --> G4 --> G5 --> G6
+    end
+
+    G1 -->|❌ 失败| FAIL["阻止继续"]
+    G2 -->|❌ 失败| FAIL
+    G3 -->|⚠️ 不达标| WARN["警告但继续"]
+    G4 -->|❌ 失败| FAIL
+    G5 -->|❌ 有漏洞| FAIL
+    G6 -->|❌ 未满足| FAIL
+
+    G6 -->|✅ 全部通过| PASS["进入 Accept 阶段"]
+```
+
+## Meeting 处理流程
+
+```mermaid
+flowchart TB
+    subgraph Exec["任务执行"]
+        T1["TASK-001: ✅ 完成"]
+        T2["TASK-002: ⚠️ 阻塞"]
+        T3["TASK-003: ✅ 完成"]
+        T4["TASK-004: ⚠️ 阻塞"]
+        T5["TASK-005: ✅ 完成"]
+    end
+
+    subgraph Meeting["📋 /om:meeting"]
+        M1["Meeting-001: 数据库连接失败"]
+        M2["Meeting-002: API设计决策"]
+
+        M1 --> M1A["💡 提供信息"]
+        M1 --> M1B["⏭️ 跳过任务"]
+        M1 --> M1C["🔄 重试"]
+
+        M2 --> M2A["💡 提供信息"]
+        M2 --> M2B["⏭️ 跳过任务"]
+        M2 --> M2C["🔄 重试"]
+    end
+
+    subgraph Retry["🔄 重新执行"]
+        R1["重新执行 TASK-002"]
+        R2["重新执行 TASK-004"]
+    end
+
+    T2 --> M1
+    T4 --> M2
+    M1A --> R1
+    M2A --> R2
+
+    R1 --> Done1["✅ 完成"]
+    R2 --> Done2["✅ 完成"]
+```
+
+## AI 验收流程
+
+```mermaid
+flowchart TB
+    subgraph Accept["🎉 Accept 阶段 (Reviewer Agent)"]
+        A1["📄 读取 verify-report.md"]
+        A2["✅ 验证验收标准"]
+        A3["🔍 确认可合并"]
+        A4["📊 生成 quality-report.json"]
+        A5["📝 生成 accept-report.md"]
+    end
+
+    A1 --> A2 --> A3 --> A4 --> A5
+
+    A5 --> Result{"验收结果"}
+
+    Result -->|✅ 通过| Pass["ACCEPT_PASSED<br/>Quality Score: A"]
+    Result -->|⚠️ 需修改| Modify["ACCEPT_NEEDS_MODIFICATION"]
+    Result -->|❌ 失败| Fail["ACCEPT_FAILED"]
+```
+
+## 最终报告
+
+```mermaid
+flowchart LR
+    subgraph Report["📊 /om:report"]
+        R1["执行统计"]
+        R2["质量报告"]
+        R3["产出文件列表"]
+    end
+
+    subgraph Output["📁 产出文件"]
+        O1["state.json"]
+        O2["tasks/TASK-XXX/"]
+        O3["approvals/"]
+        O4["quality-report.json"]
+    end
+
+    Report --> Output
+```
+
+## 完整生命周期
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant S as Skill
+    participant P as Planner
+    participant C as Coder
+    participant T as Tester
+    participant R as Reviewer
+    participant M as Meeting
+
+    U->>S: /om:start 实现登录
+    S->>U: Q0: 质量级别?
+    U->>S: strict
+    S->>U: Q1-Q3: 其他问题?
+    U->>S: 回答
+    S->>P: 任务规划
+    P->>S: 执行计划
+
+    loop 每个子任务
+        S->>T: TDD: 写测试
+        T->>S: 测试(RED)
+        S->>C: 开发: 写代码
+        C->>S: 代码(GREEN)
+        S->>R: 验证: 质量门禁
+        alt 验证通过
+            R->>S: PASS
+        else 验证失败
+            R->>S: FAIL
+            S->>M: 创建 Meeting
+        end
+        S->>R: 验收: AI确认
+        R->>S: ACCEPT_PASSED
+    end
+
+    alt 有 Meeting
+        U->>S: /om:meeting
+        S->>U: 展示阻塞列表
+        U->>S: 提供信息/跳过
+        S->>C: 重新执行阻塞任务
+    end
+
+    S->>U: /om:report
+    U->>S: 完成!
+```
+
+---
+
+## 相关链接
+
+- [返回 README](../README.md)
+- [Skills 命令](../skills/)
+- [配置说明](../README.md#配置)

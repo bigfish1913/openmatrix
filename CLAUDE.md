@@ -19,7 +19,34 @@ npm run dev            # Run CLI in development mode via tsx
 npm test               # Run all tests with vitest
 npx vitest run tests/orchestrator/task-parser.test.ts  # Run single test file
 npx vitest watch       # Run tests in watch mode
+
+# Publish to npm
+npm run build && npm publish --registry https://registry.npmjs.org
 ```
+
+## NPM Publishing
+
+项目使用 npmmirror 镜像源（只读），发布需要切换到官方源。
+
+### 方式一：使用 Granular Access Token（推荐）
+
+1. 在 https://www.npmjs.com/settings/bigfishnpm/tokens/granular-access-tokens/new 创建 Token
+2. Token 类型必须选 **Granular Access Token**（不是 Classic）
+3. **Packages** 权限选 **Read and write**
+4. 必须勾选 **2FA bypass** 选项
+5. 发布命令：
+   ```bash
+   npm config set //registry.npmjs.org/:_authToken <token>
+   npm publish --registry https://registry.npmjs.org
+   ```
+
+### 方式二：使用 OTP 验证码
+
+```bash
+npm publish --otp=<验证码> --registry https://registry.npmjs.org
+```
+
+注意：OTP 验证码只有 30 秒有效期，需要快速执行。
 
 ## Architecture
 
