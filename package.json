@@ -14,8 +14,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npx tsc",
-    "postinstall": "npm run build",
+    "build": "tsc",
+    "postinstall": "node scripts/build-check.js",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest"
   },
