@@ -148,5 +148,55 @@ class StateManager {
         const rand = Math.random().toString(36).slice(2, 4).toUpperCase();
         return `TASK-${timestamp}${rand}`;
     }
+    // ============ Approval Methods ============
+    async saveApproval(approval) {
+        await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    }
+    async getApproval(approvalId) {
+        return await this.store.readJson(`approvals/${approvalId}.json`);
+    }
+    async updateApproval(approval) {
+        await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    }
+    async getApprovalsByStatus(status) {
+        const files = await this.store.listFiles('approvals');
+        const approvals = [];
+        for (const file of files) {
+            const approval = await this.store.readJson(`approvals/${file}`);
+            if (approval && approval.status === status) {
+                approvals.push(approval);
+            }
+        }
+        return approvals.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+    async getAllApprovals() {
+        const files = await this.store.listFiles('approvals');
+        const approvals = [];
+        for (const file of files) {
+            const approval = await this.store.readJson(`approvals/${file}`);
+            if (approval) {
+                approvals.push(approval);
+            }
+        }
+        return approvals.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+    // ============ Meeting Methods ============
+    async saveMeeting(meeting) {
+        await this.store.writeJson(`meetings/${meeting.id}.json`, meeting);
+    }
+    async getMeeting(meetingId) {
+        return await this.store.readJson(`meetings/${meetingId}.json`);
+    }
+    async getMeetingsByStatus(status) {
+        const files = await this.store.listFiles('meetings');
+        const meetings = [];
+        for (const file of files) {
+            const meeting = await this.store.readJson(`meetings/${file}`);
+            if (meeting && meeting.status === status) {
+                meetings.push(meeting);
+            }
+        }
+        return meetings.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
 }
 exports.StateManager = StateManager;

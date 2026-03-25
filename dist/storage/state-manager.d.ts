@@ -1,4 +1,4 @@
-import type { GlobalState, Task } from '../types/index.js';
+import type { GlobalState, Task, Approval, ApprovalStatus } from '../types/index.js';
 export declare class StateManager {
     private store;
     private stateCache;
@@ -20,4 +20,12 @@ export declare class StateManager {
     private updateTaskStatistics;
     private generateRunId;
     private generateTaskId;
+    saveApproval(approval: Approval): Promise<void>;
+    getApproval(approvalId: string): Promise<Approval | null>;
+    updateApproval(approval: Approval): Promise<void>;
+    getApprovalsByStatus(status: ApprovalStatus): Promise<Approval[]>;
+    getAllApprovals(): Promise<Approval[]>;
+    saveMeeting(meeting: any): Promise<void>;
+    getMeeting(meetingId: string): Promise<any | null>;
+    getMeetingsByStatus(status: string): Promise<any[]>;
 }

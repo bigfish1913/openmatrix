@@ -65,14 +65,14 @@ export interface AppConfig {
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export interface Approval {
     id: string;
-    type: 'plan' | 'merge' | 'deploy' | 'custom';
+    type: 'plan' | 'merge' | 'deploy' | 'meeting' | 'custom';
     taskId: string;
     title: string;
     description: string;
     content: string;
     options: ApprovalOption[];
     status: ApprovalStatus;
-    decision?: string;
+    decision?: 'approve' | 'modify' | 'reject';
     createdAt: string;
     decidedAt?: string;
 }

@@ -1,5 +1,5 @@
 import { FileStore } from './file-store.js';
-import type { GlobalState, Task, AppConfig, TaskStatus } from '../types/index.js';
+import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus } from '../types/index.js';
 
 const DEFAULT_CONFIG: AppConfig = {
   timeout: 120,
@@ -166,5 +166,71 @@ export class StateManager {
     const timestamp = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).slice(2, 4).toUpperCase();
     return `TASK-${timestamp}${rand}`;
+  }
+
+  // ============ Approval Methods ============
+
+  async saveApproval(approval: Approval): Promise<void> {
+    await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+  }
+
+  async getApproval(approvalId: string): Promise<Approval | null> {
+    return await this.store.readJson<Approval>(`approvals/${approvalId}.json`);
+  }
+
+  async updateApproval(approval: Approval): Promise<void> {
+    await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+  }
+
+  async getApprovalsByStatus(status: ApprovalStatus): Promise<Approval[]> {
+    const files = await this.store.listFiles('approvals');
+    const approvals: Approval[] = [];
+
+    for (const file of files) {
+      const approval = await this.store.readJson<Approval>(`approvals/${file}`);
+      if (approval && approval.status === status) {
+        approvals.push(approval);
+      }
+    }
+
+    return approvals.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async getAllApprovals(): Promise<Approval[]> {
+    const files = await this.store.listFiles('approvals');
+    const approvals: Approval[] = [];
+
+    for (const file of files) {
+      const approval = await this.store.readJson<Approval>(`approvals/${file}`);
+      if (approval) {
+        approvals.push(approval);
+      }
+    }
+
+    return approvals.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  // ============ Meeting Methods ============
+
+  async saveMeeting(meeting: any): Promise<void> {
+    await this.store.writeJson(`meetings/${meeting.id}.json`, meeting);
+  }
+
+  async getMeeting(meetingId: string): Promise<any | null> {
+    return await this.store.readJson(`meetings/${meetingId}.json`);
+  }
+
+  async getMeetingsByStatus(status: string): Promise<any[]> {
+    const files = await this.store.listFiles('meetings');
+    const meetings: any[] = [];
+
+    for (const file of files) {
+      const meeting = await this.store.readJson<{ id: string; status: string; createdAt: string }>(`meetings/${file}`);
+      if (meeting && meeting.status === status) {
+        meetings.push(meeting);
+      }
+    }
+
+    return meetings.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 }
