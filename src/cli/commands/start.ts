@@ -126,6 +126,9 @@ export const startCommand = new Command('start')
     let approvalPoints: string[] = [];
 
     // 根据模式设置审批点
+    // auto 模式: 空数组，不暂停任何审批点
+    // confirm-key 模式: 仅在关键节点暂停
+    // confirm-all 模式: 每个阶段都暂停
     switch (executionMode) {
       case 'confirm-all':
         approvalPoints = ['plan', 'phase', 'merge', 'deploy'];
@@ -134,7 +137,7 @@ export const startCommand = new Command('start')
         approvalPoints = ['plan', 'merge', 'deploy'];
         break;
       case 'auto':
-        approvalPoints = [];
+        approvalPoints = []; // 全自动模式：无任何审批点
         break;
       default:
         approvalPoints = ['plan', 'merge'];
