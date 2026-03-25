@@ -6,6 +6,7 @@ import { approveCommand } from './commands/approve.js';
 import { resumeCommand } from './commands/resume.js';
 import { retryCommand } from './commands/retry.js';
 import { reportCommand } from './commands/report.js';
+import { meetingCommand } from './commands/meeting.js';
 
 const program = new Command();
 
@@ -21,6 +22,7 @@ program.addCommand(approveCommand);
 program.addCommand(resumeCommand);
 program.addCommand(retryCommand);
 program.addCommand(reportCommand);
+program.addCommand(meetingCommand);
 
 // 默认帮助
 program.parse();

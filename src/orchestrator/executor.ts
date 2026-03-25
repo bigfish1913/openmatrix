@@ -155,23 +155,25 @@ export class OrchestratorExecutor {
    * 仅在失败/异常时才暂停
    */
   private async checkApprovals(state: GlobalState): Promise<Approval[]> {
-    // auto 模式: approvalPoints 为空，跳过所有审批（包括 meeting）
+    // auto 模式: approvalPoints 为空
     if (state.config.approvalPoints.length === 0) {
-      // 自动批准所有待审批项（包括 meeting）
-      // meeting 类型自动记录但不暂停执行，最后统一汇总
+      // 只自动批准非 meeting 类型
+      // meeting 类型保持 pending，供最后统一处理
       const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
       for (const approval of pendingApprovals) {
-        await this.approvalManager.processDecision({
-          approvalId: approval.id,
-          decision: 'approve',
-          comment: approval.type === 'meeting'
-            ? 'Auto-approved in auto mode - meeting recorded for final review'
-            : 'Auto-approved in fully automatic mode',
-          decidedBy: 'system',
-          decidedAt: new Date().toISOString()
-        });
+        // meeting 类型不自动批准，保持 pending 状态
+        if (approval.type !== 'meeting') {
+          await this.approvalManager.processDecision({
+            approvalId: approval.id,
+            decision: 'approve',
+            comment: 'Auto-approved in fully automatic mode',
+            decidedBy: 'system',
+            decidedAt: new Date().toISOString()
+          });
+        }
       }
-      return [];
+      // 返回非 meeting 类型的 pending 审批（应该已经处理完了）
+      return pendingApprovals.filter(a => a.type !== 'meeting');
     }
 
     const pendingApprovals = await this.stateManager.getApprovalsByStatus('pending');
