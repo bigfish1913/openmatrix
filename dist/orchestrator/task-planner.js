@@ -7,16 +7,23 @@ class TaskPlanner {
      */
     breakdown(parsedTask, answers) {
         const breakdowns = [];
+        const seenTitles = new Set(); // 用于去重
         // 1. Create tasks for each goal
         for (let i = 0; i < parsedTask.goals.length; i++) {
+            const title = parsedTask.goals[i];
+            // 跳过重复项
+            if (seenTitles.has(title)) {
+                continue;
+            }
+            seenTitles.add(title);
             breakdowns.push({
                 taskId: this.generateTaskId(),
-                title: parsedTask.goals[i],
-                description: `实现: ${parsedTask.goals[i]}`,
+                title,
+                description: `实现: ${title}`,
                 priority: this.determinePriority(i),
                 dependencies: [],
-                estimatedComplexity: this.estimateComplexity(parsedTask.goals[i]),
-                assignedAgent: this.determineAgent(parsedTask.goals[i])
+                estimatedComplexity: this.estimateComplexity(title),
+                assignedAgent: this.determineAgent(title)
             });
         }
         // 2. Create integration task if multiple deliverables

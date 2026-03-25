@@ -11,9 +11,9 @@ class TaskParser {
         return {
             title,
             description,
-            goals,
-            constraints,
-            deliverables,
+            goals: [...new Set(goals)], // 去重
+            constraints: [...new Set(constraints)], // 去重
+            deliverables: [...new Set(deliverables)], // 去重
             rawContent: content
         };
     }
