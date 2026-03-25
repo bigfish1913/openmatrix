@@ -129,7 +129,108 @@ export interface AppConfig {
   approvalPoints: ('plan' | 'merge' | 'deploy')[];
   maxConcurrentAgents: number;
   model: string;
+  /** 质量配置 */
+  quality?: QualityConfig;
 }
+
+// ============ Quality Types ============
+
+/**
+ * 质量配置 - 控制自动化质量门禁
+ */
+export interface QualityConfig {
+  /** 启用 TDD 模式 (先写测试再写代码) */
+  tdd: boolean;
+  /** 最低测试覆盖率 (%) */
+  minCoverage: number;
+  /** 严格 Lint (error 即失败) */
+  strictLint: boolean;
+  /** 安全扫描 */
+  securityScan: boolean;
+  /** 质量级别 */
+  level: 'fast' | 'balanced' | 'strict';
+}
+
+/**
+ * 质量报告 - Verify 阶段产出
+ */
+export interface QualityReport {
+  taskId: string;
+  timestamp: string;
+  /** 测试结果 */
+  tests: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    coverage: number;
+    status: 'pass' | 'fail';
+  };
+  /** 构建结果 */
+  build: {
+    success: boolean;
+    errors: string[];
+    status: 'pass' | 'fail';
+  };
+  /** Lint 结果 */
+  lint: {
+    errors: number;
+    warnings: number;
+    status: 'pass' | 'fail' | 'warning';
+  };
+  /** 安全扫描结果 */
+  security: {
+    vulnerabilities: SecurityVulnerability[];
+    status: 'pass' | 'fail';
+  };
+  /** 验收标准检查 */
+  acceptance: {
+    total: number;
+    met: number;
+    details: AcceptanceCheck[];
+    status: 'pass' | 'fail';
+  };
+  /** 总体状态 */
+  overall: 'pass' | 'fail' | 'warning';
+}
+
+export interface SecurityVulnerability {
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  package: string;
+  description: string;
+}
+
+export interface AcceptanceCheck {
+  criterion: string;
+  met: boolean;
+  evidence?: string;
+}
+
+/**
+ * 预设质量配置
+ */
+export const QUALITY_PRESETS: Record<string, QualityConfig> = {
+  fast: {
+    tdd: false,
+    minCoverage: 0,
+    strictLint: false,
+    securityScan: false,
+    level: 'fast'
+  },
+  balanced: {
+    tdd: false,
+    minCoverage: 60,
+    strictLint: true,
+    securityScan: true,
+    level: 'balanced'
+  },
+  strict: {
+    tdd: true,
+    minCoverage: 80,
+    strictLint: true,
+    securityScan: true,
+    level: 'strict'
+  }
+};
 
 // ============ Approval Types ============
 

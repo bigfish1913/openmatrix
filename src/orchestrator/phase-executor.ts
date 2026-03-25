@@ -3,9 +3,9 @@ import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
 import { AgentRunner, type SubagentTask, type UserContext } from '../agents/agent-runner.js';
 import { GitCommitManager } from './git-commit-manager.js';
-import type { Task, AgentType } from '../types/index.js';
+import type { Task, AgentType, QualityConfig, QualityReport, QUALITY_PRESETS } from '../types/index.js';
 
-export type Phase = 'develop' | 'verify' | 'accept';
+export type Phase = 'develop' | 'verify' | 'accept' | 'tdd';
 
 export interface PhaseResult {
   phase: Phase;
@@ -16,6 +16,8 @@ export interface PhaseResult {
   artifacts: string[];
   nextPhase?: Phase;
   needsApproval: boolean;
+  /** 质量报告 (verify 阶段产出) */
+  qualityReport?: QualityReport;
 }
 
 export interface BuildTestResult {
@@ -27,15 +29,34 @@ export interface BuildTestResult {
 }
 
 /**
- * PhaseExecutor - 三阶段验证执行器
+ * 质量门禁结果
+ */
+export interface QualityGateResult {
+  passed: boolean;
+  tests: { passed: number; failed: number; coverage: number };
+  build: { success: boolean; errors: string[] };
+  lint: { errors: number; warnings: number };
+  security: { vulnerabilities: number };
+  acceptance: { met: number; total: number };
+}
+
+/**
+ * PhaseExecutor - 四阶段验证执行器 (增强版)
  *
- * 每个任务经历三个阶段:
+ * 每个任务经历四个阶段 (TDD 模式):
+ * 0. TDD - 先写测试 (可选)
  * 1. Develop - 开发实现
- * 2. Verify - 代码审查 + 测试 + Build 测试
+ * 2. Verify - 严格质量门禁 (测试/构建/Lint/安全/验收)
  * 3. Accept - 最终验收
+ *
+ * 质量级别:
+ * - fast: 无质量门禁，最快
+ * - balanced: 基础门禁 (60%覆盖率, Lint, 安全扫描)
+ * - strict: 严格门禁 (TDD, 80%覆盖率, 严格Lint, 安全扫描)
  *
  * 在 auto 模式下 (isAutoMode=true):
  * - 阶段间自动流转，无需确认
+ * - 质量门禁失败时暂停
  * - 仅在失败/异常时暂停
  */
 export class PhaseExecutor {
@@ -46,7 +67,18 @@ export class PhaseExecutor {
   private isAutoMode: boolean = false;
   private runId: string = '';
   private userContext: UserContext = {};
-  private minTestCoverage: number = 60; // 默认最低覆盖率 60%
+  private minTestCoverage: number = 60;
+  /** 质量配置 */
+  private qualityConfig: QualityConfig;
+
+  /** 默认质量配置 (balanced) */
+  private static DEFAULT_QUALITY: QualityConfig = {
+    tdd: false,
+    minCoverage: 60,
+    strictLint: true,
+    securityScan: true,
+    level: 'balanced'
+  };
 
   constructor(
     stateManager: StateManager,
@@ -56,6 +88,7 @@ export class PhaseExecutor {
     this.approvalManager = approvalManager;
     this.agentRunner = new AgentRunner(stateManager, approvalManager);
     this.gitCommitManager = new GitCommitManager();
+    this.qualityConfig = PhaseExecutor.DEFAULT_QUALITY;
   }
 
   /**
@@ -77,6 +110,36 @@ export class PhaseExecutor {
    */
   setRunId(runId: string): void {
     this.runId = runId;
+  }
+
+  /**
+   * 设置质量配置
+   */
+  setQualityConfig(config: Partial<QualityConfig>): void {
+    this.qualityConfig = { ...this.qualityConfig, ...config };
+    if (config.minCoverage !== undefined) {
+      this.minTestCoverage = config.minCoverage;
+    }
+  }
+
+  /**
+   * 获取质量配置
+   */
+  getQualityConfig(): QualityConfig {
+    return this.qualityConfig;
+  }
+
+  /**
+   * 设置质量级别预设
+   */
+  setQualityLevel(level: 'fast' | 'balanced' | 'strict'): void {
+    const presets: Record<string, QualityConfig> = {
+      fast: { tdd: false, minCoverage: 0, strictLint: false, securityScan: false, level: 'fast' },
+      balanced: { tdd: false, minCoverage: 60, strictLint: true, securityScan: true, level: 'balanced' },
+      strict: { tdd: true, minCoverage: 80, strictLint: true, securityScan: true, level: 'strict' }
+    };
+    this.qualityConfig = presets[level];
+    this.minTestCoverage = this.qualityConfig.minCoverage;
   }
 
   /**
@@ -127,6 +190,11 @@ export class PhaseExecutor {
    * 获取任务当前阶段
    */
   getCurrentPhase(task: Task): Phase {
+    // TDD 模式: 先写测试
+    if (this.qualityConfig.tdd && task.phases.develop.status === 'pending') {
+      // 检查是否已有测试文件
+      return 'tdd';
+    }
     if (task.phases.develop.status !== 'completed') return 'develop';
     if (task.phases.verify.status !== 'completed') return 'verify';
     return 'accept';
@@ -139,6 +207,8 @@ export class PhaseExecutor {
     const currentPhase = this.getCurrentPhase(task);
 
     switch (currentPhase) {
+      case 'tdd':
+        return this.prepareTDDPhase(task);
       case 'develop':
         return this.prepareDevelopPhase(task);
       case 'verify':
@@ -148,6 +218,24 @@ export class PhaseExecutor {
       default:
         return null;
     }
+  }
+
+  /**
+   * 准备 TDD 阶段 - 先写测试
+   */
+  private async prepareTDDPhase(task: Task): Promise<SubagentTask> {
+    const prompt = this.buildTDDPrompt(task);
+
+    return {
+      subagent_type: 'general-purpose',
+      description: `tdd: write tests for ${task.title.slice(0, 30)}`,
+      prompt,
+      isolation: undefined,
+      taskId: task.id,
+      agentType: 'tester',
+      timeout: task.timeout / 2,
+      needsApproval: false
+    };
   }
 
   /**
@@ -166,6 +254,56 @@ export class PhaseExecutor {
       timeout: task.timeout,
       needsApproval: false
     };
+  }
+
+  /**
+   * 构建 TDD 阶段提示词 - 先写测试
+   */
+  private buildTDDPrompt(task: Task): string {
+    return `# TDD 阶段 - 先写测试 (Test-First)
+
+## 任务信息
+- ID: ${task.id}
+- 标题: ${task.title}
+- 描述: ${task.description}
+
+## TDD 目标
+在编写实现代码之前，先编写测试用例。这确保:
+1. 你理解需求
+2. 代码可测试
+3. 有明确的成功标准
+
+## 验收标准 → 测试用例
+${task.acceptanceCriteria?.map((c, i) => `${i + 1}. ${c}`).join('\n') || '根据任务描述生成测试用例'}
+
+## 测试要求
+1. **覆盖正常流程** - 主要功能路径
+2. **覆盖边界情况** - 空值、极值、特殊字符
+3. **覆盖异常处理** - 错误输入、网络失败
+4. **AAA 模式** - Arrange, Act, Assert
+
+## 测试框架
+根据项目选择:
+- TypeScript/JavaScript: Vitest, Jest
+- Python: pytest
+- Go: testing package
+
+## 输出
+1. 创建测试文件 (\`.test.ts\` 或 \`.spec.ts\`)
+2. 测试应该**失败** (因为还没实现)
+3. 输出测试文件路径
+
+## 验证
+运行 \`npm test\` 确认测试失败 (这是正确的!)
+
+## 输出格式
+\`\`\`
+TDD_TESTS_CREATED
+测试文件: [路径]
+测试用例数: [数量]
+预期: 全部失败 (RED 阶段)
+\`\`\`
+`;
   }
 
   /**
@@ -209,14 +347,26 @@ export class PhaseExecutor {
    */
   private buildDevelopPrompt(task: Task): string {
     const parts: string[] = [];
+    const isTDDMode = this.qualityConfig.tdd;
 
-    parts.push(`# 开发阶段 (Develop Phase)
+    parts.push(`# 开发阶段 (Develop Phase)${isTDDMode ? ' - TDD GREEN 阶段' : ''}
 
 ## 任务信息
 - ID: ${task.id}
 - 标题: ${task.title}
 - 描述: ${task.description}
-- 优先级: ${task.priority}`);
+- 优先级: ${task.priority}
+- 质量级别: ${this.qualityConfig.level}`);
+
+    // TDD 模式提示
+    if (isTDDMode) {
+      parts.push(`
+## ⚠️ TDD 模式
+你已经在上一步编写了测试。现在需要:
+1. 编写最小代码使测试通过
+2. 不要过度设计
+3. 测试通过即可 (GREEN 阶段)`);
+    }
 
     // 注入用户上下文
     if (this.userContext.objective) {
@@ -235,7 +385,7 @@ ${this.userContext.techStack.map(t => `- ${t}`).join('\n')}`);
     if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
       parts.push(`
 ## 验收标准 (必须全部满足)
-${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
     }
 
     parts.push(`
@@ -246,13 +396,18 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
 4. 处理边界情况和错误
 5. 确保代码可编译
 
-## 编码规范
-- 遵循 SOLID 原则
-- 使用有意义的变量名和函数名
-- 保持函数简短，单一职责
-- 避免重复代码 (DRY)
-- 验证所有输入参数
-- 处理所有异常情况
+## 编码规范 (SOLID + Clean Code)
+- **S**ingle Responsibility: 每个函数只做一件事
+- **O**pen/Closed: 对扩展开放，对修改关闭
+- **L**iskov Substitution: 子类可替换父类
+- **I**nterface Segregation: 接口要小而专注
+- **D**ependency Inversion: 依赖抽象而非具体
+
+## 代码质量标准
+- 函数长度: < 30 行
+- 参数数量: < 4 个
+- 嵌套深度: < 3 层
+- 圈复杂度: < 10
 
 ## 输出要求
 完成后，在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
@@ -266,43 +421,35 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}`);
 - [ ] 无安全隐患
 - [ ] 代码风格一致
 - [ ] 验收标准全部满足
+${isTDDMode ? '- [ ] 所有测试通过 (GREEN)' : ''}
 `);
     return parts.join('\n');
   }
 
   /**
-   * 构建验证阶段提示词 (增强版: 严格测试和覆盖率要求)
+   * 构建验证阶段提示词 (增强版: 严格质量门禁)
    */
   private buildVerifyPrompt(task: Task): string {
     const parts: string[] = [];
+    const qc = this.qualityConfig;
 
-    parts.push(`# 验证阶段 (Verify Phase)
+    parts.push(`# 验证阶段 (Verify Phase) - 严格质量门禁
 
 ## 任务信息
 - ID: ${task.id}
 - 标题: ${task.title}
+- 质量级别: ${qc.level}
 
-## 验证目标
-1. **代码审查 (Code Review)** - 代码质量和最佳实践
-2. **运行测试 (Run Tests)** - 单元测试和集成测试
-3. **Build 测试 (Build Check)** - 编译和打包验证
-4. **覆盖率检查 (Coverage Check)** - 确保测试覆盖率达标`);
+## 🚨 质量门禁 (Quality Gates)
 
-    // 注入验收标准
-    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
-      parts.push(`
-## 验收标准验证
-必须验证以下标准已满足:
-${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
-    }
-
-    parts.push(`
-## 代码审查要点
-- 可读性和可维护性
-- 设计模式使用
-- 错误处理
-- 安全性检查
-- 性能考量
+| 检查项 | 要求 | 失败后果 |
+|--------|------|----------|
+| 编译 | 无错误 | ❌ 阻止通过 |
+| 测试 | 全部通过 | ❌ 阻止通过 |
+| 覆盖率 | >= ${qc.minCoverage}% | ${qc.minCoverage > 0 ? '❌ 阻止通过' : '⚠️ 仅警告'} |
+| Lint | ${qc.strictLint ? '无 error' : '无严重 error'} | ${qc.strictLint ? '❌ 阻止通过' : '⚠️ 仅警告'} |
+| 安全 | 无高危漏洞 | ${qc.securityScan ? '❌ 阻止通过' : '⏭️ 跳过'} |
+| 验收标准 | 全部满足 | ❌ 阻止通过 |
 
 ## 自动化验证命令
 
@@ -311,109 +458,120 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 npm run build
 \`\`\`
 **预期**: 无编译错误
+**失败后果**: ❌ VERIFY_FAILED
 
-### 2. 静态分析
-\`\`\`bash
-npm run lint || echo "No lint script configured"
-\`\`\`
-**预期**: 无严重错误 (允许 warning)
-
-### 3. 依赖验证
-\`\`\`bash
-npm ci --dry-run 2>/dev/null || npm install --dry-run 2>/dev/null || echo "Dependency check skipped"
-\`\`\`
-**预期**: 依赖可正常安装
-
-### 4. 运行测试 (必须通过)
+### 2. 测试运行 (必须通过)
 \`\`\`bash
 npm test
 \`\`\`
 **预期**: 所有测试通过
+**失败后果**: ❌ VERIFY_FAILED
 
-### 5. 测试覆盖率检查
+### 3. 覆盖率检查
 \`\`\`bash
 npm test -- --coverage 2>/dev/null || npm run test:coverage 2>/dev/null || echo "Coverage check skipped"
 \`\`\`
-**最低覆盖率要求**: ${this.minTestCoverage}%
+**最低覆盖率**: ${qc.minCoverage}%
+**失败后果**: ${qc.minCoverage > 0 ? '❌ VERIFY_FAILED' : '⚠️ 警告'}
 
-## 验证报告格式
+### 4. Lint 检查
+\`\`\`bash
+npm run lint || echo "No lint script configured"
+\`\`\`
+**要求**: ${qc.strictLint ? '无 error' : '无严重 error'}
+**失败后果**: ${qc.strictLint ? '❌ VERIFY_FAILED' : '⚠️ 警告'}
 
-在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
+### 5. 安全扫描
+${qc.securityScan ? `\`\`\`bash
+npm audit --audit-level=high || echo "Security scan skipped"
+\`\`\`
+**要求**: 无 high/critical 漏洞
+**失败后果**: ❌ VERIFY_FAILED` : '⏭️ 已禁用'}
 
-### verify-report.md
-\`\`\`markdown
-# 验证报告
+### 6. 验收标准验证`);
 
-## 任务信息
-- Task ID: ${task.id}
-- 标题: ${task.title}
-- 验证时间: [当前时间]
+    // 注入验收标准
+    if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
+      parts.push(`
+逐项检查以下标准:
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}
+**失败后果**: ❌ VERIFY_FAILED`);
+    } else {
+      parts.push(`
+⏭️ 无验收标准定义`);
+    }
 
-## 验证结果
+    parts.push(`
 
-### 1. 编译检查
-- 状态: ✅ 通过 / ❌ 失败
-- 详情: [编译输出摘要]
+## 📊 质量报告格式
 
-### 2. 静态分析
-- 状态: ✅ 通过 / ⚠️ 警告 / ❌ 失败
-- 问题数: [数量]
-- 详情: [lint 输出摘要]
+在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建 \`quality-report.json\`:
 
-### 3. 依赖验证
-- 状态: ✅ 通过 / ❌ 失败
-- 详情: [依赖检查结果]
-
-### 4. 测试结果
-- 状态: ✅ 通过 / ❌ 失败
-- 通过: [数量]
-- 失败: [数量]
-- 跳过: [数量]
-
-### 5. 覆盖率
-- 语句: X%
-- 分支: Y%
-- 函数: Z%
-- 行: W%
-- **是否达标**: ✅ (>= ${this.minTestCoverage}%) / ❌ (< ${this.minTestCoverage}%)
-
-### 6. 验收标准检查
-${task.acceptanceCriteria?.map((c, i) => `${i + 1}. [✅/❌] ${c}`).join('\n') || '无验收标准'}
-
-## 总结
-[✅ 所有检查通过 / ❌ 存在问题需要修复]
-
-## 问题列表 (如有)
-1. [问题描述]
-2. [问题描述]
+\`\`\`json
+{
+  "taskId": "${task.id}",
+  "timestamp": "[ISO时间]",
+  "tests": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "coverage": 0,
+    "status": "pass|fail"
+  },
+  "build": {
+    "success": true,
+    "errors": [],
+    "status": "pass|fail"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "status": "pass|fail|warning"
+  },
+  "security": {
+    "vulnerabilities": [],
+    "status": "pass|fail"
+  },
+  "acceptance": {
+    "total": ${task.acceptanceCriteria?.length || 0},
+    "met": 0,
+    "details": [],
+    "status": "pass|fail"
+  },
+  "overall": "pass|fail|warning"
+}
 \`\`\`
 
 ## 最终输出
 
-如果所有检查通过，输出:
+✅ **所有门禁通过**:
 \`\`\`
 VERIFY_PASSED
+Quality Score: [A/B/C/D/F]
+- Tests: ✅ X/X passed, Y% coverage
+- Build: ✅ Success
+- Lint: ✅ No errors
+- Security: ✅ No vulnerabilities
+- Acceptance: ✅ N/M criteria met
 \`\`\`
 
-如果有问题，输出:
+❌ **门禁失败**:
 \`\`\`
 VERIFY_FAILED
-问题列表:
-1. [问题描述]
-2. [问题描述]
+Failed Gates:
+1. [检查项]: [失败原因]
+2. [检查项]: [失败原因]
+
+Fix Required:
+1. [修复建议]
+2. [修复建议]
 \`\`\`
 
-## 严格检查要求
-- ⚠️ 编译失败 = 验证失败
-- ⚠️ 测试失败 = 验证失败
-- ⚠️ 覆盖率 < ${this.minTestCoverage}% = 验证失败 (警告，可继续)
-- ⚠️ 验收标准未满足 = 验证失败
-
-## 注意事项
-- 确保所有修改的文件都已保存
-- 测试失败时，记录失败原因
-- 不要跳过任何验证步骤
-- 如果项目没有配置某个脚本，标记为"跳过"而非"失败"
+## ⚠️ 重要提示
+- **不要跳过任何检查**
+- **不要伪造通过结果**
+- 如果项目没有某个脚本，标记为 "⏭️ Skipped" 而非 "❌ Failed"
+- 所有检查结果必须基于实际命令输出
 `);
     return parts.join('\n');
   }
@@ -637,6 +795,94 @@ ACCEPT_FAILED
     result.errors = errorLines;
 
     return result;
+  }
+
+  /**
+   * 解析质量报告
+   */
+  parseQualityReport(output: string): QualityGateResult {
+    const result: QualityGateResult = {
+      passed: false,
+      tests: { passed: 0, failed: 0, coverage: 0 },
+      build: { success: false, errors: [] },
+      lint: { errors: 0, warnings: 0 },
+      security: { vulnerabilities: 0 },
+      acceptance: { met: 0, total: 0 }
+    };
+
+    // 解析测试结果
+    const testMatch = output.match(/(\d+)\s*(?:passed|passing)/i);
+    if (testMatch) result.tests.passed = parseInt(testMatch[1], 10);
+    const failMatch = output.match(/(\d+)\s*(?:failed|failing)/i);
+    if (failMatch) result.tests.failed = parseInt(failMatch[1], 10);
+    const coverageMatch = output.match(/(?:coverage|covered).*?(\d+)%/i);
+    if (coverageMatch) result.tests.coverage = parseInt(coverageMatch[1], 10);
+
+    // 解析构建结果
+    result.build.success = output.includes('VERIFY_PASSED') ||
+                          (output.includes('npm run build') && !output.includes('error'));
+
+    // 解析 Lint 结果
+    const lintErrorMatch = output.match(/(\d+)\s*error/i);
+    if (lintErrorMatch) result.lint.errors = parseInt(lintErrorMatch[1], 10);
+    const lintWarnMatch = output.match(/(\d+)\s*warning/i);
+    if (lintWarnMatch) result.lint.warnings = parseInt(lintWarnMatch[1], 10);
+
+    // 解析安全漏洞
+    const vulnMatch = output.match(/(\d+)\s*(?:vulnerabilities|vulnerable)/i);
+    if (vulnMatch) result.security.vulnerabilities = parseInt(vulnMatch[1], 10);
+
+    // 判断是否通过
+    const qc = this.qualityConfig;
+    const testsPassed = result.tests.failed === 0;
+    const coverageOk = result.tests.coverage >= qc.minCoverage;
+    const lintOk = qc.strictLint ? result.lint.errors === 0 : true;
+    const buildOk = result.build.success;
+
+    result.passed = testsPassed && coverageOk && lintOk && buildOk;
+
+    return result;
+  }
+
+  /**
+   * 生成质量报告 JSON
+   */
+  generateQualityReport(task: Task, gateResult: QualityGateResult): QualityReport {
+    const qc = this.qualityConfig;
+
+    return {
+      taskId: task.id,
+      timestamp: new Date().toISOString(),
+      tests: {
+        passed: gateResult.tests.passed,
+        failed: gateResult.tests.failed,
+        skipped: 0,
+        coverage: gateResult.tests.coverage,
+        status: gateResult.tests.failed === 0 ? 'pass' : 'fail'
+      },
+      build: {
+        success: gateResult.build.success,
+        errors: gateResult.build.errors,
+        status: gateResult.build.success ? 'pass' : 'fail'
+      },
+      lint: {
+        errors: gateResult.lint.errors,
+        warnings: gateResult.lint.warnings,
+        status: qc.strictLint && gateResult.lint.errors > 0 ? 'fail' :
+                gateResult.lint.warnings > 0 ? 'warning' : 'pass'
+      },
+      security: {
+        vulnerabilities: [],
+        status: gateResult.security.vulnerabilities === 0 ? 'pass' : 'fail'
+      },
+      acceptance: {
+        total: task.acceptanceCriteria?.length || 0,
+        met: gateResult.acceptance.met,
+        details: [],
+        status: gateResult.acceptance.met >= (task.acceptanceCriteria?.length || 0) ? 'pass' : 'fail'
+      },
+      overall: gateResult.passed ? 'pass' : 'fail'
+    };
   }
 
   /**

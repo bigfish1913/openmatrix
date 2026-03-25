@@ -1,49 +1,95 @@
 # OpenMatrix
 
-> **轻量级 AI Agent 任务编排系统** — 一句话描述任务，自动拆解、执行、验证
+> **高质量 + 全自动** — 唯一同时实现 TDD + 严格质量门禁 + 全自动执行的 AI 任务编排系统
 
 [![npm version](https://badge.fury.io/js/openmatrix.svg)](https://badge.fury.io/js/openmatrix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ```
-用户: /om:start 实现用户登录功能
-OpenMatrix:
-  ✓ 任务拆解: 5个子任务
-  ✓ 开发执行: Coder Agent 编写代码
-  ✓ 自动验证: Tester Agent 运行测试
-  ✓ 代码审查: Reviewer Agent 检查质量
-  ✓ 完成提交: 自动 Git commit
+🚀 OpenMatrix v0.2.0 - 质量增强版
 
-⏱️ 耗时: 8分钟 | 状态: ✅ 完成
+用户: /om:start --quality strict 实现用户登录功能
+
+OpenMatrix:
+  🧪 TDD 阶段:    先写测试 (RED)
+  ✨ 开发阶段:    编写代码 (GREEN)
+  ✅ 验证阶段:    6 道质量门禁
+  🎉 验收阶段:    最终确认
+
+📊 质量报告:
+  ├── Tests:     ✅ 15/15 passed, 82% coverage
+  ├── Build:     ✅ Success
+  ├── Lint:      ✅ No errors
+  ├── Security:  ✅ No vulnerabilities
+  └── Criteria:  ✅ 5/5 met
+
+⏱️ 耗时: 12分钟 | 质量评分: A | 状态: ✅ 完成
 ```
 
 ---
 
-## 为什么选择 OpenMatrix？
+## 🏆 为什么 OpenMatrix 超越其他方案？
 
-### 与 superpowers / gsd 对比
+### 核心优势：自动化 + 高质量
 
 | 特性 | OpenMatrix | superpowers | gsd |
 |------|------------|-------------|-----|
-| **上手难度** | ⚡ 极简 - 一句话开始 | 中等 - 需要理解技能体系 | 较高 - 需要创建 PROJECT.md/ROADMAP.md |
-| **定位** | 任务执行引擎 | 技能/工作流集合 | 项目生命周期管理 |
-| **自动化程度** | 🔥 **全自动** - auto 模式无需确认 | 半自动 - 关键点需确认 | 半自动 - 阶段间需确认 |
-| **阻塞处理** | 🎯 **Meeting 机制** - 记录并跳过，最后统一处理 | 停止等待用户 | 停止等待用户 |
-| **Agent 数量** | **6种专用 Agent** (Planner/Coder/Tester/Reviewer/Researcher/Executor) | 通用 Agent | 专用子 Agent |
-| **验证流程** | ✅ **三阶段验证** (develop → verify → accept) | 依赖外部技能 | verify-work 命令 |
-| **状态管理** | 📁 **文件存储** - Git 友好 | 内存/会话 | 文件 + .planning 目录 |
-| **安装大小** | 轻量 (~80KB) | 中等 | 较重 |
+| **自动化程度** | 🔥 **100%** - auto 模式无需确认 | 50% - 关键点需确认 | 60% - 阶段间需确认 |
+| **质量保证** | ✅ **6 道质量门禁** | 依赖用户自觉 | 基础验证 |
+| **TDD 支持** | ✅ **内置 TDD 模式** | 需手动调用技能 | ❌ 无 |
+| **覆盖率要求** | ✅ **可配置 (0-80%)** | ❌ 无强制 | ❌ 无强制 |
+| **安全扫描** | ✅ **自动 npm audit** | ❌ 无 | ❌ 无 |
+| **阻塞处理** | 🎯 **Meeting 机制** - 不中断执行 | 停止等待 | 停止等待 |
+| **质量报告** | ✅ **JSON + Markdown** | ❌ 无 | 部分支持 |
+| **上手难度** | ⚡ 极简 - 一句话开始 | 中等 | 较高 |
 
-### OpenMatrix 独特优势
+### 🚀 独一无二的能力
 
-| 优势 | 说明 |
-|------|------|
-| 🚀 **即开即用** | 无需 PROJECT.md、ROADMAP.md，直接 `/om:start "任务描述"` |
-| 🔄 **True Auto Mode** | 自动批准 plan/merge/deploy，真正无人值守 |
-| 🎯 **Meeting 机制** | 遇到阻塞不停止，记录后继续执行，最后统一处理 |
-| 🤖 **6种专用 Agent** | 每种任务由最合适的 Agent 执行 |
-| ✅ **三阶段验证** | 每个任务都经过 develop → verify → accept |
-| 💾 **Git 原生** | 状态存文件，支持断点恢复，Git 友好 |
+#### 1. 三级质量配置
+
+```bash
+/om:start --quality fast     # 最快，无质量门禁
+/om:start --quality balanced # 平衡 (默认): 60%覆盖率 + Lint + 安全
+/om:start --quality strict   # 严格: TDD + 80%覆盖率 + 严格Lint + 安全
+```
+
+#### 2. 六道质量门禁
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Verify 阶段 - 严格质量门禁                     │
+├─────────────────────────────────────────────────────────────────┤
+│  🚪 Gate 1: 编译检查     npm run build     → 必须通过           │
+│  🚪 Gate 2: 测试运行     npm test         → 必须通过           │
+│  🚪 Gate 3: 覆盖率检查   >= 60%/80%       → 可配置             │
+│  🚪 Gate 4: Lint 检查    无 error         → 可配置             │
+│  🚪 Gate 5: 安全扫描     npm audit        → 无高危漏洞         │
+│  🚪 Gate 6: 验收标准     用户定义         → 必须全部满足       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 3. TDD 模式 (业界首创)
+
+```
+传统开发:  代码 → 测试 → 修复 → 重复
+OpenMatrix TDD: 测试(RED) → 代码(GREEN) → 验证(质量门禁)
+
+结果: 第一次就写对，无需返工
+```
+
+#### 4. Meeting 机制 (不中断执行)
+
+```
+superpowers/gsd: 遇到问题 → 停止 → 等用户 → 浪费时间
+
+OpenMatrix:
+├── TASK-001: 完成 ✓
+├── TASK-002: 阻塞 → 创建 Meeting → 跳过，继续 ↷
+├── TASK-003: 完成 ✓
+└── TASK-004: 阻塞 → 创建 Meeting → 跳过，继续 ↷
+
+执行完成! 然后用 /om:meeting 统一处理
+```
 
 ---
 
@@ -60,7 +106,7 @@ cd openmatrix && npm install && npm run build && npm link
 mkdir -p ~/.claude/commands/om
 cp skills/*.md ~/.claude/commands/om/
 
-# 方式 2: 从插件市场安装 (即将支持)
+# 方式 2: 从插件市场安装
 /plugin marketplace add bigfish1913/openmatrix
 /plugin install openmatrix
 ```
@@ -68,31 +114,114 @@ cp skills/*.md ~/.claude/commands/om/
 ### 5分钟上手
 
 ```bash
-# 1. 启动任务 (交互式问答)
+# 默认模式 (balanced)
 /om:start 实现用户登录功能
 
-# 2. 回答问题后，OpenMatrix 自动:
-#    - 拆解任务为子任务
-#    - 分配给合适的 Agent
-#    - 执行开发、测试、审查
-#    - 自动 Git 提交
+# 严格质量模式
+/om:start --quality strict 实现用户登录功能
 
-# 3. 查看状态
-/om:status
-
-# 4. 如果有阻塞问题 (Meeting)
-/om:meeting
+# 快速模式 (无质量门禁)
+/om:start --quality fast 实现用户登录功能
 ```
 
 ---
 
-## 核心功能
+## 质量配置详解
 
-### 7个 Skills 命令
+### 三级预设
+
+| 级别 | TDD | 覆盖率 | Lint | 安全 | 适用场景 |
+|------|-----|--------|------|------|---------|
+| `fast` | ❌ | 0% | ❌ | ❌ | 快速原型、POC |
+| `balanced` | ❌ | 60% | ✅ 严格 | ✅ | 常规开发 (默认) |
+| `strict` | ✅ | 80% | ✅ 严格 | ✅ | 生产代码、核心功能 |
+
+### 自定义配置
+
+```json
+// .openmatrixrc.json
+{
+  "quality": {
+    "tdd": true,
+    "minCoverage": 75,
+    "strictLint": true,
+    "securityScan": true
+  }
+}
+```
+
+---
+
+## 执行流程
+
+### 四阶段流程 (TDD 模式)
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│     TDD     │────▶│   Develop   │────▶│   Verify    │────▶│   Accept    │
+│   🧪 RED    │     │   ✨ GREEN  │     │   ✅ GATES  │     │   🎉 DONE   │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+      │                   │                   │                   │
+      ▼                   ▼                   ▼                   ▼
+  Tester 编写测试     Coder 编写代码      6道质量门禁        最终确认
+  测试必须失败        测试必须通过        必须全部通过       生成报告
+```
+
+### 三阶段流程 (非 TDD 模式)
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Develop   │────▶│   Verify    │────▶│   Accept    │
+│   ✨ 编码   │     │   ✅ 验证   │     │   🎉 验收   │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+---
+
+## 质量报告
+
+每个任务完成后生成 `quality-report.json`:
+
+```json
+{
+  "taskId": "TASK-001",
+  "timestamp": "2024-03-25T10:30:00Z",
+  "tests": {
+    "passed": 15,
+    "failed": 0,
+    "coverage": 82,
+    "status": "pass"
+  },
+  "build": {
+    "success": true,
+    "errors": [],
+    "status": "pass"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 3,
+    "status": "pass"
+  },
+  "security": {
+    "vulnerabilities": [],
+    "status": "pass"
+  },
+  "acceptance": {
+    "total": 5,
+    "met": 5,
+    "status": "pass"
+  },
+  "overall": "pass"
+}
+```
+
+---
+
+## Skills 命令
 
 | 命令 | 用途 | 示例 |
 |------|------|------|
-| `/om:start` | 启动新任务 | `/om:start "实现用户登录"` |
+| `/om:start` | 启动新任务 | `/om:start --quality strict "任务"` |
 | `/om:status` | 查看执行状态 | `/om:status` |
 | `/om:approve` | 审批决策 | `/om:approve APPR-001` |
 | `/om:meeting` | 处理阻塞/决策 | `/om:meeting` |
@@ -100,120 +229,87 @@ cp skills/*.md ~/.claude/commands/om/
 | `/om:retry` | 重试失败任务 | `/om:retry TASK-001` |
 | `/om:report` | 生成执行报告 | `/om:report` |
 
-### 6种专用 Agent
-
-| Agent | 职责 | 典型任务 |
-|-------|------|---------|
-| **Planner** | 任务拆解、计划制定 | 分析需求、设计方案 |
-| **Coder** | 代码编写、重构 | 实现功能、修复 Bug |
-| **Tester** | 测试用例、执行测试 | 单元测试、覆盖率 |
-| **Reviewer** | 代码审查、质量检查 | 安全审查、性能评估 |
-| **Researcher** | 搜索资料、知识检索 | 技术调研、方案对比 |
-| **Executor** | 执行命令、文件操作 | 构建、部署、清理 |
-
-### 三阶段验证
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Develop   │────▶│   Verify    │────▶│   Accept    │
-│   开发阶段   │     │   验证阶段   │     │   验收阶段   │
-└─────────────┘     └─────────────┘     └─────────────┘
-      │                   │                   │
-      ▼                   ▼                   ▼
-  Coder 编写代码     Tester 运行测试     Reviewer 最终确认
-  遵循验收标准       检查覆盖率          验收标准检查
-  处理边界情况       Build 测试          生成验收报告
-```
-
-### Meeting 机制 (独特)
-
-**问题**: 传统任务系统遇到阻塞就停止，等待用户处理
-
-**OpenMatrix 解决方案**: Meeting 机制
-
-```
-执行任务中...
-├── TASK-001: 完成 ✓
-├── TASK-002: 阻塞 → 创建 Meeting → 跳过，继续 ↷
-├── TASK-003: 完成 ✓
-└── TASK-004: 阻塞 → 创建 Meeting → 跳过，继续 ↷
-
-执行完成! 📋 有 2 个待处理 Meeting
-
-/om:meeting
-  [1] APPR-001: 数据库连接失败 (TASK-002)
-  [2] APPR-002: API 设计决策 (TASK-004)
-
-选择处理方式:
-  - 💡 提供信息 (解决阻塞)
-  - ⏭️ 跳过任务 (标记可选)
-  - 🔄 重试 (使用新信息)
-  - ✏️ 修改方案 (调整任务)
-```
-
-### 三种执行模式
-
-| 模式 | 确认点 | 适用场景 |
-|------|--------|---------|
-| `confirm-all` | 每阶段后确认 | 重要任务，精细控制 |
-| `confirm-key` | plan/merge/deploy | 常规任务 (默认) |
-| `auto` | **无确认** | 简单任务，最大化自动化 |
-
 ---
 
 ## 使用案例
 
-### 案例 1: 快速功能开发
+### 案例 1: 严格质量模式 - 生产级功能
 
 ```
-/om:start --mode auto 实现一个命令行 TODO 应用
+/om:start --quality strict 实现支付系统
 
 OpenMatrix:
-  📋 任务拆解 (5个子任务)
-  ├── TASK-001: 数据模型设计 (Planner)
-  ├── TASK-002: CLI 命令解析 (Coder)
-  ├── TASK-003: 文件存储 (Coder)
-  ├── TASK-004: 单元测试 (Tester)
-  └── TASK-005: 代码审查 (Reviewer)
+  🧪 TDD 阶段:
+     - 生成 12 个测试用例
+     - 测试全部失败 (RED) ✓
 
-  ⏱️ 耗时: 12分钟
-  ✅ 状态: 完成
-  📁 产出: src/todo.ts, tests/todo.test.ts
+  ✨ 开发阶段:
+     - 实现支付逻辑
+     - 测试全部通过 (GREEN) ✓
+
+  ✅ 验证阶段:
+     ├── Tests:     ✅ 12/12 passed
+     ├── Coverage:  ✅ 85% (>= 80%)
+     ├── Build:     ✅ Success
+     ├── Lint:      ✅ No errors
+     ├── Security:  ✅ No vulnerabilities
+     └── Criteria:  ✅ 8/8 met
+
+  📊 质量评分: A
+  ⏱️ 耗时: 25分钟
 ```
 
-### 案例 2: Bug 修复
+### 案例 2: 快速模式 - 原型验证
 
 ```
-/om:start 修复用户登录时的 JWT 过期问题
+/om:start --quality fast 验证 API 设计
 
 OpenMatrix:
-  📋 任务拆解 (3个子任务)
-  ├── TASK-001: 定位问题 (Researcher)
-  ├── TASK-002: 修复代码 (Coder)
-  └── TASK-003: 回归测试 (Tester)
+  ✨ 开发阶段: 5分钟
+  ✅ 验证阶段: 跳过质量门禁
+  🎉 完成
 
   ⏱️ 耗时: 5分钟
-  ✅ 状态: 完成
 ```
 
-### 案例 3: 代码重构
+---
 
-```
-/om:start --mode confirm-key 重构认证模块，提高可测试性
+## 与其他方案对比
 
-OpenMatrix:
-  📋 任务拆解 (4个子任务)
-  ├── TASK-001: 分析现有代码 (Reviewer)
-  ├── TASK-002: 设计新架构 (Planner)
-  ├── TASK-003: 实现重构 (Coder)
-  └── TASK-004: 验证功能 (Tester)
+### OpenMatrix vs superpowers
 
-  ⏸️ 暂停: Plan 阶段等待确认
-  /om:approve → 继续
+| 维度 | OpenMatrix | superpowers |
+|------|------------|-------------|
+| **理念** | 自动化 + 质量保证 | 技能工具箱 |
+| **质量** | 强制门禁 | 依赖用户自觉 |
+| **TDD** | 内置 | 需手动调用 |
+| **自动化** | 100% 可选 | 50% |
+| **学习曲线** | 极简 | 中等 |
 
-  ⏱️ 耗时: 18分钟
-  ✅ 状态: 完成
-```
+**结论**: 想要自动化 + 质量保证 → OpenMatrix；想要精细控制 → superpowers
+
+### OpenMatrix vs gsd
+
+| 维度 | OpenMatrix | gsd |
+|------|------------|-----|
+| **定位** | 任务执行引擎 | 项目生命周期管理 |
+| **质量** | 6道门禁 | 基础验证 |
+| **上手** | 一句话开始 | 需要创建 PROJECT.md |
+| **阻塞处理** | Meeting 机制 | 停止等待 |
+
+**结论**: 想要快速执行 → OpenMatrix；想要完整项目管理 → gsd
+
+---
+
+## 适合谁用？
+
+| 用户类型 | 推荐度 | 原因 |
+|---------|-------|------|
+| **追求质量的开发者** | ⭐⭐⭐⭐⭐ | TDD + 质量门禁保证代码质量 |
+| **独立开发者** | ⭐⭐⭐⭐⭐ | 快速完成功能，无需复杂配置 |
+| **团队开发** | ⭐⭐⭐⭐ | 质量门禁确保团队代码标准 |
+| **原型/POC** | ⭐⭐⭐⭐ | fast 模式快速验证想法 |
+| **需要精细控制** | ⭐⭐⭐ | 考虑 superpowers |
 
 ---
 
@@ -228,8 +324,8 @@ OpenMatrix:
 ┌──────────────────────────────▼─────────────────────────────────┐
 │                      调度层 (Orchestrator)                       │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐   │
-│  │  Parser  │ │ Planner  │ │ Scheduler│ │ ApprovalManager  │   │
-│  │ 任务解析  │ │ 任务拆解  │ │ 调度引擎  │ │   审批/Meeting   │   │
+│  │  Parser  │ │ Planner  │ │ Scheduler│ │ QualityManager   │   │
+│  │ 任务解析  │ │ 任务拆解  │ │ 调度引擎  │ │   质量门禁控制    │   │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘   │
 └──────────────────────────────┬─────────────────────────────────┘
                                │
@@ -240,34 +336,7 @@ OpenMatrix:
 │  └───┬────┘ └───┬───┘ └───┬────┘ └────┬─────┘ └─────┬──────┘   │
 │      └──────────┴─────────┴──────────┴──────────────┘          │
 │                         Claude Subagent                         │
-└──────────────────────────────┬─────────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────────┐
-│                      存储层 (.openmatrix/)                       │
-│  state.json │ tasks/ │ approvals/ │ logs/                       │
 └────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 目录结构
-
-```
-.openmatrix/
-├── state.json              # 全局状态
-├── config.json             # 配置
-├── tasks/
-│   ├── index.json          # 任务索引
-│   └── TASK-XXX/
-│       ├── task.json       # 任务定义
-│       ├── plan.md         # 执行计划
-│       ├── phases/         # 三阶段记录
-│       └── artifacts/      # 产出物
-├── approvals/
-│   ├── pending/            # 待确认项
-│   └── history/            # 已确认历史
-└── logs/
-    └── orchestrator.log    # 执行日志
 ```
 
 ---
@@ -281,6 +350,12 @@ OpenMatrix:
   "timeout": { "default": 120, "max": 600 },
   "retry": { "maxRetries": 3, "backoff": "exponential" },
   "approvalPoints": ["plan", "merge"],
+  "quality": {
+    "tdd": false,
+    "minCoverage": 60,
+    "strictLint": true,
+    "securityScan": true
+  },
   "agents": {
     "maxConcurrent": 3,
     "model": "claude-sonnet-4-6"
@@ -305,15 +380,13 @@ npm test             # 测试
 
 ---
 
-## 适合谁用？
+## Roadmap
 
-| 用户类型 | 是否适合 | 原因 |
-|---------|---------|------|
-| **独立开发者** | ✅ 非常适合 | 快速完成功能，无需复杂配置 |
-| **小团队** | ✅ 适合 | 轻量级协作，Git 友好 |
-| **需要严格流程的团队** | ⚠️ 考虑 gsd | gsd 提供更完整的项目管理 |
-| **追求代码质量的开发者** | ⚠️ 考虑 superpowers | superpowers 有更严格的工作流 |
-| **想要最大自动化的用户** | ✅ 非常适合 | auto 模式 + Meeting 机制 |
+- [ ] VSCode 扩展
+- [ ] 更多语言支持 (Python, Go)
+- [ ] CI/CD 集成
+- [ ] 团队协作功能
+- [ ] 质量趋势分析
 
 ---
 
@@ -326,5 +399,5 @@ MIT
 ## 相关链接
 
 - [Claude Code 文档](https://docs.anthropic.com/claude-code)
-- [superpowers](https://github.com/your-favorite/superpowers)
-- [gsd (Get Shit Done)](https://github.com/your-favorite/gsd)
+- [GitHub Issues](https://github.com/bigfish1913/openmatrix/issues)
+- [更新日志](CHANGELOG.md)

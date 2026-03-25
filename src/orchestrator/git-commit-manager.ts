@@ -11,7 +11,7 @@ export interface CommitInfo {
   taskId: string;
   taskTitle: string;
   runId: string;
-  phase: 'develop' | 'verify' | 'accept';
+  phase: 'tdd' | 'develop' | 'verify' | 'accept';
   changes: string[];
   impactScope: string[];
 }
@@ -141,6 +141,7 @@ export class GitCommitManager {
 
     // 标题行 - 包含任务 ID 和标题
     const phaseEmoji = {
+      tdd: '🧪',
       develop: '✨',
       verify: '✅',
       accept: '🎉'
