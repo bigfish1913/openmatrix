@@ -209,8 +209,21 @@ c) **执行循环** (由 Skill 驱动):
 while (有待执行任务) {
   1. 读取状态文件获取 SubagentTask
   2. 调用 Agent 工具执行 Subagent
-  3. Subagent 完成后，更新状态文件
-  4. Git 提交 (如果配置了自动提交)
+  3. Subagent 完成后，更新状态文件:
+     ```bash
+     openmatrix complete <taskId> --success/--failed
+     ```
+  4. **Git 自动提交** (每个子任务完成后):
+     ```bash
+     git add -A
+     git commit -m "feat(task-id): 任务标题
+
+     - 修改内容1
+     - 修改内容2
+
+     任务ID: TASK-XXX
+     RunID: run-XXX"
+     ```
   5. Phase 验收测试 (verify phase)
   6. **检查是否需要审批**:
      - 如果配置了 auto 模式 (`approvalPoints` 为空):
@@ -344,11 +357,16 @@ Agent({
 - 只有遇到 **meeting** 类型的审批时才暂停
 - 其他情况下，让 Agent 完整执行任务并在完成后自动返回结果
 
-8. **状态更新**
+9. **执行完成 - 最终 Git 提交**
 
-每个 Subagent 完成后，更新任务状态:
+所有任务完成后，执行最终提交:
 ```bash
-openmatrix complete <taskId> --success/--failed
+git add -A
+git commit -m "feat: 完成所有任务
+
+RunID: run-XXX
+任务数: N
+完成时间: YYYY-MM-DD HH:mm:ss"
 ```
 
 </process>
