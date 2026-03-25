@@ -219,15 +219,88 @@ while (有待执行任务) {
 ├── 任务C 完成 ✓
 └── 任务D 阻塞 → 创建Meeting → **跳过任务，继续执行** ↷
 
-执行完成!
-📋 有待处理的 Meeting (2个):
-  - APPR-001: 数据库连接失败 (TASK-B)
-  - APPR-002: API设计决策 (TASK-D)
-
-请使用 /om:meeting 查看并处理
+所有任务执行完成!
 ```
 
-Meeting 保持 `pending` 状态，用户最后使用 `/om:meeting` 以交互式方式处理
+d) **执行完成后自动处理 Meeting**:
+
+```bash
+# 检查是否有 pending 的 Meeting
+openmatrix meeting --list --pending
+```
+
+**如果有 pending 的 Meeting，立即进入交互式处理**:
+
+```
+📋 检测到待处理的 Meeting (2个)
+
+┌─────────────────────────────────────────┐
+│ [1] 🔴 TASK-001 - 数据库连接失败          │
+│     阻塞原因: 无法连接到远程数据库         │
+│                                         │
+│ [2] 🤔 TASK-003 - API设计决策             │
+│     问题: 选择 REST 还是 GraphQL         │
+└─────────────────────────────────────────┘
+```
+
+**使用 AskUserQuestion 逐个处理**:
+
+```typescript
+// 1. 先选择要处理的 Meeting
+AskUserQuestion({
+  questions: [{
+    question: "请选择要处理的 Meeting:",
+    header: "Meeting",
+    options: [
+      { label: "[1] TASK-001 - 数据库连接失败", description: "阻塞 - 需要信息" },
+      { label: "[2] TASK-003 - API设计决策", description: "决策 - 技术选型" },
+      { label: "全部跳过", description: "标记所有 Meeting 为跳过" }
+    ],
+    multiSelect: false
+  }]
+})
+
+// 2. 根据类型展示处理选项
+// 阻塞型:
+AskUserQuestion({
+  questions: [{
+    question: "如何处理此阻塞?",
+    header: "处理方式",
+    options: [
+      { label: "💡 提供信息", description: "提供解决问题所需的信息后重试" },
+      { label: "⏭️ 跳过任务", description: "标记为可选，继续执行" },
+      { label: "🔄 重试", description: "直接重试此任务" }
+    ],
+    multiSelect: false
+  }]
+})
+
+// 决策型:
+AskUserQuestion({
+  questions: [{
+    question: "请做出决策:",
+    header: "决策",
+    options: [
+      { label: "方案 A", description: "方案A描述" },
+      { label: "方案 B", description: "方案B描述" }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**处理完成后，如果用户提供了信息或选择重试，重新执行阻塞任务**:
+```bash
+openmatrix meeting APPR-001 --action provide-info --info "..."
+# 或
+openmatrix meeting APPR-001 --action retry
+
+# 然后重新执行阻塞的任务
+openmatrix resume TASK-001
+```
+
+**⚠️ 重要**: Meeting 处理是执行流程的一部分，必须在任务结束前完成。不要让用户手动调用 /om:meeting。
+
   7. 继续下一个任务
 }
 ```
@@ -367,7 +440,38 @@ $ARGUMENTS
 ┌─────────────────┐
 │    开始执行     │
 │  (应用质量配置)  │
-└─────────────────┘
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  所有任务完成?   │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+   否        是
+    │         │
+    ▼         ▼
+┌───────┐ ┌─────────────────┐
+│继续执行│ │有 pending       │
+└───────┘ │Meeting?         │
+          └────────┬────────┘
+                   │
+              ┌────┴────┐
+              │         │
+             否        是
+              │         │
+              ▼         ▼
+          ┌───────┐ ┌─────────────┐
+          │  完成  │ │ 交互式处理  │
+          └───────┘ │ Meeting     │
+                    └──────┬──────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │ 重新执行    │
+                    │ 阻塞任务    │
+                    └─────────────┘
 ```
 
 ## 执行模式对比

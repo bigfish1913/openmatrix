@@ -1,0 +1,281 @@
+# OpenMatrix
+
+<div align="center">
+
+**The Only AI Task Orchestration with TDD + Quality Gates + 100% Automation**
+
+*Automation ≠ Sacrificing Quality | High Quality ≠ Manual Work*
+
+[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://badge.fury.io/js/openmatrix)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
+
+**[中文文档](README_CN.md)** | **[English](README_EN.md)**
+
+</div>
+
+---
+
+## One-Liner Introduction
+
+```bash
+/om:start Implement user login
+# First question lets you choose quality level, then fully automatic + strict quality assurance
+```
+
+---
+
+## Execution Flow Overview
+
+```
+User Input → Quality Selection → Task Planning → Execution → Quality Gates → AI Acceptance → Meeting Handling → Complete
+```
+
+| Phase | Description | Key Point |
+|:-----:|-------------|-----------|
+| 0 | Interactive Q&A | **First question selects quality level** |
+| 1 | Task Planning | Planner Agent generates plan |
+| 2 | Task Execution | strict/balanced/fast modes |
+| 3 | Quality Gates | 6 quality gate validations |
+| 4 | AI Acceptance | Reviewer Agent final confirmation |
+| 5 | Meeting | Non-blocking, process at end and **re-execute** |
+| 6 | Final Report | Quality score + deliverables |
+
+📖 **Detailed Flow Diagrams**: [docs/FLOW.md](docs/FLOW.md) (with Mermaid diagrams)
+
+---
+
+## Why Choose OpenMatrix?
+
+### Comparison with superpowers / gsd
+
+| Feature | OpenMatrix | superpowers | gsd |
+|---------|:----------:|:-----------:|:---:|
+| **100% Automation** | ✅ auto mode | ❌ 50% | ❌ 60% |
+| **Built-in TDD** | ✅ strict mode | ❌ Manual | ❌ None |
+| **Coverage Enforcement** | ✅ 60-80% | ❌ None | ❌ None |
+| **Security Scanning** | ✅ npm audit | ❌ None | ❌ None |
+| **AI Acceptance** | ✅ Reviewer Agent | ❌ None | Partial |
+| **Non-blocking** | ✅ Meeting mechanism | ❌ Stops | ❌ Stops |
+| **Quality Reports** | ✅ JSON + MD | ❌ None | Partial |
+| **Ease of Use** | ⚡ One-liner start | Medium | High |
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+# Clone and install
+git clone https://github.com/bigfish1913/openmatrix.git
+cd openmatrix && npm install && npm run build && npm link
+
+# Copy Skills
+mkdir -p ~/.claude/commands/om
+cp skills/*.md ~/.claude/commands/om/
+```
+
+### First Use
+
+```bash
+/om:start Implement user login feature
+
+# System will ask first:
+┌─────────────────────────────────────────────────────────┐
+│ Question 0: Select Quality Level                        │
+├─────────────────────────────────────────────────────────┤
+│ 🚀 strict   → TDD + 80% coverage + AI acceptance (prod) │
+│ ⚖️ balanced  → 60% coverage + AI acceptance (daily)     │
+│ ⚡ fast      → No quality gates (prototypes)            │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Core Features
+
+### 1️⃣ Three-Level Quality Configuration (First Question)
+
+| Level | TDD | Coverage | Lint | Security | AI Accept | Use Case |
+|:-----:|:---:|:--------:|:----:|:--------:|:---------:|----------|
+| **strict** | ✅ | 80% | ✅ Strict | ✅ | ✅ | 🏭 **Production Code** |
+| **balanced** | ❌ | 60% | ✅ | ✅ | ✅ | 📦 Daily Development |
+| **fast** | ❌ | 0% | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
+
+### 2️⃣ Six Quality Gates (Verify Phase)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Verify Phase - Quality Gates              │
+├─────────────────────────────────────────────────────────────┤
+│  🚪 Gate 1: Build Check    npm run build     → Must pass    │
+│  🚪 Gate 2: Test Run       npm test         → Must pass    │
+│  🚪 Gate 3: Coverage Check >= 60%/80%       → Configurable │
+│  🚪 Gate 4: Lint Check     No errors        → Configurable │
+│  🚪 Gate 5: Security Scan  npm audit        → No high-risk │
+│  🚪 Gate 6: Acceptance     User defined     → All must met │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 3️⃣ TDD Mode (strict Level)
+
+```
+Traditional:  Code → Test → Bug → Fix → Regression → ... (many cycles)
+
+OpenMatrix TDD (strict):
+  🧪 Test Phase:   Write tests first (RED - tests must fail)
+  ✨ Dev Phase:    Write code (GREEN - tests must pass)
+  ✅ Verify Phase: 6 quality gates
+  🎉 Accept Phase: AI Reviewer final confirmation
+
+Result: Right the first time, no rework
+```
+
+### 4️⃣ Meeting Mechanism (Non-blocking)
+
+```
+❌ Other solutions:
+   TASK-001 ✓ → TASK-002 blocked ⏸️ → Wait for user... (wasted time)
+
+✅ OpenMatrix:
+   TASK-001 ✓ → TASK-002 blocked → Create Meeting → Skip ↷
+   TASK-003 ✓ → TASK-004 ✓ → Done!
+   → User uses /om:meeting to handle all blockers at once
+```
+
+### 5️⃣ AI Acceptance (Accept Phase)
+
+```
+Accept Phase executed by Reviewer Agent:
+├── Check verify-report.md
+├── Validate all acceptance criteria
+├── Confirm code is merge-ready
+└── Generate accept-report.md
+```
+
+---
+
+## Execution Flow
+
+### strict Mode (Recommended for Production)
+
+```
+┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
+│   TDD   │────▶│ Develop │────▶│  Verify │────▶│ Accept  │
+│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 6gate│     │ 🎉 AI   │
+└─────────┘     └─────────┘     └─────────┘     └─────────┘
+```
+
+### balanced Mode (Daily Development)
+
+```
+┌─────────┐     ┌─────────┐     ┌─────────┐
+│ Develop │────▶│  Verify │────▶│ Accept  │
+│ ✨ Code │     │ ✅ 4gate│     │ 🎉 AI   │
+└─────────┘     └─────────┘     └─────────┘
+```
+
+---
+
+## Skills Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/om:start` | Start new task (first question selects quality level) |
+| `/om:status` | View status |
+| `/om:approve` | Approve decisions |
+| `/om:meeting` | Handle blockers |
+| `/om:resume` | Resume interruption |
+| `/om:retry` | Retry failures |
+| `/om:report` | Generate report |
+
+---
+
+## Quality Reports
+
+Generated after each task completion:
+
+```json
+{
+  "taskId": "TASK-001",
+  "overall": "pass",
+  "tests": { "passed": 15, "failed": 0, "coverage": 82 },
+  "build": { "success": true },
+  "lint": { "errors": 0, "warnings": 3 },
+  "security": { "vulnerabilities": [] },
+  "acceptance": { "met": 5, "total": 5 }
+}
+```
+
+---
+
+## FAQ
+
+### Q: Which quality level is right for me?
+
+| Your Scenario | Recommended Level |
+|---------------|-------------------|
+| 🏭 Production code, core features | **strict** |
+| 📦 Daily feature development | **balanced** |
+| 🏃 Quick prototypes, POC | **fast** |
+
+### Q: Can OpenMatrix work with superpowers?
+
+**A**: Yes! OpenMatrix automates task execution, superpowers provides additional skills.
+
+### Q: What is Meeting?
+
+**A**: When blocked, a record is created but **execution doesn't stop**. Use `/om:meeting` to handle all blockers at the end.
+
+---
+
+## Configuration
+
+`.openmatrixrc.json`:
+
+```json
+{
+  "quality": {
+    "tdd": false,
+    "minCoverage": 60,
+    "strictLint": true,
+    "securityScan": true
+  },
+  "approvalPoints": ["plan", "merge"],
+  "agents": { "maxConcurrent": 3 }
+}
+```
+
+---
+
+## Development
+
+```bash
+git clone https://github.com/bigfish1913/openmatrix.git
+cd openmatrix && npm install && npm run build && npm test
+```
+
+---
+
+## Roadmap
+
+- [x] TDD Mode
+- [x] 6 Quality Gates
+- [x] Meeting Mechanism
+- [x] Quality Reports
+- [x] AI Acceptance
+- [ ] VSCode Extension
+- [ ] Python/Go Support
+- [ ] CI/CD Integration
+
+---
+
+<div align="center">
+
+**If you find this useful, please give it a ⭐ Star!**
+
+MIT © 2024 | Made by [bigfish1913](https://github.com/bigfish1913)
+
+</div>

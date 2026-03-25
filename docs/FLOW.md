@@ -133,6 +133,8 @@ flowchart TB
 
 ## Meeting 处理流程
 
+**重要**: 任务执行完成后，系统自动检测并处理 Meeting，无需用户手动调用 `/om:meeting`。
+
 ```mermaid
 flowchart TB
     subgraph Exec["任务执行"]
@@ -141,9 +143,14 @@ flowchart TB
         T3["TASK-003: ✅ 完成"]
         T4["TASK-004: ⚠️ 阻塞"]
         T5["TASK-005: ✅ 完成"]
+        E1["所有任务执行完成"]
     end
 
-    subgraph Meeting["📋 /om:meeting"]
+    subgraph Check["🔍 自动检测"]
+        C1{"有 pending Meeting?"}
+    end
+
+    subgraph Meeting["📋 交互式处理 (自动弹出)"]
         M1["Meeting-001: 数据库连接失败"]
         M2["Meeting-002: API设计决策"]
 
@@ -161,13 +168,20 @@ flowchart TB
         R2["重新执行 TASK-004"]
     end
 
-    T2 --> M1
-    T4 --> M2
+    subgraph Done["🏁 完成"]
+        D1["生成最终报告"]
+    end
+
+    T1 --> T2 --> T3 --> T4 --> T5 --> E1
+    E1 --> C1
+    C1 -->|是| Meeting
+    C1 -->|否| Done
+    T2 -.->|创建| M1
+    T4 -.->|创建| M2
     M1A --> R1
     M2A --> R2
-
-    R1 --> Done1["✅ 完成"]
-    R2 --> Done2["✅ 完成"]
+    R1 --> C1
+    R2 --> C1
 ```
 
 ## AI 验收流程
@@ -241,21 +255,28 @@ sequenceDiagram
             R->>S: PASS
         else 验证失败
             R->>S: FAIL
-            S->>M: 创建 Meeting
+            S->>M: 创建 Meeting (pending)
+            Note over S: 跳过阻塞任务，继续执行
         end
         S->>R: 验收: AI确认
         R->>S: ACCEPT_PASSED
     end
 
-    alt 有 Meeting
-        U->>S: /om:meeting
-        S->>U: 展示阻塞列表
-        U->>S: 提供信息/跳过
-        S->>C: 重新执行阻塞任务
+    Note over S: 所有任务执行完成
+
+    alt 有 pending Meeting
+        S->>S: 自动检测 Meeting
+        S->>U: 📋 展示待处理 Meeting
+        loop 处理每个 Meeting
+            U->>S: 提供信息/跳过/重试
+            alt 提供信息或重试
+                S->>C: 重新执行阻塞任务
+                C->>S: 任务完成
+            end
+        end
     end
 
-    S->>U: /om:report
-    U->>S: 完成!
+    S->>U: ✅ 全部完成 - 生成报告
 ```
 
 ---

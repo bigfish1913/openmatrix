@@ -2,3 +2,6 @@ node_modules/
 # dist/ - included for GitHub install
 dist/
 .openmatrix*
+
+# Environment variables (contains secrets)
+.env

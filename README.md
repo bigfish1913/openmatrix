@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**唯一同时实现 TDD + 严格质量门禁 + 全自动执行的 AI 任务编排系统**
+**同时实现 TDD + 严格质量门禁 + 全自动执行的 AI 任务编排系统**
 
 *自动化 ≠ 牺牲质量 | 高质量 ≠ 手动操作*
 
@@ -11,13 +11,11 @@
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
 
-**[中文文档](#中文文档)** | **[English](#english)**
+**[中文文档](README_CN.md)** | **[English](README_EN.md)**
 
 </div>
 
 ---
-
-# 中文文档
 
 ## 一句话介绍
 
@@ -281,44 +279,3 @@ cd openmatrix && npm install && npm run build && npm test
 MIT © 2024 | Made by [bigfish1913](https://github.com/bigfish1913)
 
 </div>
-
----
-
-# English
-
-## OpenMatrix: High Quality + Full Automation
-
-The **only** AI task orchestration with TDD + Quality Gates + 100% Automation.
-
-### Quick Start
-
-```bash
-# Install
-git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix && npm install && npm run build && npm link
-mkdir -p ~/.claude/commands/om && cp skills/*.md ~/.claude/commands/om/
-
-# Use (first question asks quality level)
-/om:start Implement user login
-```
-
-### Quality Levels
-
-| Level | TDD | Coverage | Gates | Use Case |
-|-------|:---:|:--------:|:-----:|----------|
-| **strict** | ✅ | 80% | 6 | Production code |
-| **balanced** | ❌ | 60% | 4 | Daily development |
-| **fast** | ❌ | 0% | 1 | Prototypes |
-
-### Key Features
-
-- ✅ **Quality Level Selection** - First question you answer
-- ✅ **TDD Mode** - strict level includes test-first
-- ✅ **6 Quality Gates** - Build, Tests, Coverage, Lint, Security, Acceptance
-- ✅ **AI Acceptance** - Reviewer Agent validates final result
-- ✅ **Meeting Mechanism** - Blockers don't stop execution
-- ✅ **Quality Reports** - JSON format for every task
-
-### License
-
-MIT
