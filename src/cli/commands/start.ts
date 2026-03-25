@@ -12,6 +12,7 @@ export const startCommand = new Command('start')
   .argument('[input]', '任务文件路径或描述')
   .option('-c, --config <path>', '配置文件路径')
   .option('--skip-questions', '跳过澄清问题')
+  .option('--mode <mode>', '执行模式 (confirm-all|confirm-key|auto)')
   .action(async (input: string | undefined, options) => {
     const basePath = process.cwd();
     const omPath = path.join(basePath, '.openmatrix');
@@ -75,20 +76,61 @@ export const startCommand = new Command('start')
       console.log(`  ${i + 1}. ${task.title} (${task.priority})`);
     });
 
-    // 创建审批请求
-    const approvalManager = new ApprovalManager(stateManager);
-    const approval = await approvalManager.createPlanApproval(
-      'plan-approval',
-      `# 执行计划\n\n${subTasks.map((t: any, i: number) => `${i + 1}. ${t.title}`).join('\n')}`
-    );
+    // 确定执行模式
+    const executionMode = options.mode || 'confirm-key';
+    let approvalPoints: string[] = [];
 
-    console.log(`\n⏸️  等待计划审批`);
-    console.log(`   审批ID: ${approval.id}`);
-    console.log(`   使用 /om:approve ${approval.id} 审批`);
+    // 根据模式设置审批点
+    switch (executionMode) {
+      case 'confirm-all':
+        approvalPoints = ['plan', 'phase', 'merge', 'deploy'];
+        break;
+      case 'confirm-key':
+        approvalPoints = ['plan', 'merge', 'deploy'];
+        break;
+      case 'auto':
+        approvalPoints = [];
+        break;
+      default:
+        approvalPoints = ['plan', 'merge'];
+    }
 
-    // 更新状态
-    await stateManager.updateState({
-      status: 'paused' as any,
-      currentPhase: 'planning'
-    });
+    console.log(`\n🎯 执行模式: ${executionMode}`);
+    console.log(`   审批点: ${approvalPoints.length > 0 ? approvalPoints.join(', ') : '无 (全自动)'}`);
+
+    // 创建审批请求（如果有审批点）
+    if (approvalPoints.includes('plan')) {
+      const approvalManager = new ApprovalManager(stateManager);
+      const approval = await approvalManager.createPlanApproval(
+        'plan-approval',
+        `# 执行计划\n\n${subTasks.map((t: any, i: number) => `${i + 1}. ${t.title}`).join('\n')}`
+      );
+
+      console.log(`\n⏸️  等待计划审批`);
+      console.log(`   审批ID: ${approval.id}`);
+      console.log(`   使用 /om:approve ${approval.id} 审批`);
+
+      // 更新状态
+      await stateManager.updateState({
+        status: 'paused' as any,
+        currentPhase: 'planning',
+        config: {
+          ...state.config,
+          approvalPoints: approvalPoints as any
+        }
+      });
+    } else {
+      // 自动执行，直接开始
+      await stateManager.updateState({
+        status: 'running' as any,
+        currentPhase: 'execution',
+        config: {
+          ...state.config,
+          approvalPoints: []
+        }
+      });
+
+      console.log('\n🚀 开始自动执行...');
+      console.log('   使用 /om:status 查看进度');
+    }
   });
