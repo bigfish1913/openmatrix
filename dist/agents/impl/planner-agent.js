@@ -1,101 +1,126 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PlannerAgent = void 0;
-// src/agents/impl/planner-agent.ts
-const base_agent_js_1 = require("../base-agent.js");
-const state_manager_js_1 = require("../../storage/state-manager.js");
-const task_planner_js_1 = require("../../orchestrator/task-planner.js");
-class PlannerAgent extends base_agent_js_1.BaseAgent {
+/**
+ * Planner Agent - 任务规划
+ *
+ * 职责：
+ * - 分析任务需求
+ * - 拆解为子任务
+ * - 识别依赖关系
+ * - 制定执行计划
+ * - 评估风险和资源
+ */
+class PlannerAgent {
     type = 'planner';
-    capabilities = ['task-breakdown', 'dependency-analysis', 'complexity-estimation'];
-    description = 'Plans and breaks down complex tasks into sub-tasks';
-    constructor(id) {
-        super(id, 'planner');
-    }
-    async execute(taskId, context) {
+    capabilities = ['plan', 'decompose', 'analyze', 'estimate'];
+    /**
+     * 执行规划任务
+     */
+    async execute(task) {
         const startTime = Date.now();
-        const runId = this.generateRunId();
         try {
-            // 1. Get the task from context
-            const task = await this.getTask(context.workspaceRoot, taskId);
-            if (!task) {
-                return {
-                    runId,
-                    taskId,
-                    agentType: 'planner',
-                    status: 'failed',
-                    output: 'Task not found',
-                    artifacts: [],
-                    needsApproval: false,
-                    error: 'Task not found',
-                    duration: Date.now() - startTime
-                };
-            }
-            // 2. Parse task description
-            const parser = new TaskParser();
-            const parsedTask = parser.parse(task.description);
-            // 3. Use TaskPlanner to break down
-            const planner = new task_planner_js_1.TaskPlanner();
-            const breakdowns = planner.breakdown(parsedTask, context.config);
-            // 4. Create sub-tasks in state
-            const stateManager = new state_manager_js_1.StateManager(context.workspaceRoot);
-            for (const breakdown of breakdowns) {
-                await stateManager.createTask({
-                    title: breakdown.title,
-                    description: breakdown.description,
-                    priority: breakdown.priority,
-                    timeout: 300,
-                    dependencies: breakdown.dependencies,
-                    assignedAgent: breakdown.assignedAgent
-                });
-            }
-            // 5. Generate result
-            const endTime = Date.now();
+            // 构建规划提示词
+            const prompt = this.buildPlanPrompt(task);
+            // 返回结果（实际执行由 Subagent 完成）
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'planner',
                 status: 'completed',
-                output: `Successfully broke down task into ${breakdowns.length} sub-tasks`,
-                artifacts: [], // Task IDs will be in state
-                needsApproval: false,
-                duration: endTime - startTime
+                output: prompt,
+                artifacts: [],
+                needsApproval: true, // 计划需要审批
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
         catch (error) {
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'planner',
                 status: 'failed',
-                output: error instanceof Error ? error.message : 'Unknown error',
+                output: '',
                 artifacts: [],
                 needsApproval: false,
-                error: error.message,
-                duration: Date.now() - startTime
+                error: error instanceof Error ? error.message : String(error),
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
     }
-    validate(taskId, context) {
-        // Planner agent requires task description
-        return !!context.taskDescription;
-    }
-    report() {
-        return {
-            agentId: this.id,
-            agentType: 'planner',
-            taskId: 'taskId',
-            status: 'completed',
-            summary: 'Task breakdown agent',
-            artifacts: [],
-            errors: [],
-            duration: 0
-        };
+    /**
+     * 构建规划提示词
+     */
+    buildPlanPrompt(task) {
+        return `
+# 任务规划
+
+## 原始需求
+
+${task.description}
+
+## 分析任务
+
+1. 理解核心目标
+2. 识别关键功能点
+3. 确定技术约束
+4. 评估复杂度
+
+## 输出计划
+
+请输出：
+
+\`\`\`markdown
+# 执行计划
+
+## 1. 任务概述
+[简要描述任务目标]
+
+## 2. 子任务拆解
+
+### Phase 1: [阶段名]
+- TASK-XXX-1: [任务描述]
+  - 预计时间: X min
+  - 依赖: 无
+
+- TASK-XXX-2: [任务描述]
+  - 预计时间: X min
+  - 依赖: TASK-XXX-1
+
+### Phase 2: [阶段名]
+...
+
+## 3. 依赖关系图
+
+\`\`\`
+TASK-001 ──┬──> TASK-002 ──> TASK-004
+           └──> TASK-003 ────────┘
+\`\`\`
+
+## 4. 风险评估
+
+| 风险 | 影响 | 缓解措施 |
+|-----|------|---------|
+| ... | 高/中/低 | ... |
+
+## 5. 资源需求
+
+- 开发时间: X 小时
+- 测试时间: Y 小时
+- 审查时间: Z 小时
+
+## 6. 审批点
+
+- [ ] 计划审批
+- [ ] 合并审批 (如需要)
+- [ ] 部署审批 (如需要)
+\`\`\`
+`;
     }
     generateRunId() {
-        const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).slice(2, 6);
-        return `planner-${timestamp}-${random}`;
+        return `planner-${Date.now().toString(36)}`;
     }
 }
 exports.PlannerAgent = PlannerAgent;

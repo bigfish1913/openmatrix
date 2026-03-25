@@ -1,17 +1,17 @@
 import type { Task, AgentType, AgentResult } from '../../types/index.js';
 /**
- * Coder Agent - 代码编写
+ * Reviewer Agent - 代码审查
  *
  * 职责：
- * - 根据任务描述编写代码
- * - 遵循项目代码规范
- * - 编写必要的注释
- * - 确保代码可编译
+ * - 代码质量审查
+ * - 安全性检查
+ * - 性能评估
+ * - 最佳实践建议
  */
-export declare class CoderAgent {
+export declare class ReviewerAgent {
     readonly type: AgentType;
     readonly capabilities: string[];
     execute(task: Task): Promise<AgentResult>;
-    private buildCoderPrompt;
+    private buildReviewerPrompt;
     private generateRunId;
 }

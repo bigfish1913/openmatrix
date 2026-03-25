@@ -1,29 +1,72 @@
-import type { BaseAgent, AgentResult } from './base-agent.js';
-import type { Task } from '../types/index.js';
-export interface AgentRunOptions {
-    timeout?: number;
-    maxRetries?: number;
-    model?: string;
+import type { Task, AgentResult } from '../types/index.js';
+import { StateManager } from '../storage/state-manager.js';
+import { ApprovalManager } from '../orchestrator/approval-manager.js';
+export interface AgentRunnerConfig {
+    maxConcurrent: number;
+    taskTimeout: number;
 }
+export interface SubagentPrompt {
+    task: Task;
+    context: string;
+    instructions: string;
+}
+/**
+ * AgentRunner - 使用 Subagent 执行任务
+ *
+ * 通过 Claude Code 的 Agent 工具启动子 Agent 执行任务
+ */
 export declare class AgentRunner {
-    private options;
-    private activeAgents;
-    constructor(options?: AgentRunOptions);
+    private stateManager;
+    private approvalManager;
+    private config;
+    private runningAgents;
+    constructor(stateManager: StateManager, approvalManager: ApprovalManager, config?: Partial<AgentRunnerConfig>);
     /**
-     * Run an agent in a subprocess
+     * 执行任务 - 返回 Subagent 调用提示
      */
-    run(agent: BaseAgent, task: Task): Promise<AgentResult>;
+    runTask(task: Task): Promise<AgentResult>;
     /**
-     * Get status of all active agents
+     * 构建 Agent 提示词
      */
-    getActiveAgents(): string[];
+    private buildAgentPrompt;
     /**
-     * Kill a specific agent process
+     * 构建任务上下文
      */
-    killAgent(runId: string): void;
+    private buildContext;
     /**
-     * Kill all active agents
+     * Planner Agent 提示词
      */
-    killAll(): void;
+    private getPlannerPrompt;
+    /**
+     * Coder Agent 提示词
+     */
+    private getCoderPrompt;
+    /**
+     * Tester Agent 提示词
+     */
+    private getTesterPrompt;
+    /**
+     * Reviewer Agent 提示词
+     */
+    private getReviewerPrompt;
+    /**
+     * Researcher Agent 提示词
+     */
+    private getResearcherPrompt;
+    /**
+     * Executor Agent 提示词
+     */
+    private getExecutorPrompt;
+    /**
+     * 生成运行 ID
+     */
     private generateRunId;
+    /**
+     * 获取运行中的 Agent 数量
+     */
+    getRunningCount(): number;
+    /**
+     * 检查是否可以启动新 Agent
+     */
+    canStartNew(): boolean;
 }

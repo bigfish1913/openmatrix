@@ -1,112 +1,96 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoderAgent = void 0;
-// src/agents/impl/coder-agent.ts
-const base_agent_js_1 = require("../base-agent.js");
-const state_manager_js_1 = require("../../storage/state-manager.js");
-class CoderAgent extends base_agent_js_1.BaseAgent {
+/**
+ * Coder Agent - 代码编写
+ *
+ * 职责：
+ * - 根据任务描述编写代码
+ * - 遵循项目代码规范
+ * - 编写必要的注释
+ * - 确保代码可编译
+ */
+class CoderAgent {
     type = 'coder';
-    capabilities = ['code-generation', 'refactoring', 'bug-fixing', 'file-operations'];
-    description = 'Writes and modifies code files';
-    constructor(id) {
-        super(id, 'coder');
-    }
-    async execute(taskId, context) {
+    capabilities = ['code', 'refactor', 'debug', 'implement'];
+    async execute(task) {
         const startTime = Date.now();
-        const runId = this.generateRunId();
-        const stateManager = new state_manager_js_1.StateManager(context.workspaceRoot);
         try {
-            // 1. Get task
-            const task = await stateManager.getTask(taskId);
-            if (!task) {
-                return {
-                    runId,
-                    taskId,
-                    agentType: 'coder',
-                    status: 'failed',
-                    output: 'Task not found',
-                    artifacts: [],
-                    needsApproval: false,
-                    error: 'Task not found',
-                    duration: Date.now() - startTime
-                };
-            }
-            // 2. Read relevant files
-            const filesToRead = await this.readRelevantFiles(task.description, context.workspaceRoot);
-            // 3. Call Claude API to generate code
-            const prompt = this.buildPrompt(taskId, context);
-            // Placeholder: actual API call would go here
-            const response = { output: 'Code generated', files: [] };
-            // 4. Process response and apply changes
-            const artifacts = await this.applyChanges(response, context.workspaceRoot);
-            // 5. Update task status
-            await stateManager.updateTask(taskId, {
-                status: 'completed',
-                updatedAt: new Date().toISOString()
-            });
-            const endTime = Date.now();
+            const prompt = this.buildCoderPrompt(task);
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'coder',
                 status: 'completed',
-                output: response.output,
-                artifacts,
+                output: prompt,
+                artifacts: [],
                 needsApproval: false,
-                duration: endTime - startTime
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
         catch (error) {
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'coder',
                 status: 'failed',
-                output: error instanceof Error ? error.message : 'Unknown error',
+                output: '',
                 artifacts: [],
                 needsApproval: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                duration: Date.now() - startTime
+                error: error instanceof Error ? error.message : String(error),
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
     }
-    validate(taskId, context) {
-        return !!context.taskDescription;
-    }
-    report() {
-        return {
-            agentId: this.id,
-            agentType: 'coder',
-            taskId: '',
-            status: 'idle',
-            summary: 'Code generation agent',
-            artifacts: [],
-            errors: [],
-            duration: 0
-        };
-    }
-    buildPrompt(taskId, context) {
-        return `You are a code generation agent. Task: ${taskId}`;
+    buildCoderPrompt(task) {
+        return `
+# 编码任务
+
+## 任务描述
+
+${task.description}
+
+## 编码要求
+
+1. **代码风格**
+   - 遵循项目现有代码风格
+   - 使用项目配置的 linter
+   - 添加必要的类型定义
+
+2. **最佳实践**
+   - 单一职责原则
+   - 避免重复代码
+   - 合理的错误处理
+   - 适当的注释
+
+3. **安全性**
+   - 验证输入参数
+   - 避免注入攻击
+   - 保护敏感数据
+
+4. **可测试性**
+   - 依赖注入
+   - 纯函数优先
+   - 可 mock 的接口
+
+## 输出要求
+
+请实现代码，确保：
+
+- [ ] 代码可编译
+- [ ] 遵循项目规范
+- [ ] 添加必要的测试
+- [ ] 更新相关文档
+
+## 开始实现
+
+请阅读相关代码文件，然后实现功能。
+`;
     }
     generateRunId() {
-        const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).slice(2, 6);
-        return `coder-${timestamp}-${random}`;
-    }
-    async readRelevantFiles(description, workspaceRoot) {
-        const files = [];
-        // Extract file paths from task description
-        const filePathRegex = /(?:read|write|edit|apply)\s*`?file:\s*`([^`]+)`/gm;
-        const matches = description.matchAll(new RegExp(filePathRegex, 'g'));
-        for (const match of matches || []) {
-            files.push(match[1]);
-        }
-        return files;
-    }
-    async applyChanges(response, workspaceRoot) {
-        const artifacts = [];
-        // Placeholder for applying changes
-        return artifacts;
+        return `coder-${Date.now().toString(36)}`;
     }
 }
 exports.CoderAgent = CoderAgent;

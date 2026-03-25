@@ -1,126 +1,168 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExecutorAgent = void 0;
-// src/agents/impl/executor-agent.ts
-const base_agent_js_1 = require("../base-agent.js");
-const child_process_1 = require("child_process");
-class ExecutorAgent extends base_agent_js_1.BaseAgent {
+/**
+ * Executor Agent - 命令执行
+ *
+ * 职责：
+ * - 执行构建命令
+ * - 运行测试
+ * - 部署应用
+ * - 清理环境
+ *
+ * 安全约束：
+ * - 不执行危险命令
+ * - 不暴露敏感信息
+ * - 验证命令参数
+ * - 记录执行日志
+ */
+class ExecutorAgent {
     type = 'executor';
-    capabilities = ['command-execution', 'file-operations', 'safe-commands'];
-    description = 'Executes commands safely';
-    constructor(id) {
-        super(id, 'executor');
-    }
-    async execute(taskId, context) {
+    capabilities = ['build', 'test', 'deploy', 'clean', 'run'];
+    // 禁止执行的命令模式
+    FORBIDDEN_PATTERNS = [
+        /rm\s+-rf\s+\//, // rm -rf /
+        /rm\s+-rf\s+~/, // rm -rf ~
+        /:\(\)\{.*;\};/, // Fork bomb
+        />\s*\/dev\/sd/, // 写入磁盘
+        /dd\s+if=.*of=\/dev/, // dd 写入设备
+        /mkfs/, // 格式化
+        /shutdown/, // 关机
+        /reboot/, // 重启
+        /init\s+0/, // 关机
+    ];
+    async execute(task) {
         const startTime = Date.now();
-        const runId = this.generateRunId();
         try {
-            // 1. Parse commands from task description
-            const commands = this.parseCommands(context.taskDescription || '');
-            // 2. Execute commands
-            const results = await this.executeCommands(commands, context.workspaceRoot);
-            // 3. Generate result
-            const endTime = Date.now();
+            // 安全检查
+            this.validateTask(task);
+            const prompt = this.buildExecutorPrompt(task);
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'executor',
                 status: 'completed',
-                output: `Successfully executed ${results.length} commands`,
-                artifacts: results.map(r => r.outputFile).filter(Boolean),
-                needsApproval: false,
-                duration: endTime - startTime
+                output: prompt,
+                artifacts: [],
+                needsApproval: this.needsApproval(task),
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
         catch (error) {
             return {
-                runId,
-                taskId,
+                runId: this.generateRunId(),
+                taskId: task.id,
                 agentType: 'executor',
                 status: 'failed',
-                output: error instanceof Error ? error.message : 'Unknown error',
+                output: '',
                 artifacts: [],
                 needsApproval: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                duration: Date.now() - startTime
+                error: error instanceof Error ? error.message : String(error),
+                duration: Date.now() - startTime,
+                completedAt: new Date().toISOString()
             };
         }
     }
-    validate(taskId, context) {
-        return !!context.taskDescription;
+    /**
+     * 验证任务安全性
+     */
+    validateTask(task) {
+        const content = task.description.toLowerCase();
+        for (const pattern of this.FORBIDDEN_PATTERNS) {
+            if (pattern.test(content)) {
+                throw new Error(`安全限制: 检测到禁止执行的命令模式`);
+            }
+        }
     }
-    report() {
-        return {
-            agentId: this.id,
-            agentType: 'executor',
-            taskId: '',
-            status: 'idle',
-            summary: 'Command execution agent',
-            artifacts: [],
-            errors: [],
-            duration: 0
-        };
+    /**
+     * 判断是否需要审批
+     */
+    needsApproval(task) {
+        const approvalKeywords = ['deploy', 'publish', 'release', 'production'];
+        const content = task.description.toLowerCase();
+        return approvalKeywords.some(kw => content.includes(kw));
+    }
+    buildExecutorPrompt(task) {
+        return `
+# 执行任务
+
+## 执行内容
+
+${task.description}
+
+## 安全约束
+
+⚠️ **重要安全规则**
+
+1. **禁止执行**
+   - 删除系统文件的命令
+   - 格式化磁盘的命令
+   - 关机/重启命令
+   - 任意代码注入
+
+2. **执行前确认**
+   - 检查命令参数
+   - 确认目标路径
+   - 备份重要数据
+
+3. **执行后验证**
+   - 检查执行结果
+   - 验证预期效果
+   - 记录执行日志
+
+## 执行步骤
+
+1. **环境检查**
+   \`\`\`bash
+   # 检查当前环境
+   pwd
+   node --version
+   npm --version
+   \`\`\`
+
+2. **执行命令**
+   \`\`\`bash
+   # 在此执行任务中的命令
+   \`\`\`
+
+3. **验证结果**
+   \`\`\`bash
+   # 检查执行结果
+   \`\`\`
+
+## 输出格式
+
+\`\`\`markdown
+# 执行报告
+
+## 命令
+\`\`\`bash
+[执行的命令]
+\`\`\`
+
+## 输出
+\`\`\`
+[命令输出]
+\`\`\`
+
+## 状态
+[✅ 成功 / ❌ 失败]
+
+## 耗时
+X 秒
+
+## 错误 (如有)
+[错误信息]
+\`\`\`
+
+## 开始执行
+
+请按步骤执行命令并记录结果。
+`;
     }
     generateRunId() {
-        const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).slice(2, 6);
-        return `executor-${timestamp}-${random}`;
-    }
-    parseCommands(description) {
-        const commands = [];
-        const lines = description.split('\n');
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('command:') || trimmed.startsWith('cmd:') || trimmed.startsWith('run:')) {
-                const cleanCommand = trimmed
-                    .replace(/^(command:|cmd:|run:)\s*/, '')
-                    .replace(/`/g, '')
-                    .trim();
-                if (cleanCommand) {
-                    commands.push(cleanCommand);
-                }
-            }
-        }
-        return commands;
-    }
-    async executeCommands(commands, workspaceRoot) {
-        const results = [];
-        for (const cmd of commands) {
-            const isSafe = this.isSafeCommand(cmd);
-            if (!isSafe) {
-                throw new Error(`Unsafe command detected: ${cmd}`);
-            }
-            const result = await this.runCommand(cmd, workspaceRoot);
-            results.push(result);
-        }
-        return results;
-    }
-    async runCommand(cmd, cwd) {
-        return new Promise((resolve, reject) => {
-            const timeout = 30000;
-            (0, child_process_1.exec)(cmd, { cwd, timeout }, (error, stdout, stderr) => {
-                if (error) {
-                    resolve({
-                        command: cmd,
-                        output: stderr || error.message
-                    });
-                }
-                else {
-                    resolve({
-                        command: cmd,
-                        output: stdout
-                    });
-                }
-            });
-            setTimeout(() => {
-                reject(new Error(`Command timed out: ${cmd}`));
-            }, timeout);
-        });
-    }
-    isSafeCommand(cmd) {
-        const safeCommands = ['npm', 'npx', 'git', 'ls', 'cat', 'mkdir', 'rm', 'node'];
-        const lowerCmd = cmd.toLowerCase();
-        return safeCommands.some(safe => lowerCmd.startsWith(safe));
+        return `executor-${Date.now().toString(36)}`;
     }
 }
 exports.ExecutorAgent = ExecutorAgent;
