@@ -15,6 +15,33 @@ export interface SubagentPrompt {
 }
 
 /**
+ * Claude Code Subagent 类型
+ */
+export type ClaudeCodeSubagentType = 'general-purpose' | 'Explore' | 'Plan';
+
+/**
+ * Subagent 任务配置 - 用于 Agent 工具调用
+ */
+export interface SubagentTask {
+  /** Subagent 类型 */
+  subagent_type: ClaudeCodeSubagentType;
+  /** 简短描述 (3-5 词) */
+  description: string;
+  /** 完整任务提示词 */
+  prompt: string;
+  /** 是否使用隔离 worktree */
+  isolation?: 'worktree';
+  /** 任务 ID (用于追踪) */
+  taskId: string;
+  /** 原始 Agent 类型 */
+  agentType: AgentType;
+  /** 超时时间 (ms) */
+  timeout: number;
+  /** 是否需要审批 */
+  needsApproval: boolean;
+}
+
+/**
  * AgentRunner - 使用 Subagent 执行任务
  *
  * 通过 Claude Code 的 Agent 工具启动子 Agent 执行任务
@@ -40,28 +67,161 @@ export class AgentRunner {
   }
 
   /**
-   * 执行任务 - 返回 Subagent 调用提示
+   * 准备 Subagent 任务配置
+   *
+   * 返回可用于 Agent 工具调用的完整配置
+   */
+  async prepareSubagentTask(task: Task): Promise<SubagentTask> {
+    const subagentType = this.mapAgentType(task.assignedAgent);
+    const prompt = this.buildExecutionPrompt(task);
+    const needsIsolation = this.needsIsolation(task);
+
+    console.log(`🤖 Preparing ${task.assignedAgent} subagent for task ${task.id}`);
+
+    return {
+      subagent_type: subagentType,
+      description: `${task.assignedAgent}: ${task.title.slice(0, 50)}`,
+      prompt,
+      isolation: needsIsolation ? 'worktree' : undefined,
+      taskId: task.id,
+      agentType: task.assignedAgent,
+      timeout: task.timeout,
+      needsApproval: false
+    };
+  }
+
+  /**
+   * 批量准备 Subagent 任务
+   */
+  async prepareSubagentTasks(tasks: Task[]): Promise<SubagentTask[]> {
+    const results: SubagentTask[] = [];
+
+    for (const task of tasks) {
+      if (this.canStartNew()) {
+        const subagentTask = await this.prepareSubagentTask(task);
+        results.push(subagentTask);
+        this.runningAgents.set(task.id, subagentTask);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 映射 OpenMatrix Agent 类型到 Claude Code Subagent 类型
+   */
+  mapAgentType(agentType: AgentType): ClaudeCodeSubagentType {
+    const mapping: Record<AgentType, ClaudeCodeSubagentType> = {
+      planner: 'Plan',
+      coder: 'general-purpose',
+      tester: 'general-purpose',
+      reviewer: 'general-purpose',
+      researcher: 'Explore',
+      executor: 'general-purpose'
+    };
+
+    return mapping[agentType] || 'general-purpose';
+  }
+
+  /**
+   * 判断任务是否需要隔离执行
+   */
+  private needsIsolation(task: Task): boolean {
+    // Coder 和 Executor 任务可能修改文件，建议隔离
+    const isolationTypes: AgentType[] = ['coder', 'executor'];
+    return isolationTypes.includes(task.assignedAgent);
+  }
+
+  /**
+   * 构建完整的执行提示词
+   */
+  buildExecutionPrompt(task: Task): string {
+    const agentPrompt = this.buildAgentPrompt(task);
+    const phaseContext = this.buildPhaseContext(task);
+
+    return `# 任务执行
+
+## 任务信息
+- ID: ${task.id}
+- 标题: ${task.title}
+- 描述: ${task.description}
+- 优先级: ${task.priority}
+- 超时: ${task.timeout / 1000} 秒
+
+## 当前阶段
+${phaseContext}
+
+## 依赖任务
+${task.dependencies.length > 0
+  ? task.dependencies.map(d => `- ${d}`).join('\n')
+  : '无依赖'}
+
+---
+
+${agentPrompt.context}
+
+---
+
+${agentPrompt.instructions}
+
+## 完成要求
+
+1. 完成任务后，更新任务状态文件: \`.openmatrix/tasks/${task.id}/task.json\`
+2. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
+3. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
+`;
+  }
+
+  /**
+   * 构建阶段上下文
+   */
+  private buildPhaseContext(task: Task): string {
+    const phases = task.phases;
+    const currentPhase = this.getCurrentPhase(task);
+
+    return `当前阶段: **${currentPhase}**
+- 开发阶段: ${phases.develop.status}
+- 验证阶段: ${phases.verify.status}
+- 验收阶段: ${phases.accept.status}`;
+  }
+
+  /**
+   * 获取当前阶段
+   */
+  private getCurrentPhase(task: Task): string {
+    const phases = task.phases;
+
+    if (phases.develop.status !== 'completed') return '开发 (Develop)';
+    if (phases.verify.status !== 'completed') return '验证 (Verify)';
+    if (phases.accept.status !== 'completed') return '验收 (Accept)';
+
+    return '已完成';
+  }
+
+  /**
+   * 执行任务 - 返回 Subagent 调用提示 (向后兼容)
+   * @deprecated 使用 prepareSubagentTask() 代替
    */
   async runTask(task: Task): Promise<AgentResult> {
     const startTime = Date.now();
 
     try {
-      // 获取 Agent 类型对应的提示词
-      const prompt = this.buildAgentPrompt(task);
+      // 准备 Subagent 任务
+      const subagentTask = await this.prepareSubagentTask(task);
 
-      // 记录开始执行
-      console.log(`🤖 Starting ${task.assignedAgent} agent for task ${task.id}`);
-
-      // 返回结果（实际执行由 Subagent 完成）
-      // 这里返回的是一个模板，实际使用时需要调用 Agent 工具
+      // 返回结果配置
       const result: AgentResult = {
         runId: await this.generateRunId(),
         taskId: task.id,
         agentType: task.assignedAgent,
         status: 'completed',
-        output: '',
+        output: `Subagent task prepared. Use Agent tool with:\n${JSON.stringify({
+          subagent_type: subagentTask.subagent_type,
+          description: subagentTask.description,
+          prompt: subagentTask.prompt.substring(0, 200) + '...'
+        }, null, 2)}`,
         artifacts: [],
-        needsApproval: false,
+        needsApproval: subagentTask.needsApproval,
         duration: 0,
         completedAt: new Date().toISOString()
       };

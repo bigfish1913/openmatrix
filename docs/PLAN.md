@@ -1,384 +1,457 @@
-# OpenMatrix 实现计划
+# OpenMatrix 实现计划 v2
 
-## 项目概述
+> 基于差距分析生成的增量实现计划
 
-构建一个 AI Agent 编排系统，实现最大化的无人化任务执行流程。
+## 用户选择
 
-## 技术架构
-
-### 核心组件
-
-| 组件 | 技术 | 说明 |
+| 选项 | 选择 | 说明 |
 |------|------|------|
-| Skills | Claude Code Superpowers | 用户交互入口 |
-| CLI | TypeScript + Node.js | 核心调度引擎 |
-| Agent 运行时 | Node.js 子进程 | 并行任务执行 |
-| 存储 | 文件系统 + SQLite | 状态持久化 |
+| 优先级 | D - 全部按优先级依次 | 从核心到体验依次处理 |
+| Agent 执行 | B - Claude Code Agent 工具 | 使用 Subagent 执行任务 |
+| 架构调整 | A - 增量添加 | 保持现有结构 |
+| 状态同步 | Skills 主动读取 | 无需主动同步机制 |
+| 测试覆盖 | A - >80% | 严格测试要求 |
 
-### 目录结构
+---
 
+## 差距摘要
+
+| 优先级 | 差距 | 当前状态 | 目标状态 |
+|--------|------|----------|----------|
+| 🔴 P0 | Agent 真正执行 | 返回空模板 | 调用 Subagent |
+| 🔴 P0 | 执行循环缺失 | 单次操作 | 持续调度执行 |
+| 🟡 P1 | 三阶段验证 | 状态定义 | 实际执行逻辑 |
+| 🟡 P1 | Build 测试 | 缺失 | 完整实现 |
+| 🟡 P1 | 全功能测试 | 缺失 | 完整流程 |
+| 🟢 P2 | Winston 日志 | 未使用 | 集成使用 |
+| 🟢 P2 | 阻塞 Meeting | 手动 | 自动创建 |
+| 🟢 P2 | 体验优化 | 基础 | 增强交互 |
+
+---
+
+## Phase 1: Agent 执行层 (核心)
+
+**目标**: 让 Agent 真正通过 Subagent 执行任务
+
+### 1.1 AgentRunner 重构
+
+**文件**: `src/agents/agent-runner.ts`
+
+**修改内容**:
+```typescript
+// 当前: 返回空模板
+// 目标: 返回 Subagent 调用所需的完整信息
+
+interface SubagentTask {
+  subagent_type: 'general-purpose' | 'Explore' | 'Plan';
+  description: string;
+  prompt: string;
+  isolation?: 'worktree';
+}
+
+async prepareSubagentTask(task: Task): Promise<SubagentTask> {
+  return {
+    subagent_type: this.mapAgentType(task.assignedAgent),
+    description: `${task.assignedAgent}: ${task.title}`,
+    prompt: this.buildExecutionPrompt(task),
+    isolation: task.requiresIsolation ? 'worktree' : undefined
+  };
+}
 ```
-openmatrix/
-├── skills/                     # Claude Code Skills
-│   ├── om-start.md
-│   ├── om-plan.md
-│   ├── om-execute.md
-│   ├── om-verify.md
-│   ├── om-accept.md
-│   ├── om-status.md
-│   └── om-resume.md
-├── cli/                        # CLI 核心
-│   ├── package.json
-│   ├── src/
-│   │   ├── commands/           # CLI 命令
-│   │   ├── orchestrator/       # 调度器核心
-│   │   ├── agent-pool/         # Agent 并行池
-│   │   ├── storage/            # 状态管理
-│   │   └── types/              # 类型定义
-│   └── tests/
-├── web/                        # 监控面板 (可选)
-└── docs/
-    ├── specs/                  # 设计规格
-    └── plans/                  # 实现计划
-```
 
-## 实现阶段
+**任务列表**:
+- [ ] 重构 `runTask()` 返回 SubagentTask 数据
+- [ ] 实现 `mapAgentType()` 映射到 Claude Code Agent 类型
+- [ ] 增强 `buildExecutionPrompt()` 包含完整上下文
+- [ ] 添加任务隔离配置 (worktree)
+- [ ] 编写单元测试 (覆盖率 >80%)
 
-### Phase 1: 基础架构 (第 1 周)
+### 1.2 Agent 类型映射
 
-**目标**: 搭建项目骨架，实现 CLI 基础框架
+| OpenMatrix Agent | Claude Code Subagent | 说明 |
+|------------------|---------------------|------|
+| planner | Plan | 任务规划 |
+| coder | general-purpose | 代码编写 |
+| tester | general-purpose | 测试执行 |
+| reviewer | general-purpose | 代码审查 |
+| researcher | Explore | 知识检索 |
+| executor | general-purpose | 命令执行 |
 
-#### 任务列表
+### 1.3 验收标准
 
-1.1 项目初始化
-- [ ] 初始化 npm 项目，配置 TypeScript
-- [ ] 配置 ESLint + Prettier
-- [ ] 创建项目目录结构
-- [ ] 编写 README.md
-
-1.2 CLI 基础
-- [ ] 集成 Commander.js
-- [ ] 实现 `om init` 初始化命令
-- [ ] 实现 `om --version` 版本命令
-- [ ] 实现 `om --help` 帮助系统
-
-1.3 存储层
-- [ ] 设计状态文件格式 (JSON Schema)
-- [ ] 实现 FileStore 类
-- [ ] 实现状态读取/写入方法
-- [ ] 添加状态校验逻辑
-
-1.4 配置系统
-- [ ] 设计配置文件格式 (yaml/json)
-- [ ] 实现配置加载器
-- [ ] 支持环境变量覆盖
-- [ ] 配置默认值
-
-**验收标准**:
-- [ ] 可以运行 `om init` 创建 .openmatrix 目录
-- [ ] 可以读写状态文件
-- [ ] 配置文件可以被正确加载
+- [ ] `AgentRunner.prepareSubagentTask()` 返回完整 Subagent 配置
+- [ ] 所有 6 种 Agent 类型正确映射
+- [ ] 提示词包含任务上下文、约束、预期输出
+- [ ] 单元测试覆盖率 >80%
 
 ---
 
-### Phase 2: 核心调度器 (第 2 周)
+## Phase 2: 执行循环 (核心)
 
-**目标**: 实现任务解析、拆解和调度引擎
+**目标**: 实现持续调度和执行的 main loop
 
-#### 任务列表
+### 2.1 Orchestrator 主循环
 
-2.1 任务解析器
-- [ ] 实现 Markdown 任务文档解析
-- [ ] 解析任务属性 (标题、描述、优先级等)
-- [ ] 解析依赖关系
-- [ ] 解析验收标准
+**新文件**: `src/orchestrator/executor.ts`
 
-2.2 任务拆解器
-- [ ] 对接 Claude API 进行任务拆解
-- [ ] 生成子任务列表
-- [ ] 建立任务依赖图
-- [ ] 输出拆解计划文档
+```typescript
+export class OrchestratorExecutor {
+  private scheduler: Scheduler;
+  private agentRunner: AgentRunner;
+  private stateManager: StateManager;
+  private approvalManager: ApprovalManager;
 
-2.3 状态机
-- [ ] 设计任务状态流转
-- [ ] 实现状态转换验证
-- [ ] 添加状态变更钩子
-- [ ] 实现状态恢复机制
+  async run(): Promise<void> {
+    while (await this.hasPendingWork()) {
+      // 1. 检查审批点
+      if (await this.needsApproval()) {
+        await this.pauseForApproval();
+        continue;
+      }
 
-2.4 调度引擎
-- [ ] 实现任务队列
-- [ ] 实现依赖检查
-- [ ] 实现任务分发
-- [ ] 支持优先级调度
+      // 2. 获取可执行任务
+      const tasks = await this.scheduler.getParallelTasks();
 
-**验收标准**:
-- [ ] 可以解析 Markdown 任务文档
-- [ ] 可以将大任务拆解为子任务
-- [ ] 任务状态可以正确流转
-- [ ] 调度器可以按依赖顺序分发任务
+      // 3. 返回 Subagent 任务列表 (由 Skills 执行)
+      if (tasks.length > 0) {
+        return this.emitSubagentTasks(tasks);
+      }
 
----
-
-### Phase 3: Agent 系统 (第 3-4 周)
-
-**目标**: 实现六种 Agent，支持并行执行
-
-#### 任务列表
-
-3.1 Agent 基类
-- [ ] 设计 Agent 接口
-- [ ] 实现 BaseAgent 抽象类
-- [ ] 实现上下文管理
-- [ ] 实现 Agent 生命周期
-
-3.2 Agent 实现
-- [ ] **Planner Agent**: 任务拆解和计划制定
-- [ ] **Coder Agent**: 代码编写和重构
-- [ ] **Tester Agent**: 测试用例和执行
-- [ ] **Reviewer Agent**: 代码审查
-- [ ] **Researcher Agent**: 知识检索
-- [ ] **Executor Agent**: 命令执行
-
-3.3 Agent 并行池
-- [ ] 设计 Agent 池架构
-- [ ] 实现并发控制
-- [ ] 实现资源回收
-- [ ] 实现任务抢占 (可选)
-
-3.4 Claude API 集成
-- [ ] 封装 Claude SDK
-- [ ] 实现流式响应处理
-- [ ] 实现 Tool Use 支持
-- [ ] 添加重试和错误处理
-
-**验收标准**:
-- [ ] 6 种 Agent 可以独立运行
-- [ ] Agent 可以并行执行 (至少 3 个并发)
-- [ ] Agent 可以正确调用工具 (Read/Write/Edit/Bash)
-- [ ] 错误时可以正确上报
-
----
-
-### Phase 4: Skills 集成 (第 5 周)
-
-**目标**: 将 CLI 功能封装为 Claude Code Skills
-
-#### 任务列表
-
-4.1 om-start
-- [ ] 调用 CLI 初始化任务
-- [ ] 收集用户答案
-- [ ] 生成任务计划
-
-4.2 om-plan
-- [ ] 触发任务拆解
-- [ ] 展示拆解结果
-- [ ] 等待用户确认
-
-4.3 om-execute
-- [ ] 启动调度器
-- [ ] 启动 Agent 池
-- [ ] 实时进度更新
-
-4.4 om-verify/om-accept
-- [ ] 触发验证和验收
-- [ ] 展示报告
-
-4.5 om-status/om-resume
-- [ ] 状态查询
-- [ ] 中断恢复
-
-**验收标准**:
-- [ ] 所有 Skills 可以在 Claude Code 中使用
-- [ ] Skills 和 CLI 可以正确交互
-- [ ] 用户可以在关键节点进行确认
-
----
-
-### Phase 5: 异常处理 (第 6 周)
-
-**目标**: 实现重试和错误处理机制
-
-#### 任务列表
-
-5.1 重试机制
-- [ ] 定义重试策略
-- [ ] 实现指数退避
-- [ ] 配置最大重试次数
-- [ ] 实现重试记录
-
-5.2 超时控制
-- [ ] 任务级超时
-- [ ] Agent 级超时
-- [ ] 优雅中断
-- [ ] 超时后处理
-
-5.3 错误恢复
-- [ ] 错误分类
-- [ ] 自动恢复流程
-- [ ] 降级策略
-- [ ] 人工介入触发
-
-5.4 日志和监控
-- [ ] 结构化日志
-- [ ] 执行轨迹记录
-- [ ] 错误报告生成
-- [ ] 性能指标收集
-
-**验收标准**:
-- [ ] 失败任务可以自动重试
-- [ ] 超时可以正确中断
-- [ ] 错误信息清晰可读
-- [ ] 可以通过 resume 恢复执行
-
----
-
-### Phase 6: 全功能测试 (第 7 周)
-
-**目标**: 实现完整的测试和验证流程
-
-#### 任务列表
-
-6.1 单元测试
-- [ ] CLI 模块测试
-- [ ] Agent 单元测试
-- [ ] 存储层测试
-- [ ] 调度器测试
-
-6.2 集成测试
-- [ ] 端到端流程测试
-- [ ] Agent 协作测试
-- [ ] 错误场景测试
-- [ ] 恢复测试
-
-6.3 全功能测试任务
-- [ ] 设计全功能测试用例
-- [ ] 实现测试报告生成
-- [ ] 覆盖率统计
-- [ ] 质量门禁
-
-6.4 E2E 测试
-- [ ] 真实场景测试
-- [ ] 性能测试
-- [ ] 稳定性测试
-- [ ] 并发测试
-
-**验收标准**:
-- [ ] 单元测试覆盖率 > 80%
-- [ ] E2E 测试全部通过
-- [ ] 全功能测试报告自动生成
-- [ ] 性能指标符合预期
-
----
-
-### Phase 7: 优化和发布 (第 8 周)
-
-**目标**: 代码优化和项目发布
-
-#### 任务列表
-
-7.1 代码优化
-- [ ] 性能优化
-- [ ] 内存优化
-- [ ] 代码重构
-- [ ] 文档完善
-
-7.2 发布准备
-- [ ] 版本号管理
-- [ ] 发布脚本
-- [ ] 安装说明
-- [ ] 使用示例
-
-7.3 监控面板 (可选)
-- [ ] 简单 Web UI
-- [ ] 实时状态展示
-- [ ] 日志查看
-- [ ] 任务管理
-
-**验收标准**:
-- [ ] 可以一键安装
-- [ ] 文档完整清晰
-- [ ] 示例可以运行
-- [ ] 发布到 npm (可选)
-
----
-
-## 技术栈详情
-
-### 运行时
-- **Node.js**: >= 18.0.0
-- **TypeScript**: ^5.0.0
-
-### 核心依赖
-```json
-{
-  "dependencies": {
-    "commander": "^11.0.0",
-    "@anthropic-ai/sdk": "^0.32.0",
-    "chokidar": "^3.5.0",
-    "winston": "^3.11.0",
-    "zod": "^3.22.0",
-    "yaml": "^2.3.0",
-    "ora": "^7.0.0",
-    "chalk": "^5.3.0",
-    "inquirer": "^9.0.0",
-    "sqlite3": "^5.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0",
-    "eslint": "^8.0.0",
-    "prettier": "^3.0.0"
+      // 4. 等待或结束
+      await this.waitForNextTick();
+    }
   }
 }
 ```
 
-### 配置文件
+### 2.2 Skills 集成
 
-**`.openmatrix/config.json`**:
-```json
-{
-  "version": "1.0.0",
-  "timeout": {
-    "task": 120,
-    "agent": 30,
-    "approval": 0
-  },
-  "retry": {
-    "maxRetries": 3,
-    "backoff": "exponential"
-  },
-  "approvalPoints": ["plan", "merge", "deploy"],
-  "maxConcurrentAgents": 3,
-  "models": {
-    "planner": "claude-opus-4",
-    "coder": "claude-sonnet-4",
-    "default": "claude-sonnet-4"
+**修改文件**: `skills/start.md`, `skills/resume.md`
+
+**流程**:
+```
+/om:start → CLI 生成任务列表 → Skills 读取 → 展示计划 → 确认
+     ↓
+Skills 逐个调用 Agent 工具执行 Subagent
+     ↓
+每个 Subagent 完成后更新状态文件
+     ↓
+Skills 读取状态，决定下一步
+```
+
+### 2.3 任务列表
+
+- [ ] 创建 `OrchestratorExecutor` 类
+- [ ] 实现 `run()` 主循环
+- [ ] 实现 `getSubagentTasks()` 获取待执行任务
+- [ ] 修改 `/om:start` 读取并执行 Subagent
+- [ ] 修改 `/om:resume` 恢复执行流程
+- [ ] 添加执行状态持久化
+- [ ] 编写集成测试
+
+### 2.4 验收标准
+
+- [ ] `/om:start` 后能持续执行直到完成或需要审批
+- [ ] `/om:resume` 能从断点恢复
+- [ ] 并行任务正确调度
+- [ ] 审批点正确触发暂停
+
+---
+
+## Phase 3: 三阶段验证 (重要)
+
+**目标**: 实现 develop → verify → accept 完整流程
+
+### 3.1 阶段执行器
+
+**新文件**: `src/orchestrator/phase-executor.ts`
+
+```typescript
+export class PhaseExecutor {
+  async executePhase(task: Task, phase: 'develop' | 'verify' | 'accept'): Promise<PhaseResult> {
+    switch (phase) {
+      case 'develop':
+        return this.executeDevelop(task);
+      case 'verify':
+        return this.executeVerify(task);
+      case 'accept':
+        return this.executeAccept(task);
+    }
+  }
+
+  private async executeVerify(task: Task): Promise<PhaseResult> {
+    // 1. 代码审查 (Reviewer Agent)
+    // 2. 运行测试 (Tester Agent)
+    // 3. 构建检查 (Executor Agent)
+    return { passed: true, report: '...' };
   }
 }
 ```
 
+### 3.2 Build 测试
+
+**要求** (来自 require.md 4.3):
+- 编译检查: `npm run build`
+- 静态分析: ESLint
+- 依赖验证: `npm ci`
+- 打包测试: `npm pack`
+
+### 3.3 任务列表
+
+- [ ] 创建 `PhaseExecutor` 类
+- [ ] 实现 `executeDevelop()` - 调用 Coder Agent
+- [ ] 实现 `executeVerify()` - 调用 Reviewer + Tester
+- [ ] 实现 `executeAccept()` - 最终验收
+- [ ] 添加 Build 测试逻辑
+- [ ] 生成阶段报告
+- [ ] 编写测试
+
+### 3.4 验收标准
+
+- [ ] 每个任务经历完整三阶段
+- [ ] 阶段失败时正确回退
+- [ ] Build 测试自动执行
+- [ ] 阶段报告清晰
+
 ---
 
-## 风险与缓解
+## Phase 4: 全功能测试 (重要)
 
-| 风险 | 概率 | 影响 | 缓解措施 |
-|------|------|------|-----------|
-| Claude API 限制 | 中 | 高 | 实现重试、降级到轻量模型、本地缓存 |
-| 上下文爆炸 | 中 | 高 | Agent 子进程化、上下文压缩、流式处理 |
-| 并行冲突 | 低 | 高 | 文件锁、事务性写入、依赖检查 |
-| 复杂度失控 | 中 | 中 | MVP 优先、敏捷迭代、定期重构 |
+**目标**: 实现 require.md 第 8 节的完整测试流程
+
+### 4.1 测试流程
+
+```
+环境检查 → 单元测试聚合 → 集成测试 → E2E测试 → 回归测试 → 报告
+```
+
+### 4.2 新文件
+
+**`src/orchestrator/full-test-runner.ts`**
+
+```typescript
+export class FullTestRunner {
+  async runFullTest(): Promise<FullTestReport> {
+    const results = {
+      environment: await this.checkEnvironment(),
+      unitTests: await this.aggregateUnitTests(),
+      integration: await this.runIntegrationTests(),
+      e2e: await this.runE2ETests(),
+      regression: await this.runRegressionTests()
+    };
+
+    return this.generateReport(results);
+  }
+}
+```
+
+### 4.3 完成标志检查
+
+```typescript
+interface CompletionCriteria {
+  allTasksCompleted: boolean;
+  fullTestPassed: boolean;
+  noPendingApprovals: boolean;
+  docsUpdated: boolean;
+  artifactsVerified: boolean;
+}
+```
+
+### 4.4 任务列表
+
+- [ ] 创建 `FullTestRunner` 类
+- [ ] 实现环境检查
+- [ ] 实现单元测试聚合
+- [ ] 实现集成测试
+- [ ] 实现回归测试
+- [ ] 实现完成标志检查
+- [ ] 生成测试报告
+- [ ] 添加 `/om:verify` Skill 支持
+
+### 4.5 验收标准
+
+- [ ] 全功能测试自动执行
+- [ ] 测试报告清晰完整
+- [ ] 完成标志正确判断
 
 ---
 
-## 下一步行动
+## Phase 5: 体验优化 (增强)
 
-现在可以开始 Phase 1。建议先执行：
+**目标**: 提升用户交互体验
 
-1. 初始化项目
-2. 搭建基础 CLI 框架
-3. 实现 `om init` 命令
-4. 创建第一个 Skill
+### 5.1 进度可视化
 
-是否开始 Phase 1?
+**位置**: Skills 输出
+
+```
+📋 执行进度
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60%
+
+┌─────────────┐
+│ TASK-001 ✅ │ ──┐
+└─────────────┘   │
+┌─────────────┐   ▼
+│ TASK-002 🔄 │ ──┬──▶ TASK-004 (等待)
+└─────────────┘   │
+┌─────────────┐   │
+│ TASK-003 ✅ │ ──┘
+└─────────────┘
+```
+
+### 5.2 智能重试建议
+
+```markdown
+❌ TASK-002 执行失败
+
+原因: Agent 超时 (120s)
+
+建议:
+[1] 增加超时到 180s
+[2] 拆分为更小的子任务
+[3] 跳过此任务
+```
+
+### 5.3 增强报告
+
+```markdown
+# 执行报告
+
+## 📊 统计
+- 总耗时: 2h 15m
+- Agent 调用: 12 次
+- 重试次数: 2 次
+- 成功率: 87.5%
+
+## 🏆 效率分析
+- 并行度: 2.3 (目标: 3)
+- 建议: 增加并发数可提升 30% 效率
+```
+
+### 5.4 任务列表
+
+- [ ] 添加进度条渲染函数
+- [ ] 添加依赖图 ASCII 渲染
+- [ ] 实现智能重试建议
+- [ ] 增强报告模板
+- [ ] 添加效率分析
+
+---
+
+## Phase 6: 日志和监控 (完善)
+
+**目标**: 集成 Winston 日志系统
+
+### 6.1 日志配置
+
+**新文件**: `src/utils/logger.ts`
+
+```typescript
+import winston from 'winston';
+
+export const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: '.openmatrix/logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: '.openmatrix/logs/combined.log' })
+  ]
+});
+```
+
+### 6.2 任务列表
+
+- [ ] 创建 Logger 工具类
+- [ ] 集成到 Orchestrator
+- [ ] 集成到 AgentRunner
+- [ ] 集成到 StateManager
+- [ ] 添加日志级别配置
+
+---
+
+## Phase 7: 阻塞问题处理 (完善)
+
+**目标**: 自动创建 Meeting 任务处理阻塞
+
+### 7.1 Meeting 任务自动创建
+
+```typescript
+async handleBlockedTask(task: Task, reason: string): Promise<Meeting> {
+  // 1. 创建 Meeting 任务
+  const meeting = await this.stateManager.createMeeting({
+    taskId: task.id,
+    reason,
+    participants: ['user'],
+    status: 'pending'
+  });
+
+  // 2. 更新任务状态
+  await this.scheduler.markTaskWaiting(task.id);
+
+  // 3. 创建审批请求
+  await this.approvalManager.createMeetingApproval(meeting);
+
+  return meeting;
+}
+```
+
+### 7.2 任务列表
+
+- [ ] 实现 `handleBlockedTask()`
+- [ ] 添加 Meeting 数据模型
+- [ ] 修改 StateMachine 触发 Meeting 创建
+- [ ] 添加 `/om:approve meeting` 支持
+
+---
+
+## 测试计划
+
+### 单元测试 (目标: >80%)
+
+| 模块 | 测试文件 | 覆盖目标 |
+|------|----------|----------|
+| AgentRunner | `tests/agents/agent-runner.test.ts` | 85% |
+| OrchestratorExecutor | `tests/orchestrator/executor.test.ts` | 85% |
+| PhaseExecutor | `tests/orchestrator/phase-executor.test.ts` | 85% |
+| FullTestRunner | `tests/orchestrator/full-test-runner.test.ts` | 80% |
+
+### 集成测试
+
+- [ ] 完整任务执行流程
+- [ ] 审批点触发和恢复
+- [ ] 重试机制
+- [ ] 三阶段验证
+
+---
+
+## 执行统计
+
+```yaml
+总任务数: 45
+预计周期: 4-5 周
+审批点: plan, merge
+
+Phase 1: Agent 执行层 - 7 个任务
+Phase 2: 执行循环 - 7 个任务
+Phase 3: 三阶段验证 - 7 个任务
+Phase 4: 全功能测试 - 8 个任务
+Phase 5: 体验优化 - 5 个任务
+Phase 6: 日志监控 - 5 个任务
+Phase 7: 阻塞处理 - 4 个任务
+```
+
+---
+
+## 下一步
+
+确认此计划后，执行顺序:
+
+1. **Phase 1**: AgentRunner 重构 → 让 Subagent 能真正执行
+2. **Phase 2**: 执行循环 → Skills 能驱动持续执行
+3. **Phase 3-4**: 验证和测试 → 完整质量保证
+4. **Phase 5-7**: 体验和完善 → 提升可用性
+
+是否开始执行?

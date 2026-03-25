@@ -4,6 +4,8 @@ import { StateManager } from '../../storage/state-manager.js';
 import { TaskParser } from '../../orchestrator/task-parser.js';
 import { TaskPlanner } from '../../orchestrator/task-planner.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { OrchestratorExecutor } from '../../orchestrator/executor.js';
+import type { TaskPriority } from '../../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -13,12 +15,15 @@ export const startCommand = new Command('start')
   .option('-c, --config <path>', '配置文件路径')
   .option('--skip-questions', '跳过澄清问题')
   .option('--mode <mode>', '执行模式 (confirm-all|confirm-key|auto)')
+  .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (input: string | undefined, options) => {
     const basePath = process.cwd();
     const omPath = path.join(basePath, '.openmatrix');
 
     // 确保目录存在
     await fs.mkdir(omPath, { recursive: true });
+    await fs.mkdir(path.join(omPath, 'tasks'), { recursive: true });
+    await fs.mkdir(path.join(omPath, 'approvals'), { recursive: true });
 
     const stateManager = new StateManager(omPath);
     await stateManager.initialize();
@@ -27,9 +32,17 @@ export const startCommand = new Command('start')
 
     // 检查是否已有运行中的任务
     if (state.status === 'running') {
-      console.log('⚠️  已有任务在执行中');
-      console.log('   使用 /om:status 查看状态');
-      console.log('   使用 /om:resume 恢复执行');
+      if (options.json) {
+        console.log(JSON.stringify({
+          status: 'error',
+          message: '已有任务在执行中',
+          hint: '使用 /om:status 查看状态，或 /om:resume 恢复执行'
+        }));
+      } else {
+        console.log('⚠️  已有任务在执行中');
+        console.log('   使用 /om:status 查看状态');
+        console.log('   使用 /om:resume 恢复执行');
+      }
       return;
     }
 
@@ -40,41 +53,73 @@ export const startCommand = new Command('start')
       const defaultPath = path.join(basePath, 'TASK.md');
       try {
         taskContent = await fs.readFile(defaultPath, 'utf-8');
-        console.log(`📄 读取任务文件: ${defaultPath}`);
+        if (!options.json) {
+          console.log(`📄 读取任务文件: ${defaultPath}`);
+        }
       } catch {
-        console.log('❌ 请提供任务文件路径或描述');
-        console.log('   用法: openmatrix start <task.md>');
-        console.log('   或创建 TASK.md 文件');
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'error',
+            message: '请提供任务文件路径或描述'
+          }));
+        } else {
+          console.log('❌ 请提供任务文件路径或描述');
+          console.log('   用法: openmatrix start <task.md>');
+          console.log('   或创建 TASK.md 文件');
+        }
         return;
       }
     } else if (taskContent.endsWith('.md')) {
       // 读取文件
       try {
         taskContent = await fs.readFile(taskContent, 'utf-8');
-        console.log(`📄 读取任务文件: ${input}`);
+        if (!options.json) {
+          console.log(`📄 读取任务文件: ${input}`);
+        }
       } catch {
-        console.log(`❌ 无法读取文件: ${input}`);
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'error',
+            message: `无法读取文件: ${input}`
+          }));
+        } else {
+          console.log(`❌ 无法读取文件: ${input}`);
+        }
         return;
       }
     }
 
     // 解析任务
-    console.log('\n🔍 解析任务...');
+    if (!options.json) {
+      console.log('\n🔍 解析任务...');
+    }
     const parser = new TaskParser();
     const parsedTask = parser.parse(taskContent);
 
-    console.log(`\n📋 任务: ${parsedTask.title}`);
-    console.log(`   目标: ${parsedTask.goals.join(', ')}`);
+    if (!options.json) {
+      console.log(`\n📋 任务: ${parsedTask.title}`);
+      console.log(`   目标: ${parsedTask.goals.join(', ')}`);
+    }
 
     // 拆解任务
-    console.log('\n🔧 拆解任务...');
+    if (!options.json) {
+      console.log('\n🔧 拆解任务...');
+    }
     const planner = new TaskPlanner();
     const subTasks = planner.breakdown(parsedTask, {});
 
-    console.log(`\n📋 生成 ${subTasks.length} 个子任务:\n`);
-    subTasks.forEach((task: any, i: number) => {
-      console.log(`  ${i + 1}. ${task.title} (${task.priority})`);
-    });
+    // 创建任务到状态管理器
+    for (const subTask of subTasks) {
+      await stateManager.createTask({
+        title: subTask.title,
+        description: subTask.description,
+        priority: subTask.priority as TaskPriority,
+        timeout: subTask.estimatedComplexity === 'high' ? 300000 :
+                 subTask.estimatedComplexity === 'medium' ? 180000 : 120000,
+        dependencies: subTask.dependencies,
+        assignedAgent: subTask.assignedAgent
+      });
+    }
 
     // 确定执行模式
     const executionMode = options.mode || 'confirm-key';
@@ -95,42 +140,85 @@ export const startCommand = new Command('start')
         approvalPoints = ['plan', 'merge'];
     }
 
-    console.log(`\n🎯 执行模式: ${executionMode}`);
-    console.log(`   审批点: ${approvalPoints.length > 0 ? approvalPoints.join(', ') : '无 (全自动)'}`);
+    // 更新状态
+    await stateManager.updateState({
+      status: 'running',
+      currentPhase: 'execution',
+      config: {
+        ...state.config,
+        approvalPoints: approvalPoints as ('plan' | 'merge' | 'deploy')[]
+      }
+    });
 
     // 创建审批请求（如果有审批点）
+    const approvalManager = new ApprovalManager(stateManager);
     if (approvalPoints.includes('plan')) {
-      const approvalManager = new ApprovalManager(stateManager);
       const approval = await approvalManager.createPlanApproval(
         'plan-approval',
-        `# 执行计划\n\n${subTasks.map((t: any, i: number) => `${i + 1}. ${t.title}`).join('\n')}`
+        `# 执行计划\n\n${subTasks.map((t, i) => `${i + 1}. ${t.title}`).join('\n')}`
       );
 
-      console.log(`\n⏸️  等待计划审批`);
-      console.log(`   审批ID: ${approval.id}`);
-      console.log(`   使用 /om:approve ${approval.id} 审批`);
+      await stateManager.updateState({ status: 'paused' });
 
-      // 更新状态
-      await stateManager.updateState({
-        status: 'paused' as any,
-        currentPhase: 'planning',
-        config: {
-          ...state.config,
-          approvalPoints: approvalPoints as any
-        }
-      });
+      if (options.json) {
+        console.log(JSON.stringify({
+          status: 'waiting_approval',
+          approvalId: approval.id,
+          approvalType: 'plan',
+          message: '等待计划审批',
+          tasks: subTasks.map((t, i) => ({
+            index: i + 1,
+            title: t.title,
+            priority: t.priority
+          }))
+        }));
+      } else {
+        console.log(`\n📋 生成 ${subTasks.length} 个子任务:\n`);
+        subTasks.forEach((task, i) => {
+          console.log(`  ${i + 1}. ${task.title} (${task.priority})`);
+        });
+        console.log(`\n🎯 执行模式: ${executionMode}`);
+        console.log(`   审批点: ${approvalPoints.join(', ')}`);
+        console.log(`\n⏸️  等待计划审批`);
+        console.log(`   审批ID: ${approval.id}`);
+        console.log(`   使用 /om:approve ${approval.id} 审批`);
+      }
+      return;
+    }
+
+    // 创建执行器并获取第一批任务
+    const executor = new OrchestratorExecutor(stateManager, approvalManager, {
+      maxConcurrent: state.config.maxConcurrentAgents,
+      taskTimeout: state.config.timeout * 1000
+    });
+
+    const result = await executor.step();
+
+    if (options.json) {
+      // JSON 输出供 Skill 解析
+      console.log(JSON.stringify({
+        status: result.status,
+        message: result.message,
+        statistics: result.statistics,
+        subagentTasks: result.subagentTasks.map(t => ({
+          subagent_type: t.subagent_type,
+          description: t.description,
+          prompt: t.prompt,
+          isolation: t.isolation,
+          taskId: t.taskId,
+          agentType: t.agentType,
+          timeout: t.timeout
+        }))
+      }));
     } else {
-      // 自动执行，直接开始
-      await stateManager.updateState({
-        status: 'running' as any,
-        currentPhase: 'execution',
-        config: {
-          ...state.config,
-          approvalPoints: []
-        }
+      console.log(`\n📋 生成 ${subTasks.length} 个子任务:\n`);
+      subTasks.forEach((task, i) => {
+        console.log(`  ${i + 1}. ${task.title} (${task.priority})`);
       });
 
-      console.log('\n🚀 开始自动执行...');
+      console.log(`\n🎯 执行模式: ${executionMode}`);
+      console.log(`   审批点: ${approvalPoints.length > 0 ? approvalPoints.join(', ') : '无 (全自动)'}`);
+      console.log('\n🚀 开始执行...');
       console.log('   使用 /om:status 查看进度');
     }
   });

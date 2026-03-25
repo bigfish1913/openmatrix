@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm publish:*)"
+      "Bash(npm publish:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

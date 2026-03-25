@@ -87,8 +87,46 @@ description: 启动新的任务执行周期
 ```
 
 7. **开始执行**
-   - 用户确认后，调用 CLI: `openmatrix start`
-   - CLI 根据选择的模式配置审批点
+
+用户确认后：
+
+a) 调用 CLI 初始化状态:
+```bash
+openmatrix start --mode <mode>
+```
+
+b) CLI 返回 SubagentTask 列表
+
+c) **执行循环** (由 Skill 驱动):
+
+```
+while (有待执行任务) {
+  1. 读取状态文件获取 SubagentTask
+  2. 调用 Agent 工具执行 Subagent
+  3. Subagent 完成后，更新状态文件
+  4. 检查是否需要审批 → 如需则暂停
+  5. 继续下一个任务
+}
+```
+
+d) 执行 Agent 工具示例:
+
+```typescript
+// 使用 Agent 工具执行 Subagent
+Agent({
+  subagent_type: task.subagent_type,
+  description: task.description,
+  prompt: task.prompt,
+  isolation: task.isolation
+})
+```
+
+8. **状态更新**
+
+每个 Subagent 完成后，更新任务状态:
+```bash
+openmatrix complete <taskId> --success/--failed
+```
 
 </process>
 
@@ -120,4 +158,38 @@ $ARGUMENTS
 | 每阶段确认 | 每阶段结束 | 重要任务 |
 | 关键节点确认 | plan/merge/deploy | 常规任务 |
 | 全自动执行 | 无 | 简单任务 |
+
+## CLI 和 Skill 协作
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Skill     │────▶│    CLI      │────▶│   状态文件   │
+│  (用户交互)  │     │ (状态管理)   │     │  (.openmat) │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                                        │
+       │         读取 SubagentTask              │
+       │◀───────────────────────────────────────┘
+       │
+       │         调用 Agent 工具
+       ▼
+┌─────────────┐
+│   Subagent  │
+│  (任务执行)  │
+└─────────────┘
+```
+
+## SubagentTask 格式
+
+```typescript
+{
+  subagent_type: 'general-purpose' | 'Explore' | 'Plan',
+  description: string,      // 简短描述 (3-5词)
+  prompt: string,           // 完整执行提示词
+  isolation?: 'worktree',   // 是否隔离
+  taskId: string,
+  agentType: AgentType,
+  timeout: number,
+  needsApproval: boolean
+}
+```
 </notes>
