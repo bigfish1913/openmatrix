@@ -16,7 +16,24 @@
 
 ## 安装
 
-### 方式 1: 从 GitHub 安装 CLI + 下载 Skills
+### 方式 1: 从源码安装 (推荐)
+
+```bash
+# 1. 克隆并构建
+git clone https://github.com/bigfish1913/openmatrix.git
+cd openmatrix
+npm install
+npm run build
+npm link
+
+# 2. 复制 Skills
+mkdir -p ~/.claude/commands/om
+cp skills/*.md ~/.claude/commands/om/
+```
+
+### 方式 2: 从 GitHub 安装
+
+> ⚠️ **Windows 用户注意**: 由于 npm 在 Windows 上的 symlink 问题，GitHub 直接安装可能失败。建议使用方式 1。
 
 ```bash
 # 1. 安装 CLI
@@ -33,31 +50,22 @@ curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/re
 curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/report.md
 ```
 
-### 方式 2: 从源码安装
+### 常见问题
 
+**Mac ENOTDIR 错误:**
 ```bash
-# 1. 克隆并构建
-git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix
-npm install
-npm run build
-npm link
-
-# 2. 复制 Skills
-mkdir -p ~/.claude/commands/om
-cp skills/*.md ~/.claude/commands/om/
-```
-
-### Mac 遇到 ENOTDIR 错误
-
-```bash
-# 清理旧安装
 sudo rm -rf /opt/homebrew/lib/node_modules/openmatrix
 sudo rm -rf /opt/homebrew/lib/node_modules/.openmatrix-*
 npm cache clean --force
-
-# 重新安装
 npm install -g github:bigfish1913/openmatrix
+```
+
+**Windows 安装失败:**
+```bash
+# 使用源码安装 (方式 1)
+git clone https://github.com/bigfish1913/openmatrix.git
+cd openmatrix
+npm install && npm run build && npm link
 ```
 
 ## 使用
