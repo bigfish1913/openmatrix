@@ -16,26 +16,48 @@
 
 ## 安装
 
-### 从 GitHub 安装
+### 方式 1: 从 GitHub 安装 CLI + 下载 Skills
 
 ```bash
-# 安装
+# 1. 安装 CLI
 npm install -g github:bigfish1913/openmatrix
 
-# 安装 Skills
+# 2. 下载 Skills (从 GitHub)
 mkdir -p ~/.claude/commands/om
-cp $(npm root -g)/openmatrix/skills/*.md ~/.claude/commands/om/
+cd ~/.claude/commands/om
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/status.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/start.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/approve.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/resume.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/retry.md
+curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/report.md
 ```
 
-### Mac 权限问题
+### 方式 2: 从源码安装
 
 ```bash
-# 如果遇到权限问题
+# 1. 克隆并构建
+git clone https://github.com/bigfish1913/openmatrix.git
+cd openmatrix
+npm install
+npm run build
+npm link
+
+# 2. 复制 Skills
+mkdir -p ~/.claude/commands/om
+cp skills/*.md ~/.claude/commands/om/
+```
+
+### Mac 遇到 ENOTDIR 错误
+
+```bash
+# 清理旧安装
 sudo rm -rf /opt/homebrew/lib/node_modules/openmatrix
-sudo mkdir -p ~/.claude/commands/om
-sudo chown -R $(whoami) ~/.claude/commands/om
+sudo rm -rf /opt/homebrew/lib/node_modules/.openmatrix-*
+npm cache clean --force
+
+# 重新安装
 npm install -g github:bigfish1913/openmatrix
-cp $(npm root -g)/openmatrix/skills/*.md ~/.claude/commands/om/
 ```
 
 ## 使用
