@@ -67,14 +67,39 @@ User Input → Quality Selection → Task Planning → Execution → Quality Gat
 
 ### Installation
 
+**Option 1: NPM Install (Recommended)**
+
+```bash
+# Global install
+npm install -g openmatrix
+
+# Skills are automatically installed to ~/.claude/commands/om/
+# If auto-install fails, run manually:
+openmatrix install-skills
+```
+
+**Option 2: Install from Source**
+
 ```bash
 # Clone and install
 git clone https://github.com/bigfish1913/openmatrix.git
 cd openmatrix && npm install && npm run build && npm link
 
-# Copy Skills
-mkdir -p ~/.claude/commands/om
-cp skills/*.md ~/.claude/commands/om/
+# Install Skills (if postinstall didn't run)
+openmatrix install-skills
+```
+
+### Verify Installation
+
+```bash
+# Check CLI is available
+openmatrix --version
+
+# Check Skills are installed
+openmatrix install-skills
+# Or check directly:
+ls ~/.claude/commands/om/
+# Should show: start.md  auto.md  status.md  approve.md  meeting.md  resume.md  retry.md  report.md
 ```
 
 ### First Use

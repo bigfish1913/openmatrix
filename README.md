@@ -73,9 +73,9 @@
 # 全局安装
 npm install -g openmatrix
 
-# 安装后自动复制 Skills 到 ~/.claude/commands/om/
-# 如果自动复制失败，手动执行:
-npx openmatrix --install-skills
+# Skills 会自动安装到 ~/.claude/commands/om/
+# 如果自动安装失败，手动执行:
+openmatrix install-skills
 ```
 
 **方式二: 从源码安装**
@@ -85,9 +85,8 @@ npx openmatrix --install-skills
 git clone https://github.com/bigfish1913/openmatrix.git
 cd openmatrix && npm install && npm run build && npm link
 
-# 复制 Skills (如果 postinstall 未自动执行)
-mkdir -p ~/.claude/commands/om
-cp skills/*.md ~/.claude/commands/om/
+# 安装 Skills (如果 postinstall 未自动执行)
+openmatrix install-skills
 ```
 
 ### 验证安装
@@ -97,6 +96,8 @@ cp skills/*.md ~/.claude/commands/om/
 openmatrix --version
 
 # 检查 Skills 是否安装成功
+openmatrix install-skills
+# 或直接查看
 ls ~/.claude/commands/om/
 # 应显示: start.md  auto.md  status.md  approve.md  meeting.md  resume.md  retry.md  report.md
 ```

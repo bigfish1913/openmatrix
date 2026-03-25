@@ -46,6 +46,39 @@ Token 需要满足以下条件：
 
 创建新 Token：https://www.npmjs.com/settings/bigfishnpm/tokens/granular-access-tokens/new
 
+## Release Workflow
+
+代码完成后，按以下顺序执行发布流程：
+
+```
+测试通过 → 更新 README → 提交 → 推送 → 发布 npm
+```
+
+### 详细步骤
+
+1. **运行测试** - 确保所有测试通过
+   ```bash
+   npm test
+   ```
+
+2. **更新 README** - 如有需要，更新 README.md 和 README_EN.md
+
+3. **提交代码**
+   ```bash
+   git add .
+   git commit -m "feat: your changes"
+   ```
+
+4. **推送到远程**
+   ```bash
+   git push origin main
+   ```
+
+5. **发布到 npm**
+   ```bash
+   npm run build && source .env && npm config set //registry.npmjs.org/:_authToken $NPM_TOKEN && npm publish --registry https://registry.npmjs.org
+   ```
+
 ## Architecture
 
 ### Core Modules

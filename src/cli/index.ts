@@ -8,6 +8,7 @@ import { retryCommand } from './commands/retry.js';
 import { reportCommand } from './commands/report.js';
 import { meetingCommand } from './commands/meeting.js';
 import { autoCommand } from './commands/auto.js';
+import { installSkillsCommand } from './commands/install-skills.js';
 
 const program = new Command();
 
@@ -25,6 +26,7 @@ program.addCommand(retryCommand);
 program.addCommand(reportCommand);
 program.addCommand(meetingCommand);
 program.addCommand(autoCommand);
+program.addCommand(installSkillsCommand);
 
 // 默认帮助
 program.parse();
