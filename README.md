@@ -1,485 +1,286 @@
 # OpenMatrix
 
-> AI Agent 任务编排系统 - 集成 Claude Code Skills 实现最大化自动化
+> **轻量级 AI Agent 任务编排系统** — 一句话描述任务，自动拆解、执行、验证
 
 [![npm version](https://badge.fury.io/js/openmatrix.svg)](https://badge.fury.io/js/openmatrix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 概述
+```
+用户: /om:start 实现用户登录功能
+OpenMatrix:
+  ✓ 任务拆解: 5个子任务
+  ✓ 开发执行: Coder Agent 编写代码
+  ✓ 自动验证: Tester Agent 运行测试
+  ✓ 代码审查: Reviewer Agent 检查质量
+  ✓ 完成提交: 自动 Git commit
 
-### 项目目标
+⏱️ 耗时: 8分钟 | 状态: ✅ 完成
+```
 
-构建一个基于 Claude API 的多 Agent 协作任务编排系统，实现：
-- 任务自动拆解与调度
-- 多 Agent 并行协作
-- 关键节点人工确认
-- 异常处理与自动重试
-- 全功能测试验证
+---
 
-### 核心设计原则
+## 为什么选择 OpenMatrix？
 
-| 原则 | 说明 |
+### 与 superpowers / gsd 对比
+
+| 特性 | OpenMatrix | superpowers | gsd |
+|------|------------|-------------|-----|
+| **上手难度** | ⚡ 极简 - 一句话开始 | 中等 - 需要理解技能体系 | 较高 - 需要创建 PROJECT.md/ROADMAP.md |
+| **定位** | 任务执行引擎 | 技能/工作流集合 | 项目生命周期管理 |
+| **自动化程度** | 🔥 **全自动** - auto 模式无需确认 | 半自动 - 关键点需确认 | 半自动 - 阶段间需确认 |
+| **阻塞处理** | 🎯 **Meeting 机制** - 记录并跳过，最后统一处理 | 停止等待用户 | 停止等待用户 |
+| **Agent 数量** | **6种专用 Agent** (Planner/Coder/Tester/Reviewer/Researcher/Executor) | 通用 Agent | 专用子 Agent |
+| **验证流程** | ✅ **三阶段验证** (develop → verify → accept) | 依赖外部技能 | verify-work 命令 |
+| **状态管理** | 📁 **文件存储** - Git 友好 | 内存/会话 | 文件 + .planning 目录 |
+| **安装大小** | 轻量 (~80KB) | 中等 | 较重 |
+
+### OpenMatrix 独特优势
+
+| 优势 | 说明 |
 |------|------|
-| 最大自动化 | AI 自主决策执行，仅在关键节点需人工确认 |
-| 状态外置 | 所有状态存文件，支持断点续传 |
-| 真正并行 | Agent 通过子进程并行执行，各自独立上下文 |
-| 可扩展 | Agent 类型和确认点可配置 |
-
-### 关键决策
-
-| 决策点 | 选择 | 理由 |
-|--------|------|------|
-| 人工介入级别 | 关键节点确认 | 平衡自动化与控制 |
-| 底层模型 | Claude API | 长上下文，强 Tool Use |
-| 协作模式 | 中央调度 | 架构清晰，易管理 |
-| 持久化 | 文件系统 | 简单，Git 友好 |
-| 确认机制 | Claude Code Skills | 自然对话式交互 |
+| 🚀 **即开即用** | 无需 PROJECT.md、ROADMAP.md，直接 `/om:start "任务描述"` |
+| 🔄 **True Auto Mode** | 自动批准 plan/merge/deploy，真正无人值守 |
+| 🎯 **Meeting 机制** | 遇到阻塞不停止，记录后继续执行，最后统一处理 |
+| 🤖 **6种专用 Agent** | 每种任务由最合适的 Agent 执行 |
+| ✅ **三阶段验证** | 每个任务都经过 develop → verify → accept |
+| 💾 **Git 原生** | 状态存文件，支持断点恢复，Git 友好 |
 
 ---
 
-## 特性
+## 快速开始
 
-- 🤖 **6种 Agent 类型**: Planner, Coder, Tester, Reviewer, Researcher, Executor
-- 🔄 **自动状态流转**: 智能状态机管理任务生命周期
-- ✅ **关键节点确认**: Plan/Merge/Deploy 审批流程
-- 🔴 **Meeting 机制**: 阻塞问题和决策点交互式处理
-- 🔁 **自动重试**: 指数退避重试机制
-- 📊 **完整报告**: 任务执行统计和报告生成
-- 💾 **状态持久化**: 文件系统存储，支持中断恢复
-- ⚡ **三种执行模式**: confirm-all / confirm-key / auto
-
----
-
-## 安装
-
-### 方式 1: 从源码安装 (推荐)
+### 安装
 
 ```bash
-# 1. 克隆并构建
+# 方式 1: 从源码安装 (推荐)
 git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix
-npm install
-npm run build
-npm link
+cd openmatrix && npm install && npm run build && npm link
 
-# 2. 复制 Skills
+# 复制 Skills
 mkdir -p ~/.claude/commands/om
 cp skills/*.md ~/.claude/commands/om/
+
+# 方式 2: 从插件市场安装 (即将支持)
+/plugin marketplace add bigfish1913/openmatrix
+/plugin install openmatrix
 ```
 
-### 方式 2: 从 GitHub 安装
-
-> ⚠️ **Windows 用户注意**: 由于 npm 在 Windows 上的 symlink 问题，GitHub 直接安装可能失败。建议使用方式 1。
+### 5分钟上手
 
 ```bash
-# 1. 安装 CLI
-npm install -g github:bigfish1913/openmatrix
+# 1. 启动任务 (交互式问答)
+/om:start 实现用户登录功能
 
-# 2. 下载 Skills (从 GitHub)
-mkdir -p ~/.claude/commands/om
-cd ~/.claude/commands/om
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/status.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/start.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/approve.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/meeting.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/resume.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/retry.md
-curl -LO https://raw.githubusercontent.com/bigfish1913/openmatrix/main/skills/report.md
-```
+# 2. 回答问题后，OpenMatrix 自动:
+#    - 拆解任务为子任务
+#    - 分配给合适的 Agent
+#    - 执行开发、测试、审查
+#    - 自动 Git 提交
 
-### 常见问题
+# 3. 查看状态
+/om:status
 
-**Mac ENOTDIR 错误:**
-```bash
-sudo rm -rf /opt/homebrew/lib/node_modules/openmatrix
-sudo rm -rf /opt/homebrew/lib/node_modules/.openmatrix-*
-npm cache clean --force
-npm install -g github:bigfish1913/openmatrix
-```
-
-**Windows 安装失败:**
-```bash
-# 使用源码安装 (方式 1)
-git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix
-npm install && npm run build && npm link
+# 4. 如果有阻塞问题 (Meeting)
+/om:meeting
 ```
 
 ---
 
-## 系统架构
+## 核心功能
 
-### 架构概览
+### 7个 Skills 命令
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                          用户层                                     │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                    Claude Code 主会话                         │  │
-│  │  Skills: /om:start  /om:status  /om:approve  /om:resume     │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬─────────────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────────────┐
-│                        调度层 (Orchestrator)                        │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                   openmatrix CLI                              │  │
-│  │  - 任务解析器 (Parser)                                        │  │
-│  │  - 任务拆解器 (Planner)                                       │  │
-│  │  - 调度引擎 (Scheduler)                                       │  │
-│  │  - 状态机 (StateMachine)                                      │  │
-│  │  - 确认管理器 (ApprovalManager)                               │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬─────────────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────────────┐
-│                        执行层 (Agents)                              │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐│
-│  │ Planner│ │ Coder  │ │ Tester │ │Reviewer│ │Research│ │Executor││
-│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘│
-│      │          │          │          │          │          │      │
-│      └──────────┴──────────┴──────────┴──────────┴──────────┘      │
-│                              │                                      │
-│                    Claude API 子进程调用                            │
-└──────────────────────────────┬─────────────────────────────────────┘
-                               │
-┌──────────────────────────────▼─────────────────────────────────────┐
-│                        存储层 (Storage)                             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  .openmatrix/                                                 │  │
-│  │  ├─ state.json           # 全局状态                           │  │
-│  │  ├─ tasks/               # 任务目录                           │  │
-│  │  ├─ agents/              # Agent 执行记录                     │  │
-│  │  ├─ approvals/           # 人工确认记录                       │  │
-│  │  └─ logs/                # 执行日志                           │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-### 组件职责
-
-| 层级 | 组件 | 职责 |
+| 命令 | 用途 | 示例 |
 |------|------|------|
-| 用户层 | Claude Code Skills | 用户交互入口，展示状态，收集确认 |
-| 调度层 | Orchestrator CLI | 任务调度、状态管理、Agent 编排 |
-| 执行层 | Worker Agents | 执行具体任务，产出结果 |
-| 存储层 | File System | 持久化状态，支持恢复 |
+| `/om:start` | 启动新任务 | `/om:start "实现用户登录"` |
+| `/om:status` | 查看执行状态 | `/om:status` |
+| `/om:approve` | 审批决策 | `/om:approve APPR-001` |
+| `/om:meeting` | 处理阻塞/决策 | `/om:meeting` |
+| `/om:resume` | 恢复中断任务 | `/om:resume TASK-001` |
+| `/om:retry` | 重试失败任务 | `/om:retry TASK-001` |
+| `/om:report` | 生成执行报告 | `/om:report` |
 
----
+### 6种专用 Agent
 
-## 使用
+| Agent | 职责 | 典型任务 |
+|-------|------|---------|
+| **Planner** | 任务拆解、计划制定 | 分析需求、设计方案 |
+| **Coder** | 代码编写、重构 | 实现功能、修复 Bug |
+| **Tester** | 测试用例、执行测试 | 单元测试、覆盖率 |
+| **Reviewer** | 代码审查、质量检查 | 安全审查、性能评估 |
+| **Researcher** | 搜索资料、知识检索 | 技术调研、方案对比 |
+| **Executor** | 执行命令、文件操作 | 构建、部署、清理 |
 
-### Claude Code Skills
+### 三阶段验证
 
-| 命令 | 说明 |
-|------|------|
-| `/om:start` | 启动新任务，交互式问答后执行 |
-| `/om:status` | 查看任务状态 |
-| `/om:approve` | 审批决策 (Plan/Merge/Deploy) |
-| `/om:meeting` | 查看和处理 Meeting（阻塞问题/决策） |
-| `/om:resume` | 恢复中断任务 |
-| `/om:retry` | 重试失败任务 |
-| `/om:report` | 生成执行报告 |
-
-### CLI 命令
-
-```bash
-openmatrix start <task.md>    # 启动任务
-openmatrix status             # 查看状态
-openmatrix approve [id]       # 审批 (plan/merge/deploy)
-openmatrix meeting [id]       # 处理 Meeting (阻塞/决策)
-openmatrix resume [task-id]   # 恢复
-openmatrix retry [task-id]    # 重试
-openmatrix report             # 报告
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Develop   │────▶│   Verify    │────▶│   Accept    │
+│   开发阶段   │     │   验证阶段   │     │   验收阶段   │
+└─────────────┘     └─────────────┘     └─────────────┘
+      │                   │                   │
+      ▼                   ▼                   ▼
+  Coder 编写代码     Tester 运行测试     Reviewer 最终确认
+  遵循验收标准       检查覆盖率          验收标准检查
+  处理边界情况       Build 测试          生成验收报告
 ```
 
-### Skills 流程
+### Meeting 机制 (独特)
 
-**`/om:start`**
-```
-1. 读取任务文档
-2. 生成 3-7 个澄清问题（逐个提问）
-3. 用户回答后，拆解任务
-4. 生成执行计划 → 等待用户确认
-5. 用户确认后，启动 CLI 开始执行
-```
+**问题**: 传统任务系统遇到阻塞就停止，等待用户处理
 
-**`/om:approve`**
-```
-1. 读取 pending/ 下的待确认项
-2. 展示确认内容和选项
-3. 用户选择 → 写入结果
-4. 通知 CLI 继续执行
-```
+**OpenMatrix 解决方案**: Meeting 机制
 
-**`/om:meeting`** (新增)
 ```
-1. 列出所有待处理 Meeting
-2. 展示 Meeting 详情（阻塞原因/决策问题）
-3. 用户选择处理方式：
-   - 💡 提供信息（解决阻塞）
-   - ⏭️ 跳过任务（标记可选）
-   - 🔄 重试（使用新信息）
-   - ✏️ 修改方案（调整任务）
-   - ✅ 做出决策（技术选型）
-4. 更新任务状态，恢复执行
-```
-
-**执行流程（含 Meeting）**
-```
-/om:start 启动任务
-    ↓
 执行任务中...
-├── 任务A 完成 ✓
-├── 任务B 阻塞 → 创建 Meeting → 跳过，继续 ↷
-├── 任务C 完成 ✓
-└── 任务D 阻塞 → 创建 Meeting → 跳过，继续 ↷
-    ↓
-执行完成!
-📋 有待处理的 Meeting (2个)
-    ↓
-/om:meeting 交互式处理
-├── 选择 Meeting
-├── 选择操作（提供信息/跳过/重试等）
-└── 解决问题，任务恢复
+├── TASK-001: 完成 ✓
+├── TASK-002: 阻塞 → 创建 Meeting → 跳过，继续 ↷
+├── TASK-003: 完成 ✓
+└── TASK-004: 阻塞 → 创建 Meeting → 跳过，继续 ↷
+
+执行完成! 📋 有 2 个待处理 Meeting
+
+/om:meeting
+  [1] APPR-001: 数据库连接失败 (TASK-002)
+  [2] APPR-002: API 设计决策 (TASK-004)
+
+选择处理方式:
+  - 💡 提供信息 (解决阻塞)
+  - ⏭️ 跳过任务 (标记可选)
+  - 🔄 重试 (使用新信息)
+  - ✏️ 修改方案 (调整任务)
+```
+
+### 三种执行模式
+
+| 模式 | 确认点 | 适用场景 |
+|------|--------|---------|
+| `confirm-all` | 每阶段后确认 | 重要任务，精细控制 |
+| `confirm-key` | plan/merge/deploy | 常规任务 (默认) |
+| `auto` | **无确认** | 简单任务，最大化自动化 |
+
+---
+
+## 使用案例
+
+### 案例 1: 快速功能开发
+
+```
+/om:start --mode auto 实现一个命令行 TODO 应用
+
+OpenMatrix:
+  📋 任务拆解 (5个子任务)
+  ├── TASK-001: 数据模型设计 (Planner)
+  ├── TASK-002: CLI 命令解析 (Coder)
+  ├── TASK-003: 文件存储 (Coder)
+  ├── TASK-004: 单元测试 (Tester)
+  └── TASK-005: 代码审查 (Reviewer)
+
+  ⏱️ 耗时: 12分钟
+  ✅ 状态: 完成
+  📁 产出: src/todo.ts, tests/todo.test.ts
+```
+
+### 案例 2: Bug 修复
+
+```
+/om:start 修复用户登录时的 JWT 过期问题
+
+OpenMatrix:
+  📋 任务拆解 (3个子任务)
+  ├── TASK-001: 定位问题 (Researcher)
+  ├── TASK-002: 修复代码 (Coder)
+  └── TASK-003: 回归测试 (Tester)
+
+  ⏱️ 耗时: 5分钟
+  ✅ 状态: 完成
+```
+
+### 案例 3: 代码重构
+
+```
+/om:start --mode confirm-key 重构认证模块，提高可测试性
+
+OpenMatrix:
+  📋 任务拆解 (4个子任务)
+  ├── TASK-001: 分析现有代码 (Reviewer)
+  ├── TASK-002: 设计新架构 (Planner)
+  ├── TASK-003: 实现重构 (Coder)
+  └── TASK-004: 验证功能 (Tester)
+
+  ⏸️ 暂停: Plan 阶段等待确认
+  /om:approve → 继续
+
+  ⏱️ 耗时: 18分钟
+  ✅ 状态: 完成
 ```
 
 ---
 
-## 数据模型
+## 架构
 
-### 目录结构
+```
+┌────────────────────────────────────────────────────────────────┐
+│                        用户层 (Claude Code)                      │
+│  Skills: /om:start  /om:status  /om:approve  /om:meeting      │
+└──────────────────────────────┬─────────────────────────────────┘
+                               │
+┌──────────────────────────────▼─────────────────────────────────┐
+│                      调度层 (Orchestrator)                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐   │
+│  │  Parser  │ │ Planner  │ │ Scheduler│ │ ApprovalManager  │   │
+│  │ 任务解析  │ │ 任务拆解  │ │ 调度引擎  │ │   审批/Meeting   │   │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘   │
+└──────────────────────────────┬─────────────────────────────────┘
+                               │
+┌──────────────────────────────▼─────────────────────────────────┐
+│                        执行层 (Agents)                           │
+│  ┌────────┐ ┌───────┐ ┌────────┐ ┌──────────┐ ┌────────────┐   │
+│  │Planner │ │ Coder │ │ Tester │ │ Reviewer │ │ Researcher │   │
+│  └───┬────┘ └───┬───┘ └───┬────┘ └────┬─────┘ └─────┬──────┘   │
+│      └──────────┴─────────┴──────────┴──────────────┘          │
+│                         Claude Subagent                         │
+└──────────────────────────────┬─────────────────────────────────┘
+                               │
+┌──────────────────────────────▼─────────────────────────────────┐
+│                      存储层 (.openmatrix/)                       │
+│  state.json │ tasks/ │ approvals/ │ logs/                       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 目录结构
 
 ```
 .openmatrix/
-├── state.json                    # 全局运行状态
-├── config.json                   # 配置文件
+├── state.json              # 全局状态
+├── config.json             # 配置
 ├── tasks/
-│   ├── index.json               # 任务索引
-│   ├── TASK-001/
-│   │   ├── task.json            # 任务定义
-│   │   ├── plan.md              # 执行计划
-│   │   ├── phases/              # 三阶段记录
-│   │   │   ├── develop.json
-│   │   │   ├── verify.json
-│   │   │   └── accept.json
-│   │   └── artifacts/           # 产出物
-│   └── TASK-002/
-├── agents/
-│   └── runs/                    # Agent 执行记录
+│   ├── index.json          # 任务索引
+│   └── TASK-XXX/
+│       ├── task.json       # 任务定义
+│       ├── plan.md         # 执行计划
+│       ├── phases/         # 三阶段记录
+│       └── artifacts/      # 产出物
 ├── approvals/
-│   ├── pending/                 # 待确认项
-│   └── history/                 # 已确认历史
+│   ├── pending/            # 待确认项
+│   └── history/            # 已确认历史
 └── logs/
-    ├── orchestrator.log
-    └── agents/
+    └── orchestrator.log    # 执行日志
 ```
-
-### 核心数据结构
-
-**state.json** - 全局状态
-```json
-{
-  "version": "1.0",
-  "runId": "run-20240323-001",
-  "status": "running",
-  "currentPhase": "execution",
-  "startedAt": "2024-03-23T10:00:00Z",
-  "config": {
-    "timeout": 120,
-    "maxRetries": 3,
-    "approvalPoints": ["plan", "merge", "deploy"]
-  },
-  "statistics": {
-    "totalTasks": 10,
-    "completed": 3,
-    "inProgress": 2,
-    "failed": 1,
-    "pending": 4
-  }
-}
-```
-
-**task.json** - 单个任务
-```json
-{
-  "id": "TASK-001",
-  "title": "用户登录功能开发",
-  "description": "实现基于JWT的用户登录认证功能",
-  "status": "in_progress",
-  "priority": "P0",
-  "timeout": 120,
-  "dependencies": [],
-  "assignedAgent": "coder",
-  "phases": {
-    "develop": { "status": "completed", "duration": 45 },
-    "verify": { "status": "in_progress", "duration": null },
-    "accept": { "status": "pending", "duration": null }
-  },
-  "retryCount": 0,
-  "error": null,
-  "createdAt": "2024-03-23T10:00:00Z",
-  "updatedAt": "2024-03-23T10:45:00Z"
-}
-```
-
-**approval.json** - 确认请求
-```json
-{
-  "id": "APPR-001",
-  "type": "plan",
-  "taskId": "TASK-001",
-  "title": "任务计划确认",
-  "description": "请确认以下任务拆解方案",
-  "content": "## 计划内容\n...",
-  "options": [
-    { "key": "approve", "label": "批准执行" },
-    { "key": "modify", "label": "需要修改" },
-    { "key": "reject", "label": "拒绝" }
-  ],
-  "status": "pending",
-  "createdAt": "2024-03-23T10:05:00Z"
-}
-```
-
-### 任务状态流转
-
-```
-pending → scheduled → in_progress → verify → accept → completed
-              │            │           │        │
-              │            ▼           ▼        ▼
-              │        blocked      failed   failed
-              │            │           │        │
-              │            ▼           └────────┘
-              │        waiting              │
-              │            │                ▼
-              └────────────┴──────────► retry_queue
-```
-
----
-
-## 核心模块
-
-### 调度引擎 (Scheduler)
-
-- 任务优先级排序
-- 依赖关系解析
-- 并发控制
-- 资源分配
-
-### 状态机 (StateMachine)
-
-```
-pending → scheduled → in_progress → verify → accept → completed
-              │            │           │        │
-              │            ▼           ▼        ▼
-              │        blocked      failed   failed
-              │            │
-              └────────────┴──► waiting ──► /om:approve
-```
-
-### 确认管理 (ApprovalManager)
-
-**常规审批** (通过 `/om:approve` 处理)
-
-| 审批类型 | 触发时机 | 命令 | 说明 |
-|---------|---------|------|------|
-| `plan` | 任务计划完成后 | `/om:approve` | 确认任务拆解方案 |
-| `merge` | 代码合并前 | `/om:approve` | 确认合并请求 |
-| `deploy` | 部署前 | `/om:approve` | 确认部署操作 |
-
-**Meeting** (通过 `/om:meeting` 处理)
-
-| 类型 | 触发时机 | 命令 | 处理方式 |
-|------|---------|------|---------|
-| `meeting` (阻塞) | 任务执行遇到阻塞 | `/om:meeting` | 提供信息/跳过/重试/修改 |
-| `meeting` (决策) | 需要技术方案决策 | `/om:meeting` | 选择方案/自定义决策 |
-
-**Meeting 操作流程**
-```
-执行任务中遇到阻塞/决策点
-    ↓
-创建 Meeting 记录（不暂停执行）
-    ↓
-跳过该任务，继续执行其他任务
-    ↓
-执行完成，提示有待处理 Meeting
-    ↓
-用户执行 /om:meeting
-    ↓
-交互式选择并解决问题
-    ↓
-恢复任务或标记完成
-```
-
-### 6种 Agent
-
-| Agent | 职责 | 输入 | 输出 | Tools |
-|-------|------|------|------|-------|
-| **Planner** | 任务拆解、计划制定 | 任务文档、用户答案 | 任务列表、依赖图 | Read, Write |
-| **Coder** | 代码编写、重构 | 任务描述、现有代码 | 代码文件、变更说明 | Read, Write, Edit, Bash |
-| **Tester** | 测试用例、执行测试 | 代码文件、测试要求 | 测试报告、覆盖率 | Read, Write, Bash |
-| **Reviewer** | 代码审查、质量检查 | 代码文件、规范文档 | 审查报告、问题列表 | Read, Grep, Glob |
-| **Researcher** | 搜索资料、知识检索 | 问题、关键词 | 研究报告、参考资料 | WebSearch, WebFetch, Read |
-| **Executor** | 执行命令、文件操作 | 命令列表、操作说明 | 执行结果、日志 | Bash, Read, Write |
-
-### Agent 执行流程 (Subagent 模式)
-
-```
-1. Orchestrator 准备 SubagentTask
-2. Skill 调用 Agent 工具执行 Subagent
-3. Subagent 在隔离环境中执行任务
-4. 产出结果 (success/failed/needs_approval)
-5. 上报结果 (写入状态文件)
-6. Skill 读取状态，决定下一步
-```
-
-**执行模式**
-
-| 模式 | 说明 | 适用场景 |
-|------|------|---------|
-| `confirm-all` | 每阶段后暂停确认 | 重要任务，需精细控制 |
-| `confirm-key` | 仅在 plan/merge/deploy 暂停 | 常规任务，平衡自动与控制 |
-| `auto` | 全自动，无暂停 | 简单任务，最大化自动化 |
-
----
-
-## 异常处理与重试
-
-### 异常分类
-
-| 异常类型 | 触发条件 | 处理策略 |
-|---------|---------|---------|
-| `AgentTimeout` | Agent 执行超时 | 记录日志，加入重试队列 |
-| `AgentError` | Agent 执行出错 | 记录错误详情，加入重试队列 |
-| `TaskBlocked` | 依赖任务未完成 | 标记 blocked，等待依赖完成 |
-| `ApprovalRequired` | 到达确认点 | 暂停执行，创建确认请求 |
-| `ExternalDependency` | 等待外部资源 | 标记 waiting，定期检查 |
-| `CriticalError` | 严重错误 | 停止执行，通知人工介入 |
-
-### 重试机制
-
-- 最大重试次数: 3 次
-- 退避策略: 指数退避 (2^n * 10 秒，最大 300 秒)
-- 最终重试: 全功能测试前，收集所有失败任务并重试
 
 ---
 
 ## 配置
 
-在项目根目录创建 `.openmatrixrc.json`：
+`.openmatrixrc.json`:
 
 ```json
 {
-  "timeout": {
-    "default": 120,
-    "max": 600
-  },
-  "retry": {
-    "maxRetries": 3,
-    "backoff": "exponential"
-  },
-  "approvalPoints": ["plan", "merge", "deploy"],
+  "timeout": { "default": 120, "max": 600 },
+  "retry": { "maxRetries": 3, "backoff": "exponential" },
+  "approvalPoints": ["plan", "merge"],
   "agents": {
     "maxConcurrent": 3,
     "model": "claude-sonnet-4-6"
@@ -491,49 +292,28 @@ pending → scheduled → in_progress → verify → accept → completed
 
 ## 开发
 
-### 技术栈
-
-| 组件 | 技术 |
-|------|------|
-| CLI 框架 | TypeScript + Commander |
-| Agent 运行时 | Node.js 子进程 |
-| 文件监听 | Chokidar |
-| 日志 | Winston |
-| 测试 | Vitest |
-
-### 目录结构
-
-```
-openmatrix/
-├── package.json
-├── tsconfig.json
-├── src/
-│   ├── cli/                # CLI 命令
-│   ├── orchestrator/       # 调度层
-│   ├── agents/             # Agent 实现
-│   ├── storage/            # 存储层
-│   └── types/              # 类型定义
-├── skills/                 # Claude Code Skills
-├── tests/                  # 测试
-└── docs/                   # 文档
-```
-
-### 开发命令
-
 ```bash
-# 克隆项目
+# 克隆 & 安装
 git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix
+cd openmatrix && npm install
 
-# 安装依赖
-npm install
-
-# 构建
-npm run build
-
-# 测试
-npm test
+# 开发
+npm run dev          # 开发模式
+npm run build        # 构建
+npm test             # 测试
 ```
+
+---
+
+## 适合谁用？
+
+| 用户类型 | 是否适合 | 原因 |
+|---------|---------|------|
+| **独立开发者** | ✅ 非常适合 | 快速完成功能，无需复杂配置 |
+| **小团队** | ✅ 适合 | 轻量级协作，Git 友好 |
+| **需要严格流程的团队** | ⚠️ 考虑 gsd | gsd 提供更完整的项目管理 |
+| **追求代码质量的开发者** | ⚠️ 考虑 superpowers | superpowers 有更严格的工作流 |
+| **想要最大自动化的用户** | ✅ 非常适合 | auto 模式 + Meeting 机制 |
 
 ---
 
@@ -546,4 +326,5 @@ MIT
 ## 相关链接
 
 - [Claude Code 文档](https://docs.anthropic.com/claude-code)
-- [Claude API 文档](https://docs.anthropic.com)
+- [superpowers](https://github.com/your-favorite/superpowers)
+- [gsd (Get Shit Done)](https://github.com/your-favorite/gsd)
