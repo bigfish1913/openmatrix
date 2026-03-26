@@ -355,6 +355,23 @@ Generated after each task completion:
 
 ---
 
+## Multi-Language Support
+
+OpenMatrix **natively supports all mainstream programming languages** through Claude Code Agent:
+
+| Language | Test Command | Build Command |
+|----------|--------------|---------------|
+| TypeScript/JavaScript | `npm test` / `vitest` | `npm run build` |
+| Python | `pytest` | `python -m build` |
+| Go | `go test ./...` | `go build` |
+| Java | `mvn test` | `mvn compile` |
+| Rust | `cargo test` | `cargo build` |
+| Others | Any CLI command | Any CLI command |
+
+**No extra configuration needed** — Agent executes any shell command, Claude understands all mainstream languages.
+
+---
+
 ## FAQ
 
 ### Q: Which quality level is right for me?
@@ -411,9 +428,8 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Quality Reports
 - [x] AI Acceptance
 - [x] `/om:auto` Full Auto Mode
-- [x] Auto Meeting Handling
+- [x] Multi-language Support (Python/Go/Java/TypeScript etc.)
 - [ ] VSCode Extension
-- [ ] Python/Go Support
 - [ ] CI/CD Integration
 
 ---

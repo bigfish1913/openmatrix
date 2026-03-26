@@ -358,6 +358,23 @@ Accept 阶段由 Reviewer Agent 执行:
 
 ---
 
+## 多语言支持
+
+OpenMatrix 通过 Claude Code Agent 工具**原生支持所有主流编程语言**：
+
+| 语言 | 测试命令 | 构建命令 |
+|------|---------|---------|
+| TypeScript/JavaScript | `npm test` / `vitest` | `npm run build` |
+| Python | `pytest` | `python -m build` |
+| Go | `go test ./...` | `go build` |
+| Java | `mvn test` | `mvn compile` |
+| Rust | `cargo test` | `cargo build` |
+| 其他 | 任意 CLI 命令 | 任意 CLI 命令 |
+
+**无需额外配置** — Agent 可执行任意 shell 命令，Claude 理解所有主流语言。
+
+---
+
 ## 常见问题
 
 ### Q: 哪种质量级别适合我？
@@ -414,9 +431,8 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] 质量报告
 - [x] AI 验收
 - [x] `/om:auto` 全自动模式
-- [x] Meeting 自动处理
+- [x] 多语言支持 (Python/Go/Java/TypeScript 等)
 - [ ] VSCode 扩展
-- [ ] Python/Go 支持
 - [ ] CI/CD 集成
 
 ---
