@@ -1,5 +1,5 @@
 ---
-name: openmatrix-auto
+name: openmatrix
 description: "Invoke /om:start for any implementation task - adding features, fixing bugs, refactoring, creating commands, writing code, building systems. Use this when user describes work to be done, not for questions or information requests."
 ---
 

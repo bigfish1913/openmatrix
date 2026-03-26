@@ -33,9 +33,9 @@ export const installSkillsCommand = new Command('install-skills')
       process.exit(1);
     }
 
-    // Get skill files (excluding om.md and openmatrix-auto.md which are handled separately)
+    // Get skill files (excluding om.md and openmatrix.md which are handled separately)
     const files = fs.readdirSync(skillsDir).filter(f =>
-      f.endsWith('.md') && f !== 'om.md' && f !== 'openmatrix-auto.md'
+      f.endsWith('.md') && f !== 'om.md' && f !== 'openmatrix.md'
     );
 
     if (files.length === 0) {
@@ -93,21 +93,21 @@ export const installSkillsCommand = new Command('install-skills')
     }
 
     // Install auto-detection instructions
-    const autoSrc = path.join(skillsDir, 'openmatrix-auto.md');
-    const autoDest = path.join(claudeDir, 'commands', 'openmatrix-auto.md');
+    const autoSrc = path.join(skillsDir, 'openmatrix.md');
+    const autoDest = path.join(claudeDir, 'commands', 'openmatrix.md');
 
     if (fs.existsSync(autoSrc)) {
       try {
         if (fs.existsSync(autoDest) && !options.force) {
-          console.log(`  ⏭️  Skipped: openmatrix-auto.md (already exists)`);
+          console.log(`  ⏭️  Skipped: openmatrix.md (already exists)`);
           skipped++;
         } else {
           fs.copyFileSync(autoSrc, autoDest);
-          console.log(`  ✅ Installed: auto-detection rules`);
+          console.log(`  ✅ Installed: /om:openmatrix (auto-detection)`);
           installed++;
         }
       } catch (err: any) {
-        console.log(`  ❌ Failed: openmatrix-auto.md (${err.message})`);
+        console.log(`  ❌ Failed: openmatrix.md (${err.message})`);
         failed++;
       }
     }
