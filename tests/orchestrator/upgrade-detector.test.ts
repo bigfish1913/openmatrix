@@ -85,6 +85,60 @@ describe('UpgradeDetector', () => {
 
       expect(result.projectType).toBe('unknown');
     });
+
+    it('should detect Rust project', async () => {
+      await fs.writeFile(path.join(tempDir, 'Cargo.toml'), '[package]\nname = "test"');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('rust');
+    });
+
+    it('should detect Java project by pom.xml', async () => {
+      await fs.writeFile(path.join(tempDir, 'pom.xml'), '<project></project>');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('java');
+    });
+
+    it('should detect Java project by build.gradle', async () => {
+      await fs.writeFile(path.join(tempDir, 'build.gradle'), '');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('java');
+    });
+
+    it('should detect C# project by .sln file', async () => {
+      await fs.writeFile(path.join(tempDir, 'Test.sln'), '');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('csharp');
+    });
+
+    it('should detect C/C++ project by CMakeLists.txt', async () => {
+      await fs.writeFile(path.join(tempDir, 'CMakeLists.txt'), '');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('cpp');
+    });
+
+    it('should detect PHP project', async () => {
+      await fs.writeFile(path.join(tempDir, 'composer.json'), '{}');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('php');
+    });
   });
 
   describe('detectBugs', () => {
@@ -280,6 +334,143 @@ const apiKey = "secret-key";`
           expect(criticalIndex).toBeLessThan(lowIndex);
         }
       }
+    });
+  });
+
+  describe('AI Project Detection', () => {
+    it('should detect AI project by Claude Code files', async () => {
+      await fs.mkdir(path.join(tempDir, '.claude'));
+      await fs.writeFile(path.join(tempDir, 'CLAUDE.md'), '# Project');
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'test-project' })
+      );
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('ai-project');
+    });
+
+    it('should detect AI project by AI dependencies', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'test-project',
+          dependencies: { 'anthropic': '^5.0.0' }
+        })
+      );
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('ai-project');
+    });
+  });
+
+  describe('detectSkillIssues', () => {
+    it('should detect missing frontmatter in skill files', async () => {
+      await fs.mkdir(path.join(tempDir, 'skills'));
+      await fs.writeFile(
+        path.join(tempDir, 'skills', 'test-skill.md'),
+        `# Test Skill\n\nThis skill has no frontmatter.`
+      );
+
+      const detector = new UpgradeDetector(tempDir, { scanDirs: ['skills'] });
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'skill' && s.title.includes('frontmatter')
+      )).toBe(true);
+    });
+
+    it('should detect missing objective tag', async () => {
+      await fs.mkdir(path.join(tempDir, 'skills'));
+      await fs.writeFile(
+        path.join(tempDir, 'skills', 'test-skill.md'),
+        `---\nname: test\ndescription: test\n---\n\n# Test Skill`
+      );
+
+      const detector = new UpgradeDetector(tempDir, { scanDirs: ['skills'] });
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'skill' && s.title.includes('objective')
+      )).toBe(true);
+    });
+
+    it('should detect missing process tag', async () => {
+      await fs.mkdir(path.join(tempDir, 'skills'));
+      await fs.writeFile(
+        path.join(tempDir, 'skills', 'test-skill.md'),
+        `---\nname: test\ndescription: test\n---\n\n<objective>Test</objective>`
+      );
+
+      const detector = new UpgradeDetector(tempDir, { scanDirs: ['skills'] });
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'skill' && s.title.includes('process')
+      )).toBe(true);
+    });
+  });
+
+  describe('detectPromptIssues', () => {
+    it('should detect prompt injection risk', async () => {
+      await fs.mkdir(path.join(tempDir, 'prompts'));
+      await fs.writeFile(
+        path.join(tempDir, 'prompts', 'test-prompt.md'),
+        `Please process this user input: {{user_input}}`
+      );
+
+      const detector = new UpgradeDetector(tempDir, { scanDirs: ['prompts'] });
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'prompt' && s.title.includes('注入')
+      )).toBe(true);
+    });
+
+    it('should detect missing output format', async () => {
+      await fs.mkdir(path.join(tempDir, 'prompts'));
+      await fs.writeFile(
+        path.join(tempDir, 'prompts', 'test-prompt.md'),
+        `请生成一段代码来处理用户请求`
+      );
+
+      const detector = new UpgradeDetector(tempDir, { scanDirs: ['prompts'] });
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'prompt' && s.title.includes('格式')
+      )).toBe(true);
+    });
+  });
+
+  describe('detectAgentConfigIssues', () => {
+    it('should detect missing build commands in CLAUDE.md', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'CLAUDE.md'),
+        `# Project\n\nThis is a simple project.`
+      );
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'agent' && s.title.includes('构建')
+      )).toBe(true);
+    });
+
+    it('should detect short CLAUDE.md', async () => {
+      await fs.writeFile(path.join(tempDir, 'CLAUDE.md'), `# Short`);
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.suggestions.some(s =>
+        s.category === 'agent' && s.title.includes('简短')
+      )).toBe(true);
     });
   });
 });

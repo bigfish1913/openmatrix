@@ -107,7 +107,10 @@ function displayResult(result: DetectionResult): void {
     ux: '👤 用户体验',
     style: '🎨 代码风格',
     security: '🔒 安全问题',
-    common: '⚠️ 常见问题'
+    common: '⚠️ 常见问题',
+    prompt: '🤖 Prompt 问题',
+    skill: '⚡ Skill 问题',
+    agent: '🧠 Agent 配置'
   };
 
   for (const [cat, count] of Object.entries(summary.byCategory) as [UpgradeCategory, number][]) {
@@ -191,7 +194,10 @@ function displaySuggestion(s: UpgradeSuggestion): void {
     ux: '👤',
     style: '🎨',
     security: '🔒',
-    common: '⚠️'
+    common: '⚠️',
+    prompt: '🤖',
+    skill: '⚡',
+    agent: '🧠'
   };
 
   const color = priorityColors[s.priority];
@@ -210,10 +216,16 @@ function displaySuggestion(s: UpgradeSuggestion): void {
 function formatProjectType(type: ProjectType): string {
   const labels: Record<ProjectType, string> = {
     openmatrix: '🤖 OpenMatrix',
+    'ai-project': '🧠 AI 项目',
     nodejs: '📦 Node.js',
     typescript: '📘 TypeScript',
     python: '🐍 Python',
     go: '🔷 Go',
+    rust: '🦀 Rust',
+    java: '☕ Java',
+    csharp: '💜 C#',
+    cpp: '⚙️ C/C++',
+    php: '🐘 PHP',
     unknown: '❓ 未知'
   };
   return labels[type];

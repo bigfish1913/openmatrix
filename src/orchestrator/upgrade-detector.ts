@@ -14,7 +14,10 @@ export type UpgradeCategory =
   | 'ux'            // 用户体验 (交互、提示、错误处理)
   | 'style'         // 代码风格 (命名、格式、一致性)
   | 'security'      // 安全问题
-  | 'common';       // 常见问题 (重复代码、硬编码等)
+  | 'common'        // 常见问题 (重复代码、硬编码等)
+  | 'prompt'        // Prompt 问题 (AI 项目)
+  | 'skill'         // Skill 问题 (AI 项目)
+  | 'agent';        // Agent 配置问题 (AI 项目)
 
 /**
  * 升级建议优先级
@@ -63,10 +66,16 @@ export interface DetectionResult {
  */
 export type ProjectType =
   | 'openmatrix'    // OpenMatrix 自身
+  | 'ai-project'    // AI 项目 (包含 prompts/skills/agents)
   | 'nodejs'        // Node.js 项目
   | 'typescript'    // TypeScript 项目
   | 'python'        // Python 项目
   | 'go'            // Go 项目
+  | 'rust'          // Rust 项目
+  | 'java'          // Java 项目
+  | 'csharp'        // C# 项目
+  | 'cpp'           // C/C++ 项目
+  | 'php'           // PHP 项目
   | 'unknown';      // 未知类型
 
 /**
@@ -91,9 +100,9 @@ export interface DetectorConfig {
  * 默认配置
  */
 export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
-  scanDirs: ['src', 'skills', 'tests', 'docs'],
+  scanDirs: ['src', 'skills', 'tests', 'docs', 'prompts', '.claude', '.cursor'],
   excludeDirs: ['node_modules', 'dist', '.git', '.openmatrix'],
-  categories: ['bug', 'quality', 'capability', 'ux', 'style', 'security', 'common'],
+  categories: ['bug', 'quality', 'capability', 'ux', 'style', 'security', 'common', 'prompt', 'skill', 'agent'],
   minPriority: 'low'
 };
 
@@ -128,7 +137,11 @@ export class UpgradeDetector {
       this.detectUXIssues(),
       this.detectStyleIssues(),
       this.detectSecurityIssues(),
-      this.detectCommonIssues()
+      this.detectCommonIssues(),
+      // AI 项目专用检测器
+      this.detectPromptIssues(),
+      this.detectSkillIssues(),
+      this.detectAgentConfigIssues()
     ];
 
     const results = await Promise.all(detectors);
@@ -178,9 +191,58 @@ export class UpgradeDetector {
         // 不是 OpenMatrix 项目
       }
 
+      // 检查是否是 AI 项目
+      const aiIndicators = [
+        '.claude',
+        '.cursor',
+        'skills',
+        'prompts',
+        '.cursorrules',
+        'CLAUDE.md',
+        'AGENTS.md',
+        'GEMINI.md',
+        '.mcp'
+      ];
+
+      let aiIndicatorCount = 0;
+      for (const indicator of aiIndicators) {
+        try {
+          await fs.access(path.join(this.projectRoot, indicator));
+          aiIndicatorCount++;
+        } catch {
+          // 不存在
+        }
+      }
+
+      // 如果有 2 个或以上 AI 指标，认为是 AI 项目
+      if (aiIndicatorCount >= 2) {
+        return 'ai-project';
+      }
+
       // 检查 package.json
       try {
         const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+
+        // 检查是否有 AI 相关依赖
+        const aiDeps = [
+          'anthropic',
+          '@anthropic-ai/sdk',
+          'openai',
+          '@langchain',
+          'llamaindex',
+          'claude-agent-sdk'
+        ];
+
+        const allDeps = {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies
+        };
+
+        for (const dep of aiDeps) {
+          if (allDeps[dep]) {
+            return 'ai-project';
+          }
+        }
 
         // 检查 TypeScript
         if (packageJson.devDependencies?.typescript ||
@@ -214,6 +276,69 @@ export class UpgradeDetector {
         return 'go';
       } catch {
         // 不是 Go
+      }
+
+      // 检查 Rust
+      try {
+        await fs.access(path.join(this.projectRoot, 'Cargo.toml'));
+        return 'rust';
+      } catch {
+        // 不是 Rust
+      }
+
+      // 检查 Java
+      try {
+        await fs.access(path.join(this.projectRoot, 'pom.xml'));
+        return 'java';
+      } catch {
+        // 不是 Java (Maven)
+      }
+
+      try {
+        await fs.access(path.join(this.projectRoot, 'build.gradle'));
+        return 'java';
+      } catch {
+        // 不是 Java (Gradle)
+      }
+
+      try {
+        await fs.access(path.join(this.projectRoot, 'build.gradle.kts'));
+        return 'java';
+      } catch {
+        // 不是 Java (Gradle Kotlin DSL)
+      }
+
+      // 检查 C#
+      try {
+        const files = await fs.readdir(this.projectRoot);
+        if (files.some(f => f.endsWith('.sln') || f.endsWith('.csproj'))) {
+          return 'csharp';
+        }
+      } catch {
+        // 不是 C#
+      }
+
+      // 检查 C/C++
+      try {
+        await fs.access(path.join(this.projectRoot, 'CMakeLists.txt'));
+        return 'cpp';
+      } catch {
+        // 不是 CMake 项目
+      }
+
+      try {
+        await fs.access(path.join(this.projectRoot, 'Makefile'));
+        return 'cpp';
+      } catch {
+        // 不是 Make 项目
+      }
+
+      // 检查 PHP
+      try {
+        await fs.access(path.join(this.projectRoot, 'composer.json'));
+        return 'php';
+      } catch {
+        // 不是 PHP
       }
 
       return 'unknown';
@@ -699,6 +824,376 @@ export class UpgradeDetector {
   }
 
   /**
+   * 检测 Prompt 问题 (AI 项目)
+   */
+  private async detectPromptIssues(): Promise<UpgradeSuggestion[]> {
+    const suggestions: UpgradeSuggestion[] = [];
+
+    // 扫描 prompts 目录和 .md 文件
+    const promptFiles = await this.scanFiles(['.md', '.txt']);
+
+    for (const file of promptFiles) {
+      // 只处理可能包含 prompt 的文件
+      if (!file.includes('prompt') && !file.includes('PROMPT') &&
+          !file.includes('.claude') && !file.includes('prompts/')) {
+        continue;
+      }
+
+      const content = await fs.readFile(file, 'utf-8');
+      const lines = content.split('\n');
+
+      lines.forEach((line, index) => {
+        // 检测过于简短的 prompt
+        if (line.trim().length > 0 && line.trim().length < 20 &&
+            !line.startsWith('#') && !line.startsWith('<!--')) {
+          suggestions.push(this.createSuggestion({
+            category: 'prompt',
+            priority: 'low',
+            title: 'Prompt 过于简短',
+            description: `Prompt "${line.trim().substring(0, 30)}..." 过于简短，可能导致模型理解不充分`,
+            location: { file: this.getRelativePath(file), line: index + 1 },
+            suggestion: '扩展 prompt 内容，添加更多上下文和示例',
+            autoFixable: false,
+            impact: '可能导致模型输出不符合预期',
+            effort: 'small'
+          }));
+        }
+
+        // 检测缺少输出格式说明
+        const promptKeywords = ['请', 'write', 'generate', 'create', '实现', '生成'];
+        if (promptKeywords.some(kw => line.toLowerCase().includes(kw))) {
+          const nextLines = lines.slice(index, index + 10).join('\n').toLowerCase();
+          if (!nextLines.includes('格式') && !nextLines.includes('format') &&
+              !nextLines.includes('输出') && !nextLines.includes('output')) {
+            suggestions.push(this.createSuggestion({
+              category: 'prompt',
+              priority: 'medium',
+              title: 'Prompt 缺少输出格式说明',
+              description: 'Prompt 没有明确指定输出格式',
+              location: { file: this.getRelativePath(file), line: index + 1 },
+              suggestion: '添加输出格式说明，如 JSON、Markdown 或具体结构',
+              autoFixable: false,
+              impact: '模型输出格式可能不一致',
+              effort: 'trivial'
+            }));
+          }
+        }
+
+        // 检测潜在的 Prompt 注入风险
+        const injectionPatterns = [
+          /\{\{.*user.*\}\}/i,
+          /\$\{.*input.*\}/i,
+          /user.*input/i,
+          /用户.*输入/i
+        ];
+
+        for (const pattern of injectionPatterns) {
+          if (pattern.test(line)) {
+            suggestions.push(this.createSuggestion({
+              category: 'prompt',
+              priority: 'high',
+              title: '潜在 Prompt 注入风险',
+              description: 'Prompt 中直接使用用户输入，可能导致注入攻击',
+              location: { file: this.getRelativePath(file), line: index + 1 },
+              suggestion: '对用户输入进行验证和清理，或使用结构化 prompt',
+              autoFixable: false,
+              impact: '可能导致 Prompt 注入攻击',
+              effort: 'medium'
+            }));
+            break;
+          }
+        }
+      });
+
+      // 检测缺少示例
+      if (content.length > 200 && !content.includes('示例') &&
+          !content.includes('example') && !content.includes('Example')) {
+        suggestions.push(this.createSuggestion({
+          category: 'prompt',
+          priority: 'medium',
+          title: 'Prompt 缺少示例',
+          description: 'Prompt 内容较长但没有提供示例',
+          location: { file: this.getRelativePath(file) },
+          suggestion: '添加输入输出示例，帮助模型更好理解任务',
+          autoFixable: false,
+          impact: '可能影响模型输出质量',
+          effort: 'small'
+        }));
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * 检测 Skill 问题 (AI 项目)
+   */
+  private async detectSkillIssues(): Promise<UpgradeSuggestion[]> {
+    const suggestions: UpgradeSuggestion[] = [];
+
+    // 扫描 skills 目录
+    const skillFiles = await this.scanFiles(['.md']);
+
+    for (const file of skillFiles) {
+      if (!file.includes('skills/') && !file.includes('skill')) {
+        continue;
+      }
+
+      const content = await fs.readFile(file, 'utf-8');
+      const fileName = path.basename(file);
+
+      // 检测 Skill 文件结构
+      const hasFrontmatter = content.startsWith('---');
+      if (!hasFrontmatter) {
+        suggestions.push(this.createSuggestion({
+          category: 'skill',
+          priority: 'high',
+          title: 'Skill 缺少 frontmatter',
+          description: `Skill 文件 ${fileName} 缺少 YAML frontmatter`,
+          location: { file: this.getRelativePath(file) },
+          suggestion: '添加 frontmatter，包含 name 和 description 字段',
+          autoFixable: false,
+          impact: 'Skill 可能无法被正确识别和加载',
+          effort: 'trivial'
+        }));
+      } else {
+        // 解析 frontmatter
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        if (frontmatterMatch) {
+          const frontmatter = frontmatterMatch[1];
+
+          // 检查必需字段
+          if (!frontmatter.includes('name:')) {
+            suggestions.push(this.createSuggestion({
+              category: 'skill',
+              priority: 'high',
+              title: 'Skill 缺少 name 字段',
+              description: `Skill 文件 ${fileName} 缺少 name 字段`,
+              location: { file: this.getRelativePath(file) },
+              suggestion: '在 frontmatter 中添加 name 字段',
+              autoFixable: false,
+              impact: 'Skill 可能无法被正确识别',
+              effort: 'trivial'
+            }));
+          }
+
+          if (!frontmatter.includes('description:')) {
+            suggestions.push(this.createSuggestion({
+              category: 'skill',
+              priority: 'medium',
+              title: 'Skill 缺少 description 字段',
+              description: `Skill 文件 ${fileName} 缺少 description 字段`,
+              location: { file: this.getRelativePath(file) },
+              suggestion: '在 frontmatter 中添加 description 字段',
+              autoFixable: false,
+              impact: '用户难以理解 Skill 用途',
+              effort: 'trivial'
+            }));
+          }
+        }
+      }
+
+      // 检测缺少 <objective> 标签
+      if (!content.includes('<objective>')) {
+        suggestions.push(this.createSuggestion({
+          category: 'skill',
+          priority: 'medium',
+          title: 'Skill 缺少 objective 标签',
+          description: `Skill 文件 ${fileName} 缺少明确的 objective 标签`,
+          location: { file: this.getRelativePath(file) },
+          suggestion: '添加 <objective> 标签说明 Skill 的目标',
+          autoFixable: false,
+          impact: 'AI 可能无法正确理解 Skill 用途',
+          effort: 'trivial'
+        }));
+      }
+
+      // 检测缺少 <process> 标签
+      if (!content.includes('<process>')) {
+        suggestions.push(this.createSuggestion({
+          category: 'skill',
+          priority: 'medium',
+          title: 'Skill 缺少 process 标签',
+          description: `Skill 文件 ${fileName} 缺少 process 标签`,
+          location: { file: this.getRelativePath(file) },
+          suggestion: '添加 <process> 标签说明执行步骤',
+          autoFixable: false,
+          impact: 'AI 可能无法正确执行 Skill',
+          effort: 'small'
+        }));
+      }
+
+      // 检测缺少示例
+      if (!content.includes('<examples>') && !content.includes('示例')) {
+        suggestions.push(this.createSuggestion({
+          category: 'skill',
+          priority: 'low',
+          title: 'Skill 缺少示例',
+          description: `Skill 文件 ${fileName} 缺少使用示例`,
+          location: { file: this.getRelativePath(file) },
+          suggestion: '添加 <examples> 标签展示使用方式',
+          autoFixable: false,
+          impact: '用户可能不清楚如何使用 Skill',
+          effort: 'trivial'
+        }));
+      }
+
+      // 检测 trigger-conditions (对于自动触发的 Skill)
+      if (content.includes('TRIGGER') || content.includes('trigger-conditions')) {
+        if (!content.includes('<trigger-conditions>')) {
+          suggestions.push(this.createSuggestion({
+            category: 'skill',
+            priority: 'high',
+            title: 'Skill 触发条件格式不规范',
+            description: `Skill 文件 ${fileName} 使用了 TRIGGER 但没有 <trigger-conditions> 标签`,
+            location: { file: this.getRelativePath(file) },
+            suggestion: '使用 <trigger-conditions> 标签规范触发条件',
+            autoFixable: false,
+            impact: 'Skill 可能无法正确自动触发',
+            effort: 'trivial'
+          }));
+        }
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * 检测 Agent 配置问题 (AI 项目)
+   */
+  private async detectAgentConfigIssues(): Promise<UpgradeSuggestion[]> {
+    const suggestions: UpgradeSuggestion[] = [];
+
+    // 检查 CLAUDE.md
+    try {
+      const claudeMdPath = path.join(this.projectRoot, 'CLAUDE.md');
+      const content = await fs.readFile(claudeMdPath, 'utf-8');
+
+      // 检测是否包含必要的项目信息
+      if (!content.includes('Build') && !content.includes('构建') &&
+          !content.includes('npm run') && !content.includes('构建命令')) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'high',
+          title: 'CLAUDE.md 缺少构建命令',
+          description: 'CLAUDE.md 没有说明项目的构建命令',
+          location: { file: 'CLAUDE.md' },
+          suggestion: '添加 Build 部分说明项目的构建和测试命令',
+          autoFixable: false,
+          impact: 'AI 可能无法正确构建和测试项目',
+          effort: 'trivial'
+        }));
+      }
+
+      // 检测是否包含项目概述
+      if (content.length < 200) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'medium',
+          title: 'CLAUDE.md 内容过于简短',
+          description: 'CLAUDE.md 内容过短，可能缺少重要的项目信息',
+          location: { file: 'CLAUDE.md' },
+          suggestion: '扩展 CLAUDE.md，添加项目概述、架构说明和开发规范',
+          autoFixable: false,
+          impact: 'AI 可能无法充分理解项目上下文',
+          effort: 'small'
+        }));
+      }
+
+      // 检测是否包含代码风格指南
+      if (!content.includes('style') && !content.includes('风格') &&
+          !content.includes('convention') && !content.includes('规范')) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'low',
+          title: 'CLAUDE.md 缺少代码风格指南',
+          description: 'CLAUDE.md 没有说明代码风格和规范',
+          location: { file: 'CLAUDE.md' },
+          suggestion: '添加代码风格指南部分',
+          autoFixable: false,
+          impact: 'AI 生成的代码可能不符合项目风格',
+          effort: 'trivial'
+        }));
+      }
+    } catch {
+      // 没有 CLAUDE.md，但这在其他地方已经检测
+    }
+
+    // 检查 .cursorrules
+    try {
+      const cursorrulesPath = path.join(this.projectRoot, '.cursorrules');
+      const content = await fs.readFile(cursorrulesPath, 'utf-8');
+
+      if (content.length < 50) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'low',
+          title: '.cursorrules 内容过于简短',
+          description: '.cursorrules 内容过短',
+          location: { file: '.cursorrules' },
+          suggestion: '扩展 .cursorrules，添加更多项目规则',
+          autoFixable: false,
+          impact: 'Cursor AI 可能无法充分理解项目规则',
+          effort: 'trivial'
+        }));
+      }
+    } catch {
+      // 没有 .cursorrules
+    }
+
+    // 检查 MCP 配置
+    try {
+      const mcpPath = path.join(this.projectRoot, '.mcp', 'settings.json');
+      const content = await fs.readFile(mcpPath, 'utf-8');
+      const mcpConfig = JSON.parse(content);
+
+      // 检测 MCP 服务器配置
+      if (!mcpConfig.mcpServers || Object.keys(mcpConfig.mcpServers || {}).length === 0) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'medium',
+          title: 'MCP 配置中没有服务器',
+          description: '.mcp/settings.json 没有配置任何 MCP 服务器',
+          location: { file: '.mcp/settings.json' },
+          suggestion: '添加 MCP 服务器配置以扩展 AI 能力',
+          autoFixable: false,
+          impact: 'AI 能力受限',
+          effort: 'small'
+        }));
+      }
+    } catch {
+      // 没有 MCP 配置
+    }
+
+    // 检查 settings.json (Claude Code)
+    try {
+      const settingsPath = path.join(this.projectRoot, '.claude', 'settings.json');
+      const content = await fs.readFile(settingsPath, 'utf-8');
+      const settings = JSON.parse(content);
+
+      // 检测权限配置
+      if (!settings.permissions || settings.permissions.length === 0) {
+        suggestions.push(this.createSuggestion({
+          category: 'agent',
+          priority: 'low',
+          title: 'Claude Code 设置缺少权限配置',
+          description: '.claude/settings.json 没有配置权限',
+          location: { file: '.claude/settings.json' },
+          suggestion: '添加权限配置以优化开发体验',
+          autoFixable: false,
+          impact: '可能需要频繁手动批准操作',
+          effort: 'trivial'
+        }));
+      }
+    } catch {
+      // 没有设置文件
+    }
+
+    return suggestions;
+  }
+
+  /**
    * 扫描文件
    */
   private async scanFiles(extensions: string[]): Promise<string[]> {
@@ -809,7 +1304,8 @@ export class UpgradeDetector {
    */
   private generateSummary(suggestions: UpgradeSuggestion[]): DetectionResult['summary'] {
     const byCategory: Record<UpgradeCategory, number> = {
-      bug: 0, quality: 0, capability: 0, ux: 0, style: 0, security: 0, common: 0
+      bug: 0, quality: 0, capability: 0, ux: 0, style: 0, security: 0, common: 0,
+      prompt: 0, skill: 0, agent: 0
     };
     const byPriority: Record<UpgradePriority, number> = {
       critical: 0, high: 0, medium: 0, low: 0
