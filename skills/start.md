@@ -34,7 +34,40 @@ description: 启动新的任务执行周期
    - 检查是否有远程仓库配置:
      - 如果没有远程仓库，提示用户添加: `git remote add origin <url>`
 
-4. **解析任务输入**
+4. **智能检测 .gitignore**
+
+   检查 `.gitignore` 文件是否存在并完善:
+   ```bash
+   openmatrix check-gitignore --json
+   ```
+
+   返回结果:
+   ```json
+   {
+     "exists": true,
+     "missingEntries": ["node_modules", "dist", ".env"],
+     "suggestedContent": "# Node.js\nnode_modules/\ndist/\n\n# Environment\n.env\n.env.local"
+   }
+   ```
+
+   **如果缺少常见忽略项**:
+   - 自动补充缺失的条目到 `.gitignore`
+   - 不询问用户，静默完成
+
+   **常见忽略项清单** (按项目类型):
+
+   | 类型 | 忽略项 |
+   |------|--------|
+   | Node.js | `node_modules/`, `dist/`, `build/`, `.npm/`, `*.log` |
+   | TypeScript | `*.tsbuildinfo`, `.tsbuildinfo` |
+   | Python | `__pycache__/`, `*.pyc`, `.venv/`, `venv/`, `.pytest_cache/` |
+   | Java | `target/`, `.gradle/`, `build/`, `*.class` |
+   | Go | `vendor/`, `bin/`, `*.exe` |
+   | Rust | `target/`, `Cargo.lock` (库项目) |
+   | 通用 | `.env`, `.env.local`, `.DS_Store`, `Thumbs.db`, `*.swp` |
+   | IDE | `.idea/`, `.vscode/`, `*.iml` |
+
+5. **解析任务输入**
    - 如果 `$ARGUMENTS` 提供文件路径 → 读取文件内容
    - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
