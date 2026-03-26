@@ -135,28 +135,43 @@ export class GitCommitManager {
 
   /**
    * 生成提交信息
+   *
+   * 格式规范:
+   * <type>: (TASK-XXX) 简短描述
+   *
+   * - 改动点1
+   * - 改动点2
+   *
+   * 影响范围: 模块/功能
+   * 文件改动: 文件1, 文件2
+   *
+   * Run: run-xxx (可选)
+   * Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
    */
   generateCommitMessage(info: CommitInfo): string {
     const lines: string[] = [];
 
-    // 标题行 - 包含任务 ID 和标题
-    const phaseEmoji = {
-      tdd: '🧪',
-      develop: '✨',
-      verify: '✅',
-      accept: '🎉'
+    // 类型映射：根据 phase 确定提交类型
+    const phaseToType: Record<string, string> = {
+      tdd: 'test',
+      develop: 'feat',
+      verify: 'test',
+      accept: 'feat'
     };
+    const commitType = phaseToType[info.phase] || 'feat';
 
-    const title = info.taskTitle.length > 50
-      ? info.taskTitle.slice(0, 47) + '...'
-      : info.taskTitle;
+    // 标题行 - 限制 50 字符
+    let title = info.taskTitle;
+    if (title.length > 50) {
+      title = title.slice(0, 47) + '...';
+    }
 
-    lines.push(`${phaseEmoji[info.phase]} (${info.taskId}): ${title}`);
+    // 格式: feat: (TASK-001) 简短描述
+    lines.push(`${commitType}: (${info.taskId}) ${title}`);
     lines.push('');
 
-    // 修改内容
+    // 修改内容 - 使用文件名作为改动点
     if (info.changes.length > 0) {
-      lines.push('## 修改内容');
       for (const change of info.changes.slice(0, 10)) {
         lines.push(`- ${change}`);
       }
@@ -168,17 +183,28 @@ export class GitCommitManager {
 
     // 影响范围
     if (info.impactScope.length > 0) {
-      lines.push('## 影响范围');
-      lines.push(`模块: ${info.impactScope.join(', ')}`);
-      lines.push('');
+      lines.push(`影响范围: ${info.impactScope.join('、')}`);
     }
 
-    // 元数据
-    lines.push('---');
-    lines.push(`Task-ID: ${info.taskId}`);
-    lines.push(`Run-ID: ${info.runId}`);
-    lines.push(`Phase: ${info.phase}`);
-    lines.push(`Co-Authored-By: OpenMatrix Agent <agent@openmatrix.dev>`);
+    // 文件改动 - 简化显示
+    const changedFiles = info.changes.slice(0, 5).map(f => {
+      const parts = f.split('/');
+      return parts.length > 2 ? parts.slice(-2).join('/') : f;
+    });
+    if (changedFiles.length > 0) {
+      const fileSummary = changedFiles.join(', ');
+      const suffix = info.changes.length > 5 ? ` 等 ${info.changes.length} 个文件` : '';
+      lines.push(`文件改动: ${fileSummary}${suffix}`);
+    }
+    lines.push('');
+
+    // Run ID (可选)
+    if (info.runId) {
+      lines.push(`Run: ${info.runId}`);
+    }
+
+    // Co-Author
+    lines.push(`Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>`);
 
     return lines.join('\n');
   }
