@@ -253,7 +253,7 @@ Accept 阶段由 Reviewer Agent 执行:
 | `/om` | **默认入口** - 直接输入任务描述即可启动 |
 | `/om:start` | 启动新任务 (第一个问题选质量级别) |
 | `/om:auto` | 🚀 **全自动执行** - 无阻塞、无确认、直接完成 |
-| `/om:check` | 🔍 **项目检查** - 自动检测可改进点并提供升级建议 |
+| `/check` | 🔍 **项目检查** - 自动检测可改进点并提供升级建议 |
 | `/om:status` | 查看状态 |
 | `/om:approve` | 审批决策 |
 | `/om:meeting` | 处理阻塞问题 |
@@ -263,15 +263,15 @@ Accept 阶段由 Reviewer Agent 执行:
 
 > `/om` 是 `/om:start` 的快捷方式，功能完全相同
 
-### `/om:check` 项目检查
+### `/check` 项目检查
 
 **适用场景**: 代码质量检查、安全审计、AI 项目配置检查
 
 ```bash
-/om:check                    # 自动扫描当前项目
-/om:check 安全               # 聚焦安全问题
-/om:check --categories skill,prompt,agent  # 检查 AI 项目配置
-/om:check --auto             # 自动执行所有改进
+/check                    # 自动扫描当前项目
+/check 安全               # 聚焦安全问题
+/check --categories skill,prompt,agent  # 检查 AI 项目配置
+/check --auto             # 自动执行所有改进
 ```
 
 **检测维度**:
