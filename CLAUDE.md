@@ -109,6 +109,24 @@ State is persisted in `.openmatrix/` directory:
 - CLI entry point: `dist/cli/index.js` (after build)
 - Tests use Vitest framework
 
+## Documentation Sync
+
+**IMPORTANT**: `README.md` (Chinese) and `README_EN.md` (English) must always be synchronized.
+
+When updating README:
+1. Update `README.md` first
+2. Then update `README_EN.md` with equivalent English content
+3. Both files must have identical structure and information
+
+Key sections to sync:
+- Badges (npm version, downloads, GitHub stars)
+- Quality levels table
+- Quality gates
+- Quality report JSON
+- Configuration example
+- Roadmap
+- Star history chart
+
 ## Release Process
 
 When the user requests "提交 更新readme 发布 推送", follow these steps:
@@ -119,7 +137,7 @@ When the user requests "提交 更新readme 发布 推送", follow these steps:
 git status
 
 # Stage relevant files (exclude .claude/settings.local.json and .gitignore)
-git add CLAUDE.md README.md skills/ src/ package.json
+git add CLAUDE.md README.md README_EN.md skills/ src/ package.json
 
 # Commit with version bump message
 git commit -m "0.1.16

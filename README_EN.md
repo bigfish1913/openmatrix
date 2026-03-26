@@ -6,7 +6,9 @@
 
 *Automation ≠ Sacrificing Quality | High Quality ≠ Manual Work*
 
-[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://www.npmjs.com/package/openmatrix)
+[![npm version](https://img.shields.io/npm/v/openmatrix.svg?color=blue&label=npm)](https://www.npmjs.com/package/openmatrix)
+[![npm downloads](https://img.shields.io/npm/dm/openmatrix.svg?color=green&label=downloads)](https://www.npmjs.com/package/openmatrix)
+[![GitHub stars](https://img.shields.io/github/stars/bigfish1913/openmatrix.svg?style=social&label=Star)](https://github.com/bigfish1913/openmatrix/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
@@ -72,7 +74,7 @@ User Input → Quality Selection → Task Planning → Execution → Quality Gat
 | 0 | Interactive Q&A | **First question selects quality level** |
 | 1 | Task Planning | Planner Agent generates plan |
 | 2 | Task Execution | strict/balanced/fast modes |
-| 3 | Quality Gates | 6 quality gate validations |
+| 3 | Quality Gates | 7 quality gate validations |
 | 4 | AI Acceptance | Reviewer Agent final confirmation |
 | 5 | Meeting | Non-blocking, process at end and **re-execute** |
 | 6 | Final Report | Quality score + deliverables |
@@ -158,15 +160,15 @@ ls ~/.claude/commands/om/
 
 ### 1️⃣ Three-Level Quality Configuration (First Question)
 
-| Level | TDD | Coverage | Lint | Security | AI Accept | Use Case |
-|:-----:|:---:|:--------:|:----:|:--------:|:---------:|----------|
-| **strict** | ✅ | >80% | ✅ Strict | ✅ | ✅ | 🏭 **Production Code** |
-| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 📦 Daily Development |
-| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
+| Level | TDD | Coverage | Lint | Security | E2E Tests | AI Accept | Use Case |
+|:-----:|:---:|:--------:|:----:|:--------:|:---------:|:---------:|----------|
+| **strict** | ✅ | >80% | ✅ Strict | ✅ | ❓ Optional | ✅ | 🏭 **Production Code** |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ❓ Optional | ✅ | 📦 Daily Development |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
 
-> strict can be configured to 100%. Default >80% covers core business logic.
+> E2E tests are time-consuming, so they are optional even in strict mode. strict can be configured to 100%. Default >80% covers core business logic.
 
-### 2️⃣ Six Quality Gates (Verify Phase)
+### 2️⃣ Seven Quality Gates (Verify Phase)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -177,7 +179,8 @@ ls ~/.claude/commands/om/
 │  🚪 Gate 3: Coverage Check >20%/60%/80%    → Configurable │
 │  🚪 Gate 4: Lint Check     No errors        → Configurable │
 │  🚪 Gate 5: Security Scan  npm audit        → No high-risk │
-│  🚪 Gate 6: Acceptance     User defined     → All must met │
+│  🚪 Gate 6: E2E Tests      Playwright etc   → Optional     │
+│  🚪 Gate 7: Acceptance     User defined     → All must met │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -189,7 +192,7 @@ Traditional:  Code → Test → Bug → Fix → Regression → ... (many cycles)
 OpenMatrix TDD (strict):
   🧪 Test Phase:   Write tests first (RED - tests must fail)
   ✨ Dev Phase:    Write code (GREEN - tests must pass)
-  ✅ Verify Phase: 6 quality gates
+  ✅ Verify Phase: 7 quality gates
   🎉 Accept Phase: AI Reviewer final confirmation
 
 Result: Right the first time, no rework
@@ -349,6 +352,7 @@ Generated after each task completion:
   "build": { "success": true },
   "lint": { "errors": 0, "warnings": 3 },
   "security": { "vulnerabilities": [] },
+  "e2e": { "passed": 5, "failed": 0, "skipped": 0 },
   "acceptance": { "met": 5, "total": 5 }
 }
 ```
@@ -402,7 +406,8 @@ OpenMatrix **natively supports all mainstream programming languages** through Cl
     "tdd": false,
     "minCoverage": 60,
     "strictLint": true,
-    "securityScan": true
+    "securityScan": true,
+    "e2eTests": false
   },
   "approvalPoints": ["plan", "merge"],
   "agents": { "maxConcurrent": 3 }
@@ -423,12 +428,13 @@ cd openmatrix && npm install && npm run build && npm test
 ## Roadmap
 
 - [x] TDD Mode
-- [x] 6 Quality Gates
+- [x] 7 Quality Gates
 - [x] Meeting Mechanism
 - [x] Quality Reports
 - [x] AI Acceptance
 - [x] `/om:auto` Full Auto Mode
 - [x] Multi-language Support (Python/Go/Java/TypeScript etc.)
+- [x] E2E Test Support (Web/Mobile/GUI)
 - [ ] VSCode Extension
 - [ ] CI/CD Integration
 
@@ -437,6 +443,8 @@ cd openmatrix && npm install && npm run build && npm test
 <div align="center">
 
 **If you find this useful, please give it a ⭐ Star!**
+
+[![Star History Chart](https://api.star-history.com/svg?repos=bigfish1913/openmatrix&type=Date)](https://star-history.com/#bigfish1913/openmatrix&Date)
 
 MIT © 2024 | Made by [bigfish1913](https://github.com/bigfish1913)
 
