@@ -1,6 +1,6 @@
 ---
 name: openmatrix-auto
-description: "Use this for ANY development task - adding features, fixing bugs, refactoring code, creating systems, writing tests, or building components. Auto-invokes /om:start to orchestrate the work."
+description: "Invoke /om:start for any implementation task - adding features, fixing bugs, refactoring, creating commands, writing code, building systems. Use this when user describes work to be done, not for questions or information requests."
 ---
 
 <objective>
