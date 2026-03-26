@@ -54,11 +54,11 @@ description: 启动新的任务执行周期
        options: [
          {
            label: "🚀 strict (推荐生产代码)",
-           description: "TDD + 80%覆盖率 + 严格Lint + 安全扫描 + AI验收 (E2E可选)"
+           description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描 + AI验收 (E2E可选)"
          },
          {
            label: "⚖️ balanced (日常开发)",
-           description: "60%覆盖率 + Lint + 安全扫描 + AI验收 (E2E可选)"
+           description: ">60%覆盖率 + Lint + 安全扫描 + AI验收 (E2E可选)"
          },
          {
            label: "⚡ fast (快速原型)",
