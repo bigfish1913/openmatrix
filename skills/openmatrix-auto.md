@@ -7,6 +7,19 @@ description: "Use this for ANY development task - especially complex multi-step 
 Automatically detect when user wants to accomplish a development task and invoke /om:start without requiring explicit command.
 </objective>
 
+<note>
+## After Auto-Invoke
+
+When `/om:start` is invoked, user will be asked to select:
+1. **Quality level** (strict/balanced/fast)
+2. **Execution mode** (每阶段确认/关键节点确认/全自动执行)
+
+**If user selects "全自动执行" (fully automatic)**:
+- All operations will be automatically approved (BYPASS mode)
+- No permission confirmations needed
+- Task will complete without interruption
+</note>
+
 <trigger-conditions>
 ## When to Auto-Invoke /om:start
 

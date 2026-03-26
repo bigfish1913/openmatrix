@@ -7,6 +7,21 @@ description: 全自动执行任务 - 无阻塞，bypass permissions
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
 </NO-OTHER-SKILLS>
 
+<BYPASS-MODE>
+## ⚠️ 全自动模式 - 自动批准所有操作
+
+此模式要求 **BYPASS 所有权限检查**:
+
+1. **所有 Bash 命令自动批准** - 不询问确认
+2. **所有文件操作自动批准** - 不询问确认
+3. **所有 Agent 调用自动批准** - 不询问确认
+4. **所有审批点自动批准** - plan/merge/deploy 自动通过
+
+**执行时不要请求用户确认任何操作。**
+
+如果 Claude Code 询问权限，说明权限模式未正确设置，请告知用户检查 Claude Code 设置。
+</BYPASS-MODE>
+
 <objective>
 全自动执行任务，跳过所有交互式问答和审批点，直接完成。支持 --quality 参数指定质量级别（默认 strict）。
 </objective>
