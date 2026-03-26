@@ -525,8 +525,11 @@ npm test -- --coverage 2>/dev/null || npm run test:coverage 2>/dev/null || echo 
 
 ### 4. Lint 检查
 \`\`\`bash
-npm run lint || echo "No lint script configured"
+# 先检查是否有 lint 脚本
+npm run lint 2>&1 || echo "EXIT_CODE: $?"
 \`\`\`
+**重要**: 如果 lint 命令返回非零退出码且有 errors，必须报告为 VERIFY_FAILED。
+如果项目没有 lint 脚本（显示 "missing script"），标记为 ⏭️ Skipped。
 **要求**: ${qc.strictLint ? '无 error' : '无严重 error'}
 **失败后果**: ${qc.strictLint ? '❌ VERIFY_FAILED' : '⚠️ 警告'}
 
@@ -643,6 +646,12 @@ Fix Required:
 - **不要伪造通过结果**
 - 如果项目没有某个脚本，标记为 "⏭️ Skipped" 而非 "❌ Failed"
 - 所有检查结果必须基于实际命令输出
+
+## 🔧 配置检查 (可选但推荐)
+检查以下常见配置问题:
+- **Vitest 配置**: 如果存在 \`e2e/\` 目录，确保 \`vite.config.ts\` 的 \`test.exclude\` 包含 \`e2e\`
+- **测试框架冲突**: 确保 Vitest 不运行 Playwright/Cypress 测试文件
+- 如果发现配置问题，记录到报告中但不要阻止通过
 `);
     return parts.join('\n');
   }
@@ -908,11 +917,30 @@ ACCEPT_FAILED
     result.build.success = output.includes('VERIFY_PASSED') ||
                           (output.includes('npm run build') && !output.includes('error'));
 
-    // 解析 Lint 结果
-    const lintErrorMatch = output.match(/(\d+)\s*error/i);
-    if (lintErrorMatch) result.lint.errors = parseInt(lintErrorMatch[1], 10);
-    const lintWarnMatch = output.match(/(\d+)\s*warning/i);
-    if (lintWarnMatch) result.lint.warnings = parseInt(lintWarnMatch[1], 10);
+    // 解析 Lint 结果 - 支持多种 ESLint 输出格式
+    // 格式1: "✖ 137 problems (92 errors, 45 warnings)"
+    const detailedMatch = output.match(/✖\s*\d+\s*problems?\s*\((\d+)\s*errors?,\s*(\d+)\s*warnings?\)/i);
+    if (detailedMatch) {
+      result.lint.errors = parseInt(detailedMatch[1], 10);
+      result.lint.warnings = parseInt(detailedMatch[2], 10);
+    } else {
+      // 格式2: "X errors" 和 "Y warnings"
+      const lintErrorMatch = output.match(/(\d+)\s*error/i);
+      if (lintErrorMatch) result.lint.errors = parseInt(lintErrorMatch[1], 10);
+      const lintWarnMatch = output.match(/(\d+)\s*warning/i);
+      if (lintWarnMatch) result.lint.warnings = parseInt(lintWarnMatch[1], 10);
+    }
+
+    // 检测 Lint 是否实际执行并失败
+    // ESLint 退出码非0时，输出中会包含 "✖" 或 "problems"
+    const lintFailed = output.includes('✖') && output.includes('problems');
+    if (lintFailed && result.lint.errors === 0) {
+      // 尝试从问题总数中推断
+      const problemsMatch = output.match(/✖\s*(\d+)\s*problems?/i);
+      if (problemsMatch) {
+        result.lint.errors = parseInt(problemsMatch[1], 10);
+      }
+    }
 
     // 解析安全漏洞
     const vulnMatch = output.match(/(\d+)\s*(?:vulnerabilities|vulnerable)/i);
