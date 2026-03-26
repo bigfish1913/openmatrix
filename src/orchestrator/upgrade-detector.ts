@@ -101,8 +101,8 @@ export interface DetectorConfig {
  * 默认配置
  */
 export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
-  scanDirs: ['src', 'skills', 'tests', 'docs', 'prompts', '.claude', '.cursor'],
-  excludeDirs: ['node_modules', 'dist', '.git', '.openmatrix'],
+  scanDirs: ['src', 'skills', 'docs', 'prompts', '.claude', '.cursor'],
+  excludeDirs: ['node_modules', 'dist', '.git', '.openmatrix', 'tests'],
   categories: ['bug', 'quality', 'capability', 'ux', 'style', 'security', 'common', 'prompt', 'skill', 'agent'],
   minPriority: 'low'
 };

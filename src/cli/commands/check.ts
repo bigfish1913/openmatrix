@@ -20,7 +20,7 @@ export const checkCommand = new Command('check')
   .option('--categories <items>', '指定检测类别 (逗号分隔)', 'bug,quality,capability,ux,style,security,common')
   .option('--min-priority <level>', '最小优先级 (critical|high|medium|low)', 'low')
   .option('--max <number>', '最大建议数量', '50')
-  .option('--scan <dirs>', '扫描目录 (逗号分隔)', 'src,skills,tests,docs')
+  .option('--scan <dirs>', '扫描目录 (逗号分隔)', 'src,skills,docs')
   .option('--interactive', '交互式选择要执行的改进', false)
   .action(async (hint: string | undefined, options) => {
     const projectRoot = process.cwd();
