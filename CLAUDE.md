@@ -150,7 +150,7 @@ feat: add E2E test support for Web/Mobile/GUI applications
 - Generate E2E test task in task breakdown when enabled
 - Update quality gates to 7 (was 6)
 
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+Co-Authored-By:  openmatrix"
 ```
 
 ### 2. Build and Verify
