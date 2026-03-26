@@ -19,6 +19,7 @@ description: 启动新的任务执行周期
      openmatrix start --init-only
      ```
    - 这会创建 `.openmatrix/`、`.openmatrix/tasks/`、`.openmatrix/approvals/` 目录
+   - 同时自动将 `.openmatrix/` 添加到 `.gitignore`
 
 2. **检查当前状态**
    - 读取 `.openmatrix/state.json`
@@ -40,7 +41,7 @@ description: 启动新的任务执行周期
 
 5. **⚠️ 交互式问答 (必须执行)**
 
-   **重要**: 除非用户明确指定 `--skip-questions`，否则必须执行交互式问答。
+   **重要**: 除非用户明确指定 `--skip-questions` 或提供了 `--quality` 等选项，否则必须执行交互式问答。
 
    使用 `AskUserQuestion` 工具，逐个提出以下问题：
 

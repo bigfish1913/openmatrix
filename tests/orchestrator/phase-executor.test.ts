@@ -109,7 +109,7 @@ describe('PhaseExecutor', () => {
       expect(result).not.toBeNull();
       expect(result!.agentType).toBe('reviewer');
       expect(result!.prompt).toContain('验证阶段');
-      expect(result!.prompt).toContain('Build 测试');
+      expect(result!.prompt).toContain('编译检查');
       expect(result!.isolation).toBeUndefined();
     });
 
