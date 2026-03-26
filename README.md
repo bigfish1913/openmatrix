@@ -10,6 +10,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
+[![Website](https://img.shields.io/badge/官网-matrix.laofu.online-brightgreen)](https://matrix.laofu.online/)
+
+**[📚 官方文档](https://matrix.laofu.online/docs/)** | **[🚀 快速开始](https://matrix.laofu.online/docs/getting-started/)** | **[💬 GitHub](https://github.com/bigfish1913/openmatrix)**
 
 **[中文](README.md)** | **[English](README_EN.md)**
 
