@@ -21,6 +21,10 @@ export interface UserAnswers {
   testCoverage?: string;
   documentationLevel?: string;
   additionalContext?: Record<string, string>;
+  /** 是否启用 E2E 测试 */
+  e2eTests?: boolean;
+  /** E2E 测试类型 (web/mobile/gui) */
+  e2eType?: 'web' | 'mobile' | 'gui';
 }
 
 /**
@@ -201,7 +205,39 @@ ${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}
       });
     }
 
-    // 4. 文档任务 (如果需要)
+    // 4. E2E 测试任务 (如果启用，作为 verify 阶段的一部分)
+    if (userContext.e2eTests) {
+      const e2eTaskId = this.generateTaskId();
+      const e2eType = userContext.e2eType || 'web';
+
+      // E2E 测试依赖所有开发任务和单元测试任务
+      const allTestDependencies = [...devTaskIds];
+      breakdowns.forEach(b => {
+        if (b.phase === 'verify' && b.title.startsWith('测试:')) {
+          allTestDependencies.push(b.taskId);
+        }
+      });
+
+      breakdowns.push({
+        taskId: e2eTaskId,
+        title: '端到端(E2E)测试',
+        description: this.buildE2ETestDescription(e2eType, parsedTask, userContext),
+        priority: 'P0', // E2E 测试是关键任务
+        dependencies: allTestDependencies, // 依赖所有开发任务和单元测试
+        estimatedComplexity: 'high',
+        assignedAgent: 'tester',
+        phase: 'verify',
+        acceptanceCriteria: [
+          '所有 E2E 测试用例通过',
+          '关键用户流程验证完成',
+          '跨浏览器/设备兼容性验证',
+          'E2E 测试报告已生成',
+          '无阻塞级别的缺陷'
+        ]
+      });
+    }
+
+    // 5. 文档任务 (如果需要)
     if (userContext.documentationLevel && userContext.documentationLevel !== '无需文档') {
       breakdowns.push({
         taskId: this.generateTaskId(),
@@ -235,11 +271,16 @@ ${userContext.documentationLevel}
    * 提取用户上下文
    */
   private extractUserContext(answers: Record<string, string>): UserAnswers {
+    const e2eAnswer = answers['E2E测试'] || answers['e2eTests'] || answers['e2e'];
+    const e2eTypeAnswer = answers['E2E类型'] || answers['e2eType'];
+
     return {
       objective: answers['目标'] || answers['objective'],
       techStack: this.parseArrayAnswer(answers['技术栈'] || answers['techStack']),
       testCoverage: answers['测试'] || answers['testCoverage'],
       documentationLevel: answers['文档'] || answers['documentationLevel'],
+      e2eTests: e2eAnswer === 'true' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是',
+      e2eType: (e2eTypeAnswer as 'web' | 'mobile' | 'gui') || 'web',
       additionalContext: answers
     };
   }
@@ -321,6 +362,116 @@ ${devTaskId}
 - 测试文件
 - 测试报告
 - 覆盖率报告`;
+  }
+
+  /**
+   * 构建 E2E 测试任务描述
+   */
+  private buildE2ETestDescription(
+    e2eType: 'web' | 'mobile' | 'gui',
+    parsedTask: ParsedTask,
+    userContext: UserAnswers
+  ): string {
+    const typeConfig = this.getE2ETypeConfig(e2eType);
+
+    return `## E2E 测试目标
+执行完整的端到端测试，验证关键用户流程
+
+## 应用类型
+${typeConfig.description}
+
+## 测试框架
+${typeConfig.frameworks.map(f => `- ${f}`).join('\n')}
+
+## 测试范围
+${parsedTask.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}
+
+## 关键用户流程
+根据应用功能，测试以下流程:
+${this.generateUserFlows(parsedTask, e2eType)}
+
+## 测试环境
+${typeConfig.environments.map(e => `- ${e}`).join('\n')}
+
+## 测试要求
+1. **关键路径覆盖**: 所有核心用户流程必须有 E2E 测试
+2. **断言完整**: 每个测试步骤必须有明确的断言
+3. **等待策略**: 使用合理的等待机制，避免硬编码延迟
+4. **数据隔离**: 测试数据独立，不影响其他测试
+5. **清理机制**: 测试后清理创建的数据
+
+## 输出要求
+- E2E 测试文件 (tests/e2e/*.spec.ts)
+- 测试执行报告
+- 截图/录像 (失败时)
+- 测试覆盖率报告 (如有)
+
+## 运行命令
+\`\`\`bash
+${typeConfig.runCommand}
+\`\`\`
+
+## 验收标准
+- [ ] 所有 E2E 测试用例通过
+- [ ] 关键用户流程验证完成
+- [ ] 跨浏览器/设备兼容性验证
+- [ ] E2E 测试报告已生成
+- [ ] 无阻塞级别的缺陷`;
+  }
+
+  /**
+   * 获取 E2E 测试类型配置
+   */
+  private getE2ETypeConfig(type: 'web' | 'mobile' | 'gui'): {
+    description: string;
+    frameworks: string[];
+    environments: string[];
+    runCommand: string;
+  } {
+    const configs = {
+      web: {
+        description: 'Web 应用 (浏览器)',
+        frameworks: ['Playwright (推荐)', 'Cypress', 'Selenium WebDriver', 'Puppeteer'],
+        environments: ['Chrome', 'Firefox', 'Safari', 'Edge', 'Mobile Viewports'],
+        runCommand: 'npx playwright test --reporter=html'
+      },
+      mobile: {
+        description: '移动应用 (iOS/Android)',
+        frameworks: ['Appium', 'Detox (React Native)', 'XCUITest (iOS)', 'Espresso (Android)'],
+        environments: ['iOS Simulator', 'Android Emulator', 'Real Devices'],
+        runCommand: 'npx appium --base-path /wd/hub && npm run test:e2e'
+      },
+      gui: {
+        description: 'GUI 桌面应用 (Electron/Native)',
+        frameworks: ['Playwright for Electron', 'Spectron (Electron)', 'Robot Framework', 'PyAutoGUI'],
+        environments: ['Windows', 'macOS', 'Linux'],
+        runCommand: 'npm run test:e2e'
+      }
+    };
+    return configs[type];
+  }
+
+  /**
+   * 生成用户流程测试用例
+   */
+  private generateUserFlows(parsedTask: ParsedTask, type: 'web' | 'mobile' | 'gui'): string {
+    const flows: string[] = [];
+    const goals = parsedTask.goals;
+
+    // 根据目标生成用户流程
+    goals.forEach((goal, i) => {
+      flows.push(`\n### 流程 ${i + 1}: ${goal}`);
+      flows.push('```gherkin');
+      flows.push(`Feature: ${goal}`);
+      flows.push('');
+      flows.push('  Scenario: 正常流程');
+      flows.push(`    Given 用户已启动应用`);
+      flows.push(`    When 用户执行 "${goal}" 操作`);
+      flows.push(`    Then 操作成功完成`);
+      flows.push('```');
+    });
+
+    return flows.join('\n');
   }
 
   /**

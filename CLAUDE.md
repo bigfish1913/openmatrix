@@ -65,11 +65,13 @@ pending → scheduled → in_progress → verify → accept → completed
 
 ### Quality Levels
 
-| Level | TDD | Coverage | Lint | Security | Use Case |
-|-------|-----|----------|------|----------|----------|
-| strict | ✅ | >80% | strict | ✅ | Production code |
-| balanced | ❌ | >60% | ✅ | ✅ | Daily development |
-| fast | ❌ | >20% | ❌ | ❌ | Quick prototypes |
+| Level | TDD | Coverage | Lint | Security | E2E Tests | Use Case |
+|-------|-----|----------|------|----------|-----------|----------|
+| strict | ✅ | >80% | strict | ✅ | ❓ optional | Production code |
+| balanced | ❌ | >60% | ✅ | ✅ | ❓ optional | Daily development |
+| fast | ❌ | >20% | ❌ | ❌ | ❌ | Quick prototypes |
+
+> E2E tests are time-consuming, so they are optional even in strict mode.
 
 ### Skills and CLI Integration
 
@@ -90,7 +92,7 @@ Key skills:
 - `Task` - Task entity with status, phases, dependencies, acceptance criteria
 - `AgentType` - 'planner' | 'coder' | 'tester' | 'reviewer' | 'researcher' | 'executor'
 - `SubagentTask` - Configuration for Agent tool invocation
-- `QualityConfig` - Quality gate settings (tdd, minCoverage, strictLint, securityScan)
+- `QualityConfig` - Quality gate settings (tdd, minCoverage, strictLint, securityScan, e2eTests)
 - `GlobalState` - Overall run state with config and statistics
 
 ## State Storage
@@ -106,3 +108,56 @@ State is persisted in `.openmatrix/` directory:
 - Uses ES modules (.js extensions in imports required)
 - CLI entry point: `dist/cli/index.js` (after build)
 - Tests use Vitest framework
+
+## Release Process
+
+When the user requests "提交 更新readme 发布 推送", follow these steps:
+
+### 1. Commit Changes
+```bash
+# Check git status
+git status
+
+# Stage relevant files (exclude .claude/settings.local.json and .gitignore)
+git add CLAUDE.md README.md skills/ src/ package.json
+
+# Commit with version bump message
+git commit -m "0.1.16
+
+feat: add E2E test support for Web/Mobile/GUI applications
+
+- Add e2eTests field to QualityConfig
+- E2E tests optional in strict/balanced modes (time-consuming)
+- Support Playwright/Cypress/Appium/Detox frameworks
+- Generate E2E test task in task breakdown when enabled
+- Update quality gates to 7 (was 6)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+### 2. Build and Verify
+```bash
+npm run build && npm test -- --run
+```
+
+### 3. Publish to NPM
+```bash
+npm publish
+```
+
+### 4. Push to GitHub
+```bash
+git push origin main
+```
+
+### Version Bump Guide
+
+| Change Type | Version Example |
+|-------------|-----------------|
+| Major feature/breaking | 0.2.0 |
+| Minor feature | 0.1.16 |
+| Bug fix | 0.1.15 → 0.1.16 |
+
+Update version in:
+1. `package.json` - version field
+2. Commit message - include version number

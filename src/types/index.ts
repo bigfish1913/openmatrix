@@ -147,6 +147,8 @@ export interface QualityConfig {
   strictLint: boolean;
   /** 安全扫描 */
   securityScan: boolean;
+  /** 端到端测试 (适用于 Web 项目等需要 E2E 测试的场景) */
+  e2eTests: boolean;
   /** 质量级别 */
   level: 'fast' | 'balanced' | 'strict';
 }
@@ -182,6 +184,14 @@ export interface QualityReport {
     vulnerabilities: SecurityVulnerability[];
     status: 'pass' | 'fail';
   };
+  /** E2E 测试结果 */
+  e2e: {
+    passed: number;
+    failed: number;
+    skipped: number;
+    duration: number;
+    status: 'pass' | 'fail' | 'skipped';
+  };
   /** 验收标准检查 */
   acceptance: {
     total: number;
@@ -214,6 +224,7 @@ export const QUALITY_PRESETS: Record<string, QualityConfig> = {
     minCoverage: 0,
     strictLint: false,
     securityScan: false,
+    e2eTests: false,
     level: 'fast'
   },
   balanced: {
@@ -221,6 +232,7 @@ export const QUALITY_PRESETS: Record<string, QualityConfig> = {
     minCoverage: 60,
     strictLint: true,
     securityScan: true,
+    e2eTests: false,
     level: 'balanced'
   },
   strict: {
@@ -228,6 +240,7 @@ export const QUALITY_PRESETS: Record<string, QualityConfig> = {
     minCoverage: 80,
     strictLint: true,
     securityScan: true,
+    e2eTests: false, // 让用户选择，因为 E2E 测试耗时
     level: 'strict'
   }
 };

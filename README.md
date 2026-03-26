@@ -161,15 +161,15 @@ ls ~/.claude/commands/om/
 
 ### 1️⃣ 三级质量配置 (第一个问题就让你选)
 
-| 级别 | TDD | 覆盖率 | Lint | 安全 | AI验收 | 适用场景 |
-|:----:|:---:|:------:|:----:|:----:|:------:|---------|
-| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ✅ | 🏭 **生产代码** |
-| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 📦 日常开发 |
-| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 🏃 快速原型 |
+| 级别 | TDD | 覆盖率 | Lint | 安全 | E2E测试 | AI验收 | 适用场景 |
+|:----:|:---:|:------:|:----:|:----:|:-------:|:------:|---------|
+| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ❓ 可选 | ✅ | 🏭 **生产代码** |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ❓ 可选 | ✅ | 📦 日常开发 |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | ❌ | 🏃 快速原型 |
 
-> strict 可配置为 100%。默认 >80% 覆盖核心业务逻辑。
+> E2E 测试耗时较长，建议根据项目需要选择。strict 可配置为 100%。默认 >80% 覆盖核心业务逻辑。
 
-### 2️⃣ 六道质量门禁 (Verify 阶段)
+### 2️⃣ 七道质量门禁 (Verify 阶段)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -180,7 +180,8 @@ ls ~/.claude/commands/om/
 │  🚪 Gate 3: 覆盖率检查   >20%/60%/80%    → 可配置         │
 │  🚪 Gate 4: Lint 检查    无 error         → 可配置         │
 │  🚪 Gate 5: 安全扫描     npm audit        → 无高危漏洞     │
-│  🚪 Gate 6: 验收标准     用户定义         → 必须全部满足   │
+│  🚪 Gate 6: E2E 测试     Playwright等     → 可选           │
+│  🚪 Gate 7: 验收标准     用户定义         → 必须全部满足   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -378,6 +379,7 @@ Accept 阶段由 Reviewer Agent 执行:
   "build": { "success": true },
   "lint": { "errors": 0, "warnings": 3 },
   "security": { "vulnerabilities": [] },
+  "e2e": { "passed": 5, "failed": 0, "skipped": 0 },
   "acceptance": { "met": 5, "total": 5 }
 }
 ```
@@ -431,7 +433,8 @@ OpenMatrix 通过 Claude Code Agent 工具**原生支持所有主流编程语言
     "tdd": false,
     "minCoverage": 60,
     "strictLint": true,
-    "securityScan": true
+    "securityScan": true,
+    "e2eTests": false
   },
   "approvalPoints": ["plan", "merge"],
   "agents": { "maxConcurrent": 3 }
@@ -452,12 +455,13 @@ cd openmatrix && npm install && npm run build && npm test
 ## Roadmap
 
 - [x] TDD 模式
-- [x] 6 道质量门禁
+- [x] 7 道质量门禁
 - [x] Meeting 机制
 - [x] 质量报告
 - [x] AI 验收
 - [x] `/om:auto` 全自动模式
 - [x] 多语言支持 (Python/Go/Java/TypeScript 等)
+- [x] E2E 测试支持 (Web/Mobile/GUI)
 - [ ] VSCode 扩展
 - [ ] CI/CD 集成
 

@@ -37,6 +37,7 @@ export interface QualityGateResult {
   build: { success: boolean; errors: string[] };
   lint: { errors: number; warnings: number };
   security: { vulnerabilities: number };
+  e2e: { passed: number; failed: number; skipped: number; duration: number };
   acceptance: { met: number; total: number };
 }
 
@@ -77,6 +78,7 @@ export class PhaseExecutor {
     minCoverage: 60,
     strictLint: true,
     securityScan: true,
+    e2eTests: false,
     level: 'balanced'
   };
 
@@ -134,9 +136,9 @@ export class PhaseExecutor {
    */
   setQualityLevel(level: 'fast' | 'balanced' | 'strict'): void {
     const presets: Record<string, QualityConfig> = {
-      fast: { tdd: false, minCoverage: 0, strictLint: false, securityScan: false, level: 'fast' },
-      balanced: { tdd: false, minCoverage: 60, strictLint: true, securityScan: true, level: 'balanced' },
-      strict: { tdd: true, minCoverage: 80, strictLint: true, securityScan: true, level: 'strict' }
+      fast: { tdd: false, minCoverage: 0, strictLint: false, securityScan: false, e2eTests: false, level: 'fast' },
+      balanced: { tdd: false, minCoverage: 60, strictLint: true, securityScan: true, e2eTests: false, level: 'balanced' },
+      strict: { tdd: true, minCoverage: 80, strictLint: true, securityScan: true, e2eTests: false, level: 'strict' }
     };
     this.qualityConfig = presets[level];
     this.minTestCoverage = this.qualityConfig.minCoverage;
@@ -449,6 +451,7 @@ ${isTDDMode ? '- [ ] 所有测试通过 (GREEN)' : ''}
 | 覆盖率 | >= ${qc.minCoverage}% | ${qc.minCoverage > 0 ? '❌ 阻止通过' : '⚠️ 仅警告'} |
 | Lint | ${qc.strictLint ? '无 error' : '无严重 error'} | ${qc.strictLint ? '❌ 阻止通过' : '⚠️ 仅警告'} |
 | 安全 | 无高危漏洞 | ${qc.securityScan ? '❌ 阻止通过' : '⏭️ 跳过'} |
+| E2E | 全部通过 | ${qc.e2eTests ? '❌ 阻止通过' : '⏭️ 跳过'} |
 | 验收标准 | 全部满足 | ❌ 阻止通过 |
 
 ## 自动化验证命令
@@ -488,7 +491,21 @@ npm audit --audit-level=high || echo "Security scan skipped"
 **要求**: 无 high/critical 漏洞
 **失败后果**: ❌ VERIFY_FAILED` : '⏭️ 已禁用'}
 
-### 6. 验收标准验证`);
+### 6. E2E 测试 (端到端测试)
+${qc.e2eTests ? `\`\`\`bash
+# Web 应用: Playwright / Cypress
+npx playwright test || npx cypress run
+
+# 移动端: Appium / Detox
+npx appium ... || npx detox test
+
+# GUI 桌面应用: 根据项目配置
+npm run test:e2e
+\`\`\`
+**要求**: 所有 E2E 测试通过
+**失败后果**: ❌ VERIFY_FAILED` : '⏭️ 已禁用'}
+
+### 7. 验收标准验证`);
 
     // 注入验收标准
     if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
@@ -532,6 +549,13 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}
     "vulnerabilities": [],
     "status": "pass|fail"
   },
+  "e2e": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "duration": 0,
+    "status": "pass|fail|skipped"
+  },
   "acceptance": {
     "total": ${task.acceptanceCriteria?.length || 0},
     "met": 0,
@@ -552,6 +576,7 @@ Quality Score: [A/B/C/D/F]
 - Build: ✅ Success
 - Lint: ✅ No errors
 - Security: ✅ No vulnerabilities
+${qc.e2eTests ? '- E2E: ✅ X/X passed' : ''}
 - Acceptance: ✅ N/M criteria met
 \`\`\`
 
@@ -807,6 +832,7 @@ ACCEPT_FAILED
       build: { success: false, errors: [] },
       lint: { errors: 0, warnings: 0 },
       security: { vulnerabilities: 0 },
+      e2e: { passed: 0, failed: 0, skipped: 0, duration: 0 },
       acceptance: { met: 0, total: 0 }
     };
 
@@ -832,14 +858,25 @@ ACCEPT_FAILED
     const vulnMatch = output.match(/(\d+)\s*(?:vulnerabilities|vulnerable)/i);
     if (vulnMatch) result.security.vulnerabilities = parseInt(vulnMatch[1], 10);
 
+    // 解析 E2E 测试结果
+    const e2ePassedMatch = output.match(/(?:e2e|playwright|cypress|appium|detox).*?(\d+)\s*(?:passed|passing)/i);
+    if (e2ePassedMatch) result.e2e.passed = parseInt(e2ePassedMatch[1], 10);
+    const e2eFailedMatch = output.match(/(?:e2e|playwright|cypress|appium|detox).*?(\d+)\s*(?:failed|failing)/i);
+    if (e2eFailedMatch) result.e2e.failed = parseInt(e2eFailedMatch[1], 10);
+    const e2eSkippedMatch = output.match(/(?:e2e|playwright|cypress|appium|detox).*?(\d+)\s*skipped/i);
+    if (e2eSkippedMatch) result.e2e.skipped = parseInt(e2eSkippedMatch[1], 10);
+    const e2eDurationMatch = output.match(/(?:e2e|playwright|cypress|appium|detox).*?(\d+)\s*(?:ms|s|min)/i);
+    if (e2eDurationMatch) result.e2e.duration = parseInt(e2eDurationMatch[1], 10);
+
     // 判断是否通过
     const qc = this.qualityConfig;
     const testsPassed = result.tests.failed === 0;
     const coverageOk = result.tests.coverage >= qc.minCoverage;
     const lintOk = qc.strictLint ? result.lint.errors === 0 : true;
     const buildOk = result.build.success;
+    const e2eOk = qc.e2eTests ? result.e2e.failed === 0 : true;
 
-    result.passed = testsPassed && coverageOk && lintOk && buildOk;
+    result.passed = testsPassed && coverageOk && lintOk && buildOk && e2eOk;
 
     return result;
   }
@@ -874,6 +911,13 @@ ACCEPT_FAILED
       security: {
         vulnerabilities: [],
         status: gateResult.security.vulnerabilities === 0 ? 'pass' : 'fail'
+      },
+      e2e: {
+        passed: gateResult.e2e.passed,
+        failed: gateResult.e2e.failed,
+        skipped: gateResult.e2e.skipped,
+        duration: gateResult.e2e.duration,
+        status: qc.e2eTests ? (gateResult.e2e.failed === 0 ? 'pass' : 'fail') : 'skipped'
       },
       acceptance: {
         total: task.acceptanceCriteria?.length || 0,

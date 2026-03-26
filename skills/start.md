@@ -54,15 +54,61 @@ description: 启动新的任务执行周期
        options: [
          {
            label: "🚀 strict (推荐生产代码)",
-           description: "TDD + 80%覆盖率 + 严格Lint + 安全扫描 + AI验收"
+           description: "TDD + 80%覆盖率 + 严格Lint + 安全扫描 + AI验收 (E2E可选)"
          },
          {
            label: "⚖️ balanced (日常开发)",
-           description: "60%覆盖率 + Lint + 安全扫描 + AI验收"
+           description: "60%覆盖率 + Lint + 安全扫描 + AI验收 (E2E可选)"
          },
          {
            label: "⚡ fast (快速原型)",
            description: "无质量门禁，最快速度"
+         }
+       ],
+       multiSelect: false
+     }]
+   })
+   ```
+
+   **⚠️ 如果用户选择 "strict" 或 "balanced"，追问 E2E 测试:**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: "是否需要端到端(E2E)测试？(适用于 Web、移动端、GUI 桌面应用等需要完整用户流程测试的场景，较耗时)",
+       header: "E2E测试",
+       options: [
+         {
+           label: "✅ 启用 E2E 测试",
+           description: "添加端到端测试，验证完整用户流程（Playwright/Cypress/Appium等）"
+         },
+         {
+           label: "❌ 不需要",
+           description: "仅运行单元测试和集成测试"
+         }
+       ],
+       multiSelect: false
+     }]
+   })
+   ```
+
+   **⚠️ 如果用户启用 E2E 测试，追问应用类型:**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: "选择应用类型以确定 E2E 测试方案:",
+       header: "应用类型",
+       options: [
+         {
+           label: "🌐 Web 应用",
+           description: "浏览器应用 - Playwright/Cypress/Selenium"
+         },
+         {
+           label: "📱 移动应用",
+           description: "iOS/Android - Appium/Detox/XCUITest/Espresso"
+         },
+         {
+           label: "🖥️ GUI 桌面应用",
+           description: "Electron/原生桌面 - Playwright/Spectron/Robot Framework"
          }
        ],
        multiSelect: false
@@ -390,36 +436,38 @@ $ARGUMENTS
 <notes>
 ## 质量级别详解
 
-| 级别 | TDD | 覆盖率 | Lint | 安全扫描 | AI验收 | 适用场景 |
-|------|:---:|:------:|:----:|:--------:|:------:|---------|
-| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ✅ | 生产代码、核心功能 |
-| **balanced** | ❌ | >60% | ✅ | ✅ | ✅ | 日常开发 (默认) |
-| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | 快速原型、POC |
+| 级别 | TDD | 覆盖率 | Lint | 安全扫描 | E2E测试 | AI验收 | 适用场景 |
+|------|:---:|:------:|:----:|:--------:|:-------:|:------:|---------|
+| **strict** | ✅ | >80% | ✅ 严格 | ✅ | ❓ 可选 | ✅ | 生产代码、核心功能 |
+| **balanced** | ❌ | >60% | ✅ | ✅ | ❓ 可选 | ✅ | 日常开发 (默认) |
+| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | ❌ | 快速原型、POC |
 
-> strict 可配置为 100%。80% 覆盖核心业务逻辑，100% 成本高收益低。
+> E2E 测试耗时较长，即使在严格模式下也建议根据项目需要选择。strict 可配置为 100%。80% 覆盖核心业务逻辑，100% 成本高收益低。
 
 ### strict 模式 (推荐生产代码)
 ```
 🧪 TDD 阶段:   先写测试 (RED) → 测试必须失败
 ✨ 开发阶段:   再写代码 (GREEN) → 测试必须通过
-✅ 验证阶段:   6道质量门禁
+✅ 验证阶段:   7道质量门禁
    ├── Gate 1: 编译检查 (必须通过)
    ├── Gate 2: 测试运行 (必须通过)
    ├── Gate 3: 覆盖率 >= 80% (必须达标)
    ├── Gate 4: Lint 无 error (必须通过)
    ├── Gate 5: 安全扫描无高危 (必须通过)
-   └── Gate 6: 验收标准全部满足
+   ├── Gate 6: E2E 测试通过 (必须通过，Web项目)
+   └── Gate 7: 验收标准全部满足
 🎉 验收阶段:   AI Reviewer 最终确认
 ```
 
 ### balanced 模式 (日常开发)
 ```
 ✨ 开发阶段:   编写代码
-✅ 验证阶段:   4道质量门禁
+✅ 验证阶段:   4-5道质量门禁
    ├── Gate 1: 编译检查
    ├── Gate 2: 测试运行
    ├── Gate 3: 覆盖率 >= 60%
-   └── Gate 4: 验收标准
+   ├── Gate 4: E2E 测试 (可选，Web项目)
+   └── Gate 5: 验收标准
 🎉 验收阶段:   AI Reviewer 确认
 ```
 
