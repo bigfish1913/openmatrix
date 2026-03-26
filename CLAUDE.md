@@ -125,39 +125,82 @@ State is stored in `.openmatrix/` directory:
 
 ## Auto-Invoke OpenMatrix Skills
 
-When the user's input indicates **intent to build, create, add, fix, or modify** something, **automatically invoke `/om:start`**.
+When the user's input indicates **intent to build, create, add, fix, test, review, or plan** something, OR when the task is **complex with multiple steps/requirements**, **automatically invoke `/om:start`**.
+
+### Complexity Triggers (Multi-task Scenarios)
+
+**Invoke when user describes complex work:**
+
+| User Input | Why Trigger |
+|------------|-------------|
+| "做个完整的用户系统" | Multi-component |
+| "从零搭建一个后台" | Multi-step project |
+| "重构整个项目结构" | Complex refactoring |
+| "前端+后端+数据库" | Full-stack work |
+| "先做 A 再做 B" | Sequential tasks |
+| "支持多种登录方式" | Multiple integrations |
+
+**Complexity indicators:**
+- Multiple features/components (`登录+注册+权限`)
+- Sequential steps (`先...再...然后...`)
+- Multiple requirements (`需要 A 和 B 和 C`)
+- Comprehensive scope (`完整...` / `整个...` / `全套...`)
 
 ### Semantic Triggers (Intent-based)
 
-| User Input Pattern | Intent | Action |
-|--------------------|--------|--------|
+**Feature Development:**
+
+| User Input | Intent | Action |
+|------------|--------|--------|
 | "项目支持 Python/Go" | Add capability | `/om:start 项目支持 Python/Go` |
 | "需要登录功能" | Need feature | `/om:start 需要登录功能` |
 | "想做一个后台管理" | Want to build | `/om:start 想做一个后台管理` |
-| "加个导出功能" | Add functionality | `/om:start 加个导出功能` |
 | "集成微信支付" | Integrate | `/om:start 集成微信支付` |
+
+**Bug Fixes:**
+
+| User Input | Intent | Action |
+|------------|--------|--------|
+| "有个 bug 需要修" | Fix bug | `/om:start 有个 bug 需要修` |
+| "登录报错了" | Fix error | `/om:start 登录报错了` |
+| "数据保存失败" | Fix issue | `/om:start 数据保存失败` |
+
+**Improvements:**
+
+| User Input | Intent | Action |
+|------------|--------|--------|
+| "性能太慢了" | Improve | `/om:start 性能太慢了` |
+| "优化查询速度" | Optimize | `/om:start 优化查询速度` |
+| "重构 XX 模块" | Refactor | `/om:start 重构 XX 模块` |
+
+**Testing:**
+
+| User Input | Intent | Action |
+|------------|--------|--------|
+| "写个测试用例" | Write tests | `/om:start 写个测试用例` |
+| "测试覆盖率不够" | Add tests | `/om:start 测试覆盖率不够` |
 
 ### Keyword Triggers
 
 **Chinese:**
-- `实现...` / `添加...` / `新增...` / `创建...`
-- `修复...` / `优化...` / `重构...` / `改进...`
-- `开发...` / `构建...` / `编写...` / `集成...`
+- `实现...` / `添加...` / `新增...` / `创建...` / `开发...`
+- `修复...` / `解决...` / `优化...` / `重构...` / `改进...`
 - `支持...` / `需要...` / `想要...` / `要做...`
+- `测试...` / `集成...` / `部署...` / `设计...`
 
 **English:**
 - `implement...` / `add...` / `create...` / `build...`
-- `fix...` / `bug...` / `refactor...` / `develop...`
-- `support...` / `need...` / `want to...`
+- `fix...` / `bug...` / `refactor...` / `optimize...`
+- `test...` / `support...` / `need...` / `want to...`
 
 ### File Path
 - Input ends with `.md` → treat as task document
 
 ### When NOT to Auto-Invoke
 
-- **Questions**: "如何..." / "怎么..." / "what is..." / "how do I..."
+- **Questions**: "如何..." / "怎么..." / "什么是..." / "how do I..."
 - **Info requests**: "显示..." / "列出..." / "show me..." / "list..."
-- **Navigation**: "打开..." / "open..." / "go to..."
+- **Navigation**: "打开..." / "进入..." / "open..." / "go to..."
 - **Chatting**: "你好" / "谢谢" / "hello" / "thanks"
 - **Explicit commands**: `/om:*`, `/gsd:*`, etc.
 
@@ -167,3 +210,5 @@ When the user's input indicates **intent to build, create, add, fix, or modify**
 |-------|------|--------|
 | "项目支持 Python" | Intent to ADD | ✅ Invoke |
 | "项目支持 Python 吗?" | Question | ❌ Don't invoke |
+| "写个测试" | Intent to CREATE | ✅ Invoke |
+| "测试怎么写?" | Question | ❌ Don't invoke |
