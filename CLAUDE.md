@@ -125,51 +125,45 @@ State is stored in `.openmatrix/` directory:
 
 ## Auto-Invoke OpenMatrix Skills
 
-When the user's input matches any of these patterns, **automatically invoke `/om:start`** without asking for clarification:
+When the user's input indicates **intent to build, create, add, fix, or modify** something, **automatically invoke `/om:start`**.
 
-### Trigger Patterns
+### Semantic Triggers (Intent-based)
 
-**Chinese patterns:**
-- `实现...功能` / `实现...`
-- `添加...` / `新增...`
-- `修复...` / `修复...bug`
-- `优化...` / `重构...`
-- `创建...` / `编写...`
-- `开发...` / `构建...`
-- `更新...功能` / `改进...`
-- Any sentence starting with a verb + noun describing a development task
+| User Input Pattern | Intent | Action |
+|--------------------|--------|--------|
+| "项目支持 Python/Go" | Add capability | `/om:start 项目支持 Python/Go` |
+| "需要登录功能" | Need feature | `/om:start 需要登录功能` |
+| "想做一个后台管理" | Want to build | `/om:start 想做一个后台管理` |
+| "加个导出功能" | Add functionality | `/om:start 加个导出功能` |
+| "集成微信支付" | Integrate | `/om:start 集成微信支付` |
 
-**English patterns:**
-- `implement...` / `add...` / `create...`
-- `fix...` / `bug...` / `issue...`
-- `build...` / `develop...`
-- `refactor...` / `optimize...`
-- `update...` / `improve...`
+### Keyword Triggers
 
-### How It Works
+**Chinese:**
+- `实现...` / `添加...` / `新增...` / `创建...`
+- `修复...` / `优化...` / `重构...` / `改进...`
+- `开发...` / `构建...` / `编写...` / `集成...`
+- `支持...` / `需要...` / `想要...` / `要做...`
 
-```
-User input: "实现用户登录功能"
-     │
-     ▼ (Auto-detect)
-     │
-     ▼
-Invoke: /om:start 实现用户登录功能
-```
+**English:**
+- `implement...` / `add...` / `create...` / `build...`
+- `fix...` / `bug...` / `refactor...` / `develop...`
+- `support...` / `need...` / `want to...`
 
-### Examples
-
-| User Input | Auto Action |
-|------------|-------------|
-| `实现用户登录功能` | `/om:start 实现用户登录功能` |
-| `fix the login bug` | `/om:start fix the login bug` |
-| `添加 API 接口` | `/om:start 添加 API 接口` |
-| `优化首页性能` | `/om:start 优化首页性能` |
-| `docs/task.md` | `/om:start docs/task.md` |
+### File Path
+- Input ends with `.md` → treat as task document
 
 ### When NOT to Auto-Invoke
 
-- User explicitly types `/om:*` commands
-- User is asking questions (e.g., "how do I...", "what is...")
-- User is requesting information (e.g., "show me...", "list...")
-- User is navigating files (e.g., "read file X", "open folder")
+- **Questions**: "如何..." / "怎么..." / "what is..." / "how do I..."
+- **Info requests**: "显示..." / "列出..." / "show me..." / "list..."
+- **Navigation**: "打开..." / "open..." / "go to..."
+- **Chatting**: "你好" / "谢谢" / "hello" / "thanks"
+- **Explicit commands**: `/om:*`, `/gsd:*`, etc.
+
+### Key Distinction
+
+| Input | Type | Action |
+|-------|------|--------|
+| "项目支持 Python" | Intent to ADD | ✅ Invoke |
+| "项目支持 Python 吗?" | Question | ❌ Don't invoke |
