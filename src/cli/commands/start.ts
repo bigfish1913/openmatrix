@@ -195,10 +195,13 @@ export const startCommand = new Command('start')
       taskTimeout: state.config.timeout * 1000
     });
 
-    // 设置 PhaseExecutor 的自动模式
+    // 设置 PhaseExecutor 的自动模式和 RunId
     const phaseExecutor = executor.getPhaseExecutor();
-    if (phaseExecutor && executionMode === 'auto') {
-      phaseExecutor.setAutoMode(true);
+    if (phaseExecutor) {
+      phaseExecutor.setRunId(state.runId);
+      if (executionMode === 'auto') {
+        phaseExecutor.setAutoMode(true);
+      }
     }
 
     const result = await executor.step();

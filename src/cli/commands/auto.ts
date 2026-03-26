@@ -160,9 +160,10 @@ export const autoCommand = new Command('auto')
       taskTimeout: state.config.timeout * 1000
     });
 
-    // 设置自动模式
+    // 设置自动模式和 RunId
     const phaseExecutor = executor.getPhaseExecutor();
     if (phaseExecutor) {
+      phaseExecutor.setRunId(state.runId);
       phaseExecutor.setAutoMode(true);
     }
 
