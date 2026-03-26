@@ -5,6 +5,7 @@ import { TaskParser } from '../../orchestrator/task-parser.js';
 import { TaskPlanner } from '../../orchestrator/task-planner.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
 import { OrchestratorExecutor } from '../../orchestrator/executor.js';
+import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
 import type { TaskPriority } from '../../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -24,6 +25,9 @@ export const startCommand = new Command('start')
     await fs.mkdir(omPath, { recursive: true });
     await fs.mkdir(path.join(omPath, 'tasks'), { recursive: true });
     await fs.mkdir(path.join(omPath, 'approvals'), { recursive: true });
+
+    // 确保 .openmatrix 被 git 忽略
+    await ensureOpenmatrixGitignore(basePath);
 
     const stateManager = new StateManager(omPath);
     await stateManager.initialize();
