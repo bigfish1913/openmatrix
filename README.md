@@ -472,6 +472,8 @@ cd openmatrix && npm install && npm run build && npm test
 
 **如果觉得有用，请给个 ⭐ Star！**
 
+[![Star History Chart](https://api.star-history.com/svg?repos=bigfish1913/openmatrix&type=Date)](https://star-history.com/#bigfish1913/openmatrix&Date)
+
 MIT © 2024 | Made by [bigfish1913](https://github.com/bigfish1913)
 
 </div>
