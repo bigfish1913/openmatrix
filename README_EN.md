@@ -249,6 +249,7 @@ Accept Phase executed by Reviewer Agent:
 | Command | Purpose |
 |---------|---------|
 | `/om` | **Default entry** - Just type task description to start |
+| `/om:brainstorm` | 🧠 **Brainstorm** - Explore requirements and design before execution |
 | `/om:start` | Start new task (first question selects quality level) |
 | `/om:auto` | 🚀 **Full auto execution** - No blocking, no confirmation, direct completion |
 | `/check` | 🔍 **Project check** - Auto-detect improvements and provide suggestions |
@@ -434,6 +435,7 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Quality Reports
 - [x] AI Acceptance
 - [x] `/om:auto` Full Auto Mode
+- [x] `/om:brainstorm` Brainstorm Mode
 - [x] Multi-language Support (Python/Go/Java/TypeScript etc.)
 - [x] E2E Test Support (Web/Mobile/GUI)
 - [ ] VSCode Extension

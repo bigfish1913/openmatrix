@@ -17,26 +17,26 @@ This skill MUST be invoked when the user describes ANY work to be done.
 - Answering questions (no code changes needed)
 - Information retrieval (reading files, explaining code)
 
-Everything else → `/om:start` first.
+Everything else → smart selection between `/om:brainstorm` and `/om:start`.
 </EXTREMELY-IMPORTANT>
 
 <objective>
-Automatically detect when user wants to accomplish a development task and invoke /om:start without requiring explicit command.
+Automatically detect when user wants to accomplish a development task and intelligently choose between brainstorm (for complex tasks) or start (for simple tasks).
 </objective>
 
 <trigger-conditions>
 ## AUTO-INVOKE RULES (Mandatory)
 
-**Invoke `/om:start` IMMEDIATELY when user input contains ANY of these patterns:**
+**Invoke IMMEDIATELY when user input contains ANY of these patterns:**
 
 ### Action Verbs (触发词)
 | Chinese | English | Action |
 |---------|---------|--------|
-| 实现/开发/做/写 | implement/build/create/make/write | → `/om:start` |
-| 添加/增加/加 | add/append | → `/om:start` |
-| 修复/解决/改 | fix/resolve/repair | → `/om:start` |
-| 重构/优化/改进 | refactor/optimize/improve | → `/om:start` |
-| 更新/修改/改 | update/modify/change | → `/om:start` |
+| 实现/开发/做/写 | implement/build/create/make/write | → Smart Select |
+| 添加/增加/加 | add/append | → Smart Select |
+| 修复/解决/改 | fix/resolve/repair | → Smart Select |
+| 重构/优化/改进 | refactor/optimize/improve | → Smart Select |
+| 更新/修改/改 | update/modify/change | → Smart Select |
 
 ### Context Patterns (触发场景)
 - **Feature requests**: "用户登录" / "支付功能" / "API接口"
@@ -49,9 +49,62 @@ Automatically detect when user wants to accomplish a development task and invoke
 ```
 用户输入 → 能在3秒内判断是"要做事情"吗?
   ↓ Yes                           ↓ No
-/om:start                      直接回答
+Smart Select                    直接回答
 ```
 </trigger-conditions>
+
+<smart-selection>
+## 智能选择：Brainstorm vs Start
+
+**根据任务复杂度自动选择执行路径：**
+
+### 🧠 复杂任务 → `/om:brainstorm`
+**触发条件 (满足任一):**
+- 新功能开发: "实现用户登录" / "添加支付功能" / "开发 API"
+- 多模块改动: "重构用户系统" / "优化整体性能"
+- 架构相关: "搭建框架" / "从零开始" / "设计架构"
+- 不确定因素: 需要技术选型、涉及多种方案选择
+- 关键词: "系统" / "架构" / "模块" / "集成" / "完整" / "从零"
+
+### 🚀 简单任务 → `/om:start`
+**触发条件 (满足任一):**
+- Bug 修复: "修复登录bug" / "解决样式问题" / "改个报错"
+- 小改动: "修改文案" / "改变量名" / "调整配置"
+- 单一功能: "添加一个按钮" / "写个工具函数"
+- 明确需求: 需求清晰，无需额外探索
+- 关键词: "修复" / "解决" / "改" / "调整" / "小" / "简单"
+
+### 选择流程
+```
+用户输入任务描述
+       │
+       ▼
+┌─────────────────────┐
+│ 分析任务复杂度        │
+└──────────┬──────────┘
+           │
+     ┌─────┴─────┐
+     │           │
+  复杂任务     简单任务
+     │           │
+     ▼           ▼
+/om:brainstorm  /om:start
+```
+
+### 判断示例
+| 用户输入 | 复杂度 | 执行路径 |
+|---------|--------|---------|
+| "实现用户登录功能" | 复杂 | `/om:brainstorm` |
+| "做一个完整的支付系统" | 复杂 | `/om:brainstorm` |
+| "从零搭建后台管理" | 复杂 | `/om:brainstorm` |
+| "修复登录页面的样式问题" | 简单 | `/om:start` |
+| "改一下这个变量名" | 简单 | `/om:start` |
+| "添加一个测试用例" | 简单 | `/om:start` |
+| "重构这个模块" | 中等 | `/om:brainstorm` (保守选择) |
+| "优化性能" | 中等 | `/om:brainstorm` (保守选择) |
+
+**不确定时的默认选择: `/om:brainstorm`** (宁可多问，不可漏问)
+</smart-selection>
 
 <exclusions>
 ## When NOT to Invoke (Rare Cases)
@@ -65,24 +118,19 @@ Automatically detect when user wants to accomplish a development task and invoke
 **Key Test:**
 ```
 用户要我写代码/改代码/做东西吗?
-  ↓ Yes → /om:start
+  ↓ Yes → Smart Select (brainstorm/start)
   ↓ No  → 直接回答
 ```
 
-**When in doubt → INVOKE `/om:start`. It handles both simple and complex tasks.**
+**When in doubt → INVOKE. It handles both simple and complex tasks.**
 </exclusions>
 
 <examples>
-| User Input | Should Invoke? | Reason |
-|------------|----------------|--------|
-| `增加一个 om:upgrade 命令` | ✅ Yes | "增加" = add |
-| `实现用户登录功能` | ✅ Yes | "实现" = implement |
-| `登录页面报错了` | ✅ Yes | Bug report |
-| `重构这个模块` | ✅ Yes | "重构" = refactor |
-| `优化性能` | ✅ Yes | "优化" = optimize |
-| `写个测试` | ✅ Yes | "写" = write |
-| `怎么实现登录?` | ❌ No | Question, not request |
-| `显示当前配置` | ❌ No | Information request |
-| `这个文件是干嘛的` | ❌ No | Question about code |
-| `帮我...` | ✅ Yes | "帮我" usually means task |
-</examples>
+| User Input | Complexity | Action |
+|------------|------------|--------|
+| `实现用户登录功能` | 复杂 | → `/om:brainstorm` |
+| `做一个完整的订单系统` | 复杂 | → `/om:brainstorm` |
+| `修复登录页面的样式问题` | 简单 | → `/om:start` |
+| `改一下这个变量名` | 简单 | → `/om:start` |
+| `重构用户模块` | 中等 | → `/om:brainstorm` |
+| `怎么实现登录?` | - | ❌ Question, not task |

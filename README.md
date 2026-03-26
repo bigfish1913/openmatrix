@@ -251,6 +251,7 @@ Accept 阶段由 Reviewer Agent 执行:
 | 命令 | 用途 |
 |------|------|
 | `/om` | **默认入口** - 直接输入任务描述即可启动 |
+| `/om:brainstorm` | 🧠 **头脑风暴** - 先探索需求和设计，再执行任务 |
 | `/om:start` | 启动新任务 (第一个问题选质量级别) |
 | `/om:auto` | 🚀 **全自动执行** - 无阻塞、无确认、直接完成 |
 | `/check` | 🔍 **项目检查** - 自动检测可改进点并提供升级建议 |
@@ -461,6 +462,7 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] 质量报告
 - [x] AI 验收
 - [x] `/om:auto` 全自动模式
+- [x] `/om:brainstorm` 头脑风暴模式
 - [x] 多语言支持 (Python/Go/Java/TypeScript 等)
 - [x] E2E 测试支持 (Web/Mobile/GUI)
 - [ ] VSCode 扩展

@@ -12,6 +12,7 @@ import { installSkillsCommand } from './commands/install-skills.js';
 import { checkCommand } from './commands/check.js';
 import { checkGitignoreCommand } from './commands/check-gitignore.js';
 import { analyzeCommand } from './commands/analyze.js';
+import { brainstormCommand } from './commands/brainstorm.js';
 
 const program = new Command();
 
@@ -33,6 +34,7 @@ program.addCommand(installSkillsCommand);
 program.addCommand(checkCommand);
 program.addCommand(checkGitignoreCommand);
 program.addCommand(analyzeCommand);
+program.addCommand(brainstormCommand);
 
 // 默认帮助
 program.parse();

@@ -75,6 +75,7 @@ OpenMatrix 的默认入口 - 自动启动任务编排。
 
    用法:
      /om <任务描述>        直接启动任务
+     /om:brainstorm <任务> 先头脑风暴，再执行
      /om:start <任务>      交互式启动 (可选质量级别)
      /om:auto <任务>       全自动执行
 
@@ -89,9 +90,10 @@ OpenMatrix 的默认入口 - 自动启动任务编排。
      ⚡ fast     - 无质量门禁 (快速原型)
 
    其他命令:
-     /om:status  - 查看状态
-     /om:meeting - 处理阻塞
-     /om:report  - 生成报告
+     /om:brainstorm - 头脑风暴后再执行
+     /om:status     - 查看状态
+     /om:meeting    - 处理阻塞
+     /om:report     - 生成报告
    ```
 
 </process>
