@@ -36,10 +36,28 @@ User input: Implement user login feature
 Auto-invokes: /om:start Implement user login feature
 ```
 
-**Supported patterns:**
-- `实现...功能` / `添加...` / `修复...` / `优化...` (Chinese)
-- `implement...` / `add...` / `fix...` / `build...` (English)
+**Trigger Scenarios:**
+
+| User Input | Why Trigger |
+|------------|-------------|
+| `Implement user login` | Feature development |
+| `Login page is broken` | Bug fix |
+| `Performance is too slow` | Optimization |
+| `Write unit tests` | Testing |
+| `Build a complete user system` | Multi-component task |
+| `Set up a backend from scratch` | Multi-step project |
+| `Frontend + Backend + Database` | Full-stack work |
+
+**Keyword Triggers:**
+- `实现...` / `添加...` / `修复...` / `优化...` / `测试...` (Chinese)
+- `implement...` / `add...` / `fix...` / `build...` / `test...` (English)
+- `support...` / `need...` / `want to...`
 - Task file paths: `docs/task.md`
+
+**Won't Trigger:**
+- Questions: "How to implement login?" / "How to configure?"
+- Info requests: "Show config" / "List files"
+- Navigation: "Open directory" / "Go to folder"
 
 ---
 
