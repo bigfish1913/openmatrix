@@ -262,7 +262,9 @@ export class PhaseExecutor {
    * 构建 TDD 阶段提示词 - 先写测试
    */
   private buildTDDPrompt(task: Task): string {
-    return `# TDD 阶段 - 先写测试 (Test-First)
+    const parts: string[] = [];
+
+    parts.push(`# TDD 阶段 - 先写测试 (Test-First)
 
 ## 任务信息
 - ID: ${task.id}
@@ -288,7 +290,22 @@ ${task.acceptanceCriteria?.map((c, i) => `${i + 1}. ${c}`).join('\n') || '根据
 根据项目选择:
 - TypeScript/JavaScript: Vitest, Jest
 - Python: pytest
-- Go: testing package
+- Go: testing package`);
+
+    // Auto 模式提示 - 不要停下来询问用户
+    if (this.isAutoMode) {
+      parts.push(`
+
+## ⚠️ 全自动执行模式
+**重要**: 此任务在全自动模式下执行，必须遵守以下规则:
+- **不要停下来询问用户确认** - 直接创建测试文件
+- **不要输出"继续..."或等待用户回复** - 完成后直接返回结果
+- **不要询问"是否需要..."** - 根据验收标准自动生成测试
+- 测试应该失败 (RED 阶段)，这是正确的
+- 完成后直接输出结果，不要等待任何确认`);
+    }
+
+    parts.push(`
 
 ## 输出
 1. 创建测试文件 (\`.test.ts\` 或 \`.spec.ts\`)
@@ -305,7 +322,8 @@ TDD_TESTS_CREATED
 测试用例数: [数量]
 预期: 全部失败 (RED 阶段)
 \`\`\`
-`;
+`);
+    return parts.join('\n');
   }
 
   /**
@@ -359,6 +377,19 @@ TDD_TESTS_CREATED
 - 描述: ${task.description}
 - 优先级: ${task.priority}
 - 质量级别: ${this.qualityConfig.level}`);
+
+    // Auto 模式提示 - 不要停下来询问用户
+    if (this.isAutoMode) {
+      parts.push(`
+
+## ⚠️ 全自动执行模式
+**重要**: 此任务在全自动模式下执行，必须遵守以下规则:
+- **不要停下来询问用户确认** - 直接执行所有操作
+- **不要输出"继续..."或等待用户回复** - 完成任务后直接返回结果
+- **不要询问"是否需要..."** - 自动做出合理决策
+- 如果遇到阻塞问题，记录到 Meeting 并继续执行其他任务
+- 完成后直接输出结果，不要等待任何确认`);
+    }
 
     // TDD 模式提示
     if (isTDDMode) {
@@ -452,7 +483,22 @@ ${isTDDMode ? '- [ ] 所有测试通过 (GREEN)' : ''}
 | Lint | ${qc.strictLint ? '无 error' : '无严重 error'} | ${qc.strictLint ? '❌ 阻止通过' : '⚠️ 仅警告'} |
 | 安全 | 无高危漏洞 | ${qc.securityScan ? '❌ 阻止通过' : '⏭️ 跳过'} |
 | E2E | 全部通过 | ${qc.e2eTests ? '❌ 阻止通过' : '⏭️ 跳过'} |
-| 验收标准 | 全部满足 | ❌ 阻止通过 |
+| 验收标准 | 全部满足 | ❌ 阻止通过 |`);
+
+    // Auto 模式提示 - 不要停下来询问用户
+    if (this.isAutoMode) {
+      parts.push(`
+
+## ⚠️ 全自动执行模式
+**重要**: 此任务在全自动模式下执行，必须遵守以下规则:
+- **不要停下来询问用户确认** - 直接执行所有验证命令
+- **不要输出"继续..."或等待用户回复** - 完成验证后直接返回结果
+- **不要询问"是否需要..."** - 根据质量门禁配置自动执行
+- 如果质量门禁失败，记录失败原因并返回结果
+- 完成后直接输出结果，不要等待任何确认`);
+    }
+
+    parts.push(`
 
 ## 自动化验证命令
 
@@ -614,9 +660,23 @@ Fix Required:
 - 标题: ${task.title}
 - 描述: ${task.description}`);
 
+    // Auto 模式提示 - 不要停下来询问用户
+    if (this.isAutoMode) {
+      parts.push(`
+
+## ⚠️ 全自动执行模式
+**重要**: 此任务在全自动模式下执行，必须遵守以下规则:
+- **不要停下来询问用户确认** - 直接执行所有验收检查
+- **不要输出"继续..."或等待用户回复** - 完成验收后直接返回结果
+- **不要询问"是否通过..."** - 根据验收标准自动判断
+- 如果验收标准全部满足，直接输出 ACCEPT_PASSED
+- 完成后直接输出结果，不要等待任何确认`);
+    }
+
     // 注入验收标准
     if (task.acceptanceCriteria && task.acceptanceCriteria.length > 0) {
       parts.push(`
+
 ## 验收标准 (必须全部满足)
 ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
     }
