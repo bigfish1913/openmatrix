@@ -26,6 +26,21 @@
 
 > `/om` is a shortcut for `/om:start` with identical functionality
 
+### 🪄 Auto-Invoke (No Command Needed)
+
+After installation, just type task descriptions directly:
+
+```
+User input: Implement user login feature
+     ↓
+Auto-invokes: /om:start Implement user login feature
+```
+
+**Supported patterns:**
+- `实现...功能` / `添加...` / `修复...` / `优化...` (Chinese)
+- `implement...` / `add...` / `fix...` / `build...` (English)
+- Task file paths: `docs/task.md`
+
 ---
 
 ## Execution Flow Overview

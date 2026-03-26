@@ -122,3 +122,54 @@ State is stored in `.openmatrix/` directory:
 - Run IDs format: `run-{YYYYMMDD}-{random}`
 - Module type: CommonJS (`"type": "commonjs"` in package.json)
 - TypeScript imports require `.js` extension for local modules
+
+## Auto-Invoke OpenMatrix Skills
+
+When the user's input matches any of these patterns, **automatically invoke `/om:start`** without asking for clarification:
+
+### Trigger Patterns
+
+**Chinese patterns:**
+- `实现...功能` / `实现...`
+- `添加...` / `新增...`
+- `修复...` / `修复...bug`
+- `优化...` / `重构...`
+- `创建...` / `编写...`
+- `开发...` / `构建...`
+- `更新...功能` / `改进...`
+- Any sentence starting with a verb + noun describing a development task
+
+**English patterns:**
+- `implement...` / `add...` / `create...`
+- `fix...` / `bug...` / `issue...`
+- `build...` / `develop...`
+- `refactor...` / `optimize...`
+- `update...` / `improve...`
+
+### How It Works
+
+```
+User input: "实现用户登录功能"
+     │
+     ▼ (Auto-detect)
+     │
+     ▼
+Invoke: /om:start 实现用户登录功能
+```
+
+### Examples
+
+| User Input | Auto Action |
+|------------|-------------|
+| `实现用户登录功能` | `/om:start 实现用户登录功能` |
+| `fix the login bug` | `/om:start fix the login bug` |
+| `添加 API 接口` | `/om:start 添加 API 接口` |
+| `优化首页性能` | `/om:start 优化首页性能` |
+| `docs/task.md` | `/om:start docs/task.md` |
+
+### When NOT to Auto-Invoke
+
+- User explicitly types `/om:*` commands
+- User is asking questions (e.g., "how do I...", "what is...")
+- User is requesting information (e.g., "show me...", "list...")
+- User is navigating files (e.g., "read file X", "open folder")

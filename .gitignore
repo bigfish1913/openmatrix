@@ -5,3 +5,4 @@ dist/
 
 # Environment variables (contains secrets)
 .env
+.claude/*

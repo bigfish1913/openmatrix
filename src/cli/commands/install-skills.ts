@@ -33,8 +33,10 @@ export const installSkillsCommand = new Command('install-skills')
       process.exit(1);
     }
 
-    // Get skill files (excluding om.md which is the default entry)
-    const files = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md') && f !== 'om.md');
+    // Get skill files (excluding om.md and openmatrix-auto.md which are handled separately)
+    const files = fs.readdirSync(skillsDir).filter(f =>
+      f.endsWith('.md') && f !== 'om.md' && f !== 'openmatrix-auto.md'
+    );
 
     if (files.length === 0) {
       console.error('❌ No skill files found in:', skillsDir);
@@ -90,18 +92,42 @@ export const installSkillsCommand = new Command('install-skills')
       }
     }
 
+    // Install auto-detection instructions
+    const autoSrc = path.join(skillsDir, 'openmatrix-auto.md');
+    const autoDest = path.join(claudeDir, 'commands', 'openmatrix-auto.md');
+
+    if (fs.existsSync(autoSrc)) {
+      try {
+        if (fs.existsSync(autoDest) && !options.force) {
+          console.log(`  ⏭️  Skipped: openmatrix-auto.md (already exists)`);
+          skipped++;
+        } else {
+          fs.copyFileSync(autoSrc, autoDest);
+          console.log(`  ✅ Installed: auto-detection rules`);
+          installed++;
+        }
+      } catch (err: any) {
+        console.log(`  ❌ Failed: openmatrix-auto.md (${err.message})`);
+        failed++;
+      }
+    }
+
     console.log('\n' + '─'.repeat(50));
     console.log(`📊 Summary:`);
     console.log(`   ✅ Installed: ${installed}`);
     console.log(`   ⏭️  Skipped: ${skipped}`);
     console.log(`   ❌ Failed: ${failed}`);
-    console.log(`\n📁 Location: ${commandsDir}`);
+    console.log(`\n📁 Skills: ${commandsDir}`);
     console.log(`📁 Default: ${omDest}`);
 
     if (installed > 0) {
       console.log('\n🎉 Skills installed successfully!');
       console.log('   Try: /om <your task>');
       console.log('   Or:  /om:start <your task>');
+      console.log('\n💡 Auto-detection enabled!');
+      console.log('   Type task descriptions directly:');
+      console.log('   - "实现用户登录功能" → auto invokes /om:start');
+      console.log('   - "fix the login bug" → auto invokes /om:start');
     }
 
     if (failed > 0) {
