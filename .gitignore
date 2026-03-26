@@ -6,3 +6,6 @@ dist/
 # Environment variables (contains secrets)
 .env
 .claude/*
+
+# Auto-added by OpenMatrix
+.openmatrix/
