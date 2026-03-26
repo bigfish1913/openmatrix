@@ -20,9 +20,11 @@
 ## One-Liner Introduction
 
 ```bash
-/om:start Implement user login
-# First question lets you choose quality level, then fully automatic + strict quality assurance
+/om Implement user login
+# Auto-starts task orchestration, first question selects quality level, then fully automatic
 ```
+
+> `/om` is a shortcut for `/om:start` with identical functionality
 
 ---
 
@@ -210,6 +212,7 @@ Accept Phase executed by Reviewer Agent:
 
 | Command | Purpose |
 |---------|---------|
+| `/om` | **Default entry** - Just type task description to start |
 | `/om:start` | Start new task (first question selects quality level) |
 | `/om:auto` | 🚀 **Full auto execution** - No blocking, no confirmation, direct completion |
 | `/om:status` | View status |
@@ -218,6 +221,8 @@ Accept Phase executed by Reviewer Agent:
 | `/om:resume` | Resume interruption |
 | `/om:retry` | Retry failures |
 | `/om:report` | Generate report |
+
+> `/om` is a shortcut for `/om:start` with identical functionality
 
 ### `/om:start` Execution Flow (with Meeting Mechanism)
 

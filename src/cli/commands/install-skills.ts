@@ -33,8 +33,8 @@ export const installSkillsCommand = new Command('install-skills')
       process.exit(1);
     }
 
-    // Get skill files
-    const files = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md'));
+    // Get skill files (excluding om.md which is the default entry)
+    const files = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md') && f !== 'om.md');
 
     if (files.length === 0) {
       console.error('❌ No skill files found in:', skillsDir);
@@ -47,6 +47,7 @@ export const installSkillsCommand = new Command('install-skills')
     let skipped = 0;
     let failed = 0;
 
+    // Install skill files to ~/.claude/commands/om/
     files.forEach(file => {
       const src = path.join(skillsDir, file);
       const dest = path.join(commandsDir, file);
@@ -69,16 +70,38 @@ export const installSkillsCommand = new Command('install-skills')
       }
     });
 
+    // Install default /om command to ~/.claude/commands/om.md
+    const omSrc = path.join(skillsDir, 'om.md');
+    const omDest = path.join(claudeDir, 'commands', 'om.md');
+
+    if (fs.existsSync(omSrc)) {
+      try {
+        if (fs.existsSync(omDest) && !options.force) {
+          console.log(`  ⏭️  Skipped: om.md (already exists)`);
+          skipped++;
+        } else {
+          fs.copyFileSync(omSrc, omDest);
+          console.log(`  ✅ Installed: /om (default entry)`);
+          installed++;
+        }
+      } catch (err: any) {
+        console.log(`  ❌ Failed: om.md (${err.message})`);
+        failed++;
+      }
+    }
+
     console.log('\n' + '─'.repeat(50));
     console.log(`📊 Summary:`);
     console.log(`   ✅ Installed: ${installed}`);
     console.log(`   ⏭️  Skipped: ${skipped}`);
     console.log(`   ❌ Failed: ${failed}`);
     console.log(`\n📁 Location: ${commandsDir}`);
+    console.log(`📁 Default: ${omDest}`);
 
     if (installed > 0) {
       console.log('\n🎉 Skills installed successfully!');
-      console.log('   Try: /om:start <your task>');
+      console.log('   Try: /om <your task>');
+      console.log('   Or:  /om:start <your task>');
     }
 
     if (failed > 0) {
