@@ -10,6 +10,7 @@ import { meetingCommand } from './commands/meeting.js';
 import { autoCommand } from './commands/auto.js';
 import { installSkillsCommand } from './commands/install-skills.js';
 import { checkCommand } from './commands/check.js';
+import { analyzeCommand } from './commands/analyze.js';
 
 const program = new Command();
 
@@ -29,6 +30,7 @@ program.addCommand(meetingCommand);
 program.addCommand(autoCommand);
 program.addCommand(installSkillsCommand);
 program.addCommand(checkCommand);
+program.addCommand(analyzeCommand);
 
 // 默认帮助
 program.parse();

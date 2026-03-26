@@ -44,6 +44,10 @@ export interface QuestionSession {
   status: 'pending' | 'in_progress' | 'completed';
   createdAt: string;
   completedAt?: string;
+  /** 推断值 (由 SmartQuestionAnalyzer 提供) */
+  inferences?: Map<string, { answer: string | string[]; reason: string }>;
+  /** 已跳过的问题 (使用推断值) */
+  skippedQuestionIds?: string[];
 }
 
 /**
@@ -54,24 +58,88 @@ export interface QuestionSession {
  * 2. 优先级排序 - 按重要性顺序提问
  * 3. 条件分支 - 不同回答触发不同追问
  * 4. 交互友好 - 支持单步/批量回答
+ * 5. 智能推断 - 支持预设推断值，跳过不必要的问题
  */
 export class InteractiveQuestionGenerator {
   private session: QuestionSession | null = null;
+  /** 推断值 */
+  private inferences: Map<string, { answer: string | string[]; reason: string }> = new Map();
+  /** 需要跳过的问题 ID */
+  private skippedQuestionIds: Set<string> = new Set();
+
+  /**
+   * 设置推断值 (来自 SmartQuestionAnalyzer)
+   */
+  setInferences(inferences: Map<string, { answer: string | string[]; reason: string }>): void {
+    this.inferences = inferences;
+    // 高置信度的推断值可以跳过问题
+    for (const [questionId] of inferences) {
+      this.skippedQuestionIds.add(questionId);
+    }
+  }
+
+  /**
+   * 获取推断值
+   */
+  getInference(questionId: string): { answer: string | string[]; reason: string } | undefined {
+    return this.inferences.get(questionId);
+  }
+
+  /**
+   * 检查问题是否被跳过 (使用推断值)
+   */
+  isQuestionSkipped(questionId: string): boolean {
+    return this.skippedQuestionIds.has(questionId);
+  }
+
+  /**
+   * 获取所有跳过的问题及其推断值
+   */
+  getSkippedQuestions(): Array<{ questionId: string; answer: string | string[]; reason: string }> {
+    const result: Array<{ questionId: string; answer: string | string[]; reason: string }> = [];
+    for (const questionId of this.skippedQuestionIds) {
+      const inference = this.inferences.get(questionId);
+      if (inference) {
+        result.push({ questionId, ...inference });
+      }
+    }
+    return result;
+  }
 
   /**
    * 开始新的问答会话
    */
   startSession(parsedTask: ParsedTask): QuestionSession {
-    const baseQuestions = this.generateBaseQuestions(parsedTask);
+    const allQuestions = this.generateBaseQuestions(parsedTask);
+
+    // 过滤掉已跳过的问题 (使用推断值)
+    const questionsToAsk = allQuestions.filter(q => !this.skippedQuestionIds.has(q.id));
+
+    // 为跳过的问题创建答案
+    const skippedAnswers: QuestionAnswer[] = [];
+    for (const question of allQuestions) {
+      if (this.skippedQuestionIds.has(question.id)) {
+        const inference = this.inferences.get(question.id);
+        if (inference) {
+          const answer: QuestionAnswer = {
+            questionId: question.id,
+            selectedKeys: Array.isArray(inference.answer) ? inference.answer : [inference.answer]
+          };
+          skippedAnswers.push(answer);
+        }
+      }
+    }
 
     this.session = {
       sessionId: `qs-${Date.now().toString(36)}`,
       taskId: parsedTask.title,
-      questions: baseQuestions.sort((a, b) => a.priority - b.priority),
-      answers: [],
+      questions: questionsToAsk.sort((a, b) => a.priority - b.priority),
+      answers: skippedAnswers, // 预填充跳过问题的答案
       currentQuestionIndex: 0,
       status: 'in_progress',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      inferences: this.inferences,
+      skippedQuestionIds: Array.from(this.skippedQuestionIds)
     };
 
     return this.session;

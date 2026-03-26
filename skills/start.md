@@ -8,7 +8,7 @@ description: 启动新的任务执行周期
 </NO-OTHER-SKILLS>
 
 <objective>
-解析任务文档，通过交互式问答澄清需求（3-7个问题，支持多轮追问），确认后启动执行。
+解析任务文档，通过智能分析自动推断配置，仅对不确定的问题进行交互式问答，确认后启动执行。
 </objective>
 
 <process>
@@ -39,13 +39,48 @@ description: 启动新的任务执行周期
    - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
 
-5. **⚠️ 交互式问答 (必须执行)**
+5. **🔍 智能分析 (新流程)**
 
-   **重要**: 除非用户明确指定 `--skip-questions` 或提供了 `--quality` 等选项，否则必须执行交互式问答。
+   **首先调用 CLI 进行智能分析:**
+   ```bash
+   openmatrix analyze --json
+   ```
 
-   使用 `AskUserQuestion` 工具，逐个提出以下问题：
+   这会返回分析结果:
+   ```json
+   {
+     "inferences": [
+       { "questionId": "quality_level", "inferredAnswer": "strict", "confidence": "high", "reason": "任务涉及新功能开发" },
+       { "questionId": "tech_stack", "inferredAnswer": ["typescript", "react"], "confidence": "high", "reason": "检测到技术栈: TypeScript, React" },
+       { "questionId": "doc_level", "inferredAnswer": "basic", "confidence": "medium", "reason": "新功能开发需要基础文档" }
+     ],
+     "questionsToAsk": ["e2e_test"],
+     "skippedQuestions": ["quality_level", "tech_stack", "doc_level"],
+     "projectContext": { "projectType": "typescript", "frameworks": ["React"], "hasFrontend": true }
+   }
+   ```
 
-   **问题 0: 质量级别 (最重要，第一个问)**
+   **展示推断摘要:**
+   ```
+   🔍 AI 正在分析任务...
+
+   📊 推断结果:
+     ✅ 质量级别: strict (任务涉及新功能开发)
+     ✅ 技术栈: TypeScript, React (检测到技术栈)
+     ✅ 文档级别: 基础文档 (新功能开发需要基础文档)
+
+   ❓ 需要确认的问题: E2E测试
+   ```
+
+6. **⚠️ 交互式问答 (仅针对不确定的问题)**
+
+   **重要改进**: 现在只对 AI 无法推断或置信度低的问题进行问答。
+
+   **如果 `questionsToAsk` 为空**: 直接使用推断值，跳过问答。
+
+   **如果有需要确认的问题**: 使用 `AskUserQuestion` 逐个提问。
+
+   **问题 0: 质量级别** (仅当 questionsToAsk 包含 "quality_level" 时询问)
    ```typescript
    AskUserQuestion({
      questions: [{
@@ -116,7 +151,7 @@ description: 启动新的任务执行周期
    })
    ```
 
-   **问题 1: 任务目标**
+   **问题 1: 任务目标** (仅当 questionsToAsk 包含 "objective" 时询问)
    ```typescript
    AskUserQuestion({
      questions: [{
@@ -133,7 +168,7 @@ description: 启动新的任务执行周期
    })
    ```
 
-   **问题 2: 技术栈** (根据任务内容动态生成)
+   **问题 2: 技术栈** (仅当 questionsToAsk 包含 "tech_stack" 时询问，否则使用项目检测值)
    ```typescript
    AskUserQuestion({
      questions: [{
@@ -150,7 +185,7 @@ description: 启动新的任务执行周期
    })
    ```
 
-   **问题 3: 文档要求**
+   **问题 3: 文档要求** (仅当 questionsToAsk 包含 "doc_level" 时询问)
    ```typescript
    AskUserQuestion({
      questions: [{
