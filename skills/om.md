@@ -1,14 +1,38 @@
 ---
 name: om
-description: OpenMatrix 默认入口 - 直接输入任务描述即可启动
+description: "DEFAULT entry for OpenMatrix. Use for ANY task user wants done. Triggers on: 实现/添加/修复/重构/优化/写/做/开发. Example: '实现登录' → /om:start 实现登录. When in doubt, use this."
+priority: critical
+always_load: true
 ---
+
+<EXTREMELY-IMPORTANT>
+This is the DEFAULT action for ANY development task.
+
+**Trigger immediately when user wants to:**
+- Build/create/implement something
+- Add new features or functionality
+- Fix bugs or resolve issues
+- Refactor or optimize code
+- Make changes to the codebase
+
+**If you're unsure → USE `/om` anyway. It gracefully handles all task types.**
+</EXTREMELY-IMPORTANT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
 </NO-OTHER-SKILLS>
 
 <objective>
-OpenMatrix 的默认入口。用户可以直接输入任务描述，系统会自动启动 /om:start 执行任务编排。
+OpenMatrix 的默认入口 - 自动启动任务编排。
+
+**核心价值：**
+- 用户无需记忆命令，直接描述任务即可
+- 自动识别任务类型并启动相应流程
+- 支持中英文混合输入
+
+**触发优先级：最高**
+- 任何"要做事情"的输入都应触发此技能
+- 系统会自动判断是执行任务还是回答问题
 </objective>
 
 <process>
