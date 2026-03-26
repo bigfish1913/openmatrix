@@ -6,11 +6,12 @@
 
 *自动化 ≠ 牺牲质量 | 高质量 ≠ 手动操作*
 
-[![npm version](https://badge.fury.io/js/openmatrix.svg)](https://www.npmjs.com/package/openmatrix)
+[![npm version](https://img.shields.io/npm/v/openmatrix.svg?color=blue&label=npm)](https://www.npmjs.com/package/openmatrix)
+[![npm downloads](https://img.shields.io/npm/dm/openmatrix.svg?color=green&label=downloads)](https://www.npmjs.com/package/openmatrix)
+[![GitHub stars](https://img.shields.io/github/stars/bigfish1913/openmatrix.svg?style=social&label=Star)](https://github.com/bigfish1913/openmatrix/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
-[![Website](https://img.shields.io/badge/官网-matrix.laofu.online-brightgreen)](https://matrix.laofu.online/)
 
 **[📚 官方文档](https://matrix.laofu.online/docs/)** | **[🚀 快速开始](https://matrix.laofu.online/docs/getting-started/)** | **[💬 GitHub](https://github.com/bigfish1913/openmatrix)**
 
