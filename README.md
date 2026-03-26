@@ -251,6 +251,7 @@ Accept 阶段由 Reviewer Agent 执行:
 | `/om` | **默认入口** - 直接输入任务描述即可启动 |
 | `/om:start` | 启动新任务 (第一个问题选质量级别) |
 | `/om:auto` | 🚀 **全自动执行** - 无阻塞、无确认、直接完成 |
+| `/om:check` | 🔍 **项目检查** - 自动检测可改进点并提供升级建议 |
 | `/om:status` | 查看状态 |
 | `/om:approve` | 审批决策 |
 | `/om:meeting` | 处理阻塞问题 |
@@ -259,6 +260,31 @@ Accept 阶段由 Reviewer Agent 执行:
 | `/om:report` | 生成报告 |
 
 > `/om` 是 `/om:start` 的快捷方式，功能完全相同
+
+### `/om:check` 项目检查
+
+**适用场景**: 代码质量检查、安全审计、AI 项目配置检查
+
+```bash
+/om:check                    # 自动扫描当前项目
+/om:check 安全               # 聚焦安全问题
+/om:check --categories skill,prompt,agent  # 检查 AI 项目配置
+/om:check --auto             # 自动执行所有改进
+```
+
+**检测维度**:
+
+| 类别 | 说明 | 示例 |
+|------|------|------|
+| 🐛 bug | 代码缺陷 | TODO, FIXME, 潜在bug |
+| 🔧 quality | 代码质量 | 过长函数, 复杂度, 重复代码 |
+| 📦 capability | 缺失能力 | 缺少测试, 文档, 类型定义 |
+| 🔒 security | 安全问题 | 硬编码密钥, SQL注入 |
+| 🤖 prompt | Prompt 问题 | 注入风险, 缺少格式说明 |
+| ⚡ skill | Skill 问题 | 缺少 frontmatter, objective |
+| 🧠 agent | Agent 配置 | CLAUDE.md 缺少构建命令 |
+
+**支持项目类型**: OpenMatrix, AI项目, Node.js, TypeScript, Python, Go, Rust, Java, C#, C/C++, PHP, Dart
 
 ### `/om:start` 执行流程 (含 Meeting 机制)
 

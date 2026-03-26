@@ -139,6 +139,15 @@ describe('UpgradeDetector', () => {
 
       expect(result.projectType).toBe('php');
     });
+
+    it('should detect Dart project', async () => {
+      await fs.writeFile(path.join(tempDir, 'pubspec.yaml'), 'name: test');
+
+      const detector = new UpgradeDetector(tempDir);
+      const result = await detector.detect();
+
+      expect(result.projectType).toBe('dart');
+    });
   });
 
   describe('detectBugs', () => {

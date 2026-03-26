@@ -76,6 +76,7 @@ export type ProjectType =
   | 'csharp'        // C# 项目
   | 'cpp'           // C/C++ 项目
   | 'php'           // PHP 项目
+  | 'dart'          // Dart 项目
   | 'unknown';      // 未知类型
 
 /**
@@ -339,6 +340,14 @@ export class UpgradeDetector {
         return 'php';
       } catch {
         // 不是 PHP
+      }
+
+      // 检查 Dart
+      try {
+        await fs.access(path.join(this.projectRoot, 'pubspec.yaml'));
+        return 'dart';
+      } catch {
+        // 不是 Dart
       }
 
       return 'unknown';

@@ -9,7 +9,7 @@ import { reportCommand } from './commands/report.js';
 import { meetingCommand } from './commands/meeting.js';
 import { autoCommand } from './commands/auto.js';
 import { installSkillsCommand } from './commands/install-skills.js';
-import { upgradeCommand } from './commands/upgrade.js';
+import { checkCommand } from './commands/check.js';
 
 const program = new Command();
 
@@ -28,7 +28,7 @@ program.addCommand(reportCommand);
 program.addCommand(meetingCommand);
 program.addCommand(autoCommand);
 program.addCommand(installSkillsCommand);
-program.addCommand(upgradeCommand);
+program.addCommand(checkCommand);
 
 // 默认帮助
 program.parse();

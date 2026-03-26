@@ -1,4 +1,4 @@
-// src/cli/commands/upgrade.ts
+// src/cli/commands/check.ts
 import { Command } from 'commander';
 import {
   UpgradeDetector,
@@ -12,7 +12,7 @@ import {
 import * as readline from 'readline';
 import chalk from 'chalk';
 
-export const upgradeCommand = new Command('upgrade')
+export const checkCommand = new Command('check')
   .description('自动检测项目可改进点并提供升级建议')
   .argument('[hint]', '用户提示 (可选，用于聚焦检测方向)')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
@@ -226,6 +226,7 @@ function formatProjectType(type: ProjectType): string {
     csharp: '💜 C#',
     cpp: '⚙️ C/C++',
     php: '🐘 PHP',
+    dart: '🎯 Dart',
     unknown: '❓ 未知'
   };
   return labels[type];
