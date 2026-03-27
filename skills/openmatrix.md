@@ -24,6 +24,37 @@ Everything else → smart selection between `/om:brainstorm` and `/om:start`.
 Automatically detect when user wants to accomplish a development task and intelligently choose between brainstorm (for complex tasks) or start (for simple tasks).
 </objective>
 
+<process>
+1. **检测用户输入**
+   - 用户直接发送任务描述（不带命令前缀）
+   - 分析是否为开发任务（写代码/改代码/做东西）
+
+2. **判断任务复杂度**
+
+   **复杂任务** (满足任一条件):
+   - 新功能开发: "实现用户登录" / "添加支付功能"
+   - 多模块改动: "重构用户系统" / "优化整体性能"
+   - 架构相关: "搭建框架" / "从零开始"
+   - 关键词: "系统" / "架构" / "模块" / "集成" / "完整"
+
+   **简单任务** (满足任一条件):
+   - Bug 修复: "修复登录bug" / "解决样式问题"
+   - 小改动: "修改文案" / "改变量名"
+   - 单一功能: "添加一个按钮" / "写个工具函数"
+   - 关键词: "修复" / "解决" / "改" / "调整" / "简单"
+
+3. **智能选择执行路径**
+
+   ```
+   复杂任务 → 调用 /om:brainstorm
+   简单任务 → 调用 /om:start
+   不确定   → 默认 /om:brainstorm (宁可多问)
+   ```
+
+4. **执行选择的命令**
+   - 调用 Skill 工具执行对应的 skill
+</process>
+
 <trigger-conditions>
 ## AUTO-INVOKE RULES (Mandatory)
 
