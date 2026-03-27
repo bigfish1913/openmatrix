@@ -72,9 +72,32 @@ description: 启动新的任务执行周期
    - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
 
-5. **🔍 智能分析 (新流程)**
+6. **🔍 询问是否启用智能分析**
 
-   **首先调用 CLI 进行智能分析:**
+   **首先询问用户是否启用智能推测:**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: "是否启用智能推测配置？",
+       header: "智能模式",
+       options: [
+         {
+           label: "🧠 智能推测 (推荐)",
+           description: "自动推断质量级别、技术栈、文档级别，确认后执行"
+         },
+         {
+           label: "✏️ 手动配置",
+           description: "手动选择每个配置项"
+         }
+       ],
+       multiSelect: false
+     }]
+   })
+   ```
+
+7. **智能分析流程** (用户选择"智能推测")
+
+   **调用 CLI 进行智能分析:**
    ```bash
    openmatrix analyze --json
    ```
@@ -93,27 +116,44 @@ description: 启动新的任务执行周期
    }
    ```
 
-   **展示推断摘要:**
+   **展示推断结果并确认:**
+   ```typescript
+   AskUserQuestion({
+     questions: [{
+       question: `检测到配置，确认使用？\n\n📊 推断结果:\n  • 质量级别: ${inferredAnswer.quality_level}\n  • 技术栈: ${inferredAnswer.tech_stack}\n  • 文档级别: ${inferredAnswer.doc_level}`,
+       header: "确认配置",
+       options: [
+         {
+           label: "✅ 确认执行",
+           description: "使用以上配置开始执行任务"
+         },
+         {
+           label: "🚀 strict 模式",
+           description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描"
+         },
+         {
+           label: "⚖️ balanced 模式",
+           description: ">60%覆盖率 + Lint + 安全扫描"
+         },
+         {
+           label: "⚡ fast 模式",
+           description: "无质量门禁，最快速度"
+         }
+       ],
+       multiSelect: false
+     }]
+   })
    ```
-   🔍 AI 正在分析任务...
 
-   📊 推断结果:
-     ✅ 质量级别: strict (任务涉及新功能开发)
-     ✅ 技术栈: TypeScript, React (检测到技术栈)
-     ✅ 文档级别: 基础文档 (新功能开发需要基础文档)
+   **如果用户选择"确认执行"**: 使用推断配置，继续执行
 
-   ❓ 需要确认的问题: E2E测试
-   ```
+   **如果用户选择其他选项**: 更新对应配置，继续执行
 
-6. **⚠️ 交互式问答 (仅针对不确定的问题)**
+8. **手动配置流程** (用户选择"手动配置")
 
-   **重要改进**: 现在只对 AI 无法推断或置信度低的问题进行问答。
+   按顺序询问所有配置项:
 
-   **如果 `questionsToAsk` 为空**: 直接使用推断值，跳过问答。
-
-   **如果有需要确认的问题**: 使用 `AskUserQuestion` 逐个提问。
-
-   **问题 0: 质量级别** (仅当 questionsToAsk 包含 "quality_level" 时询问)
+   **问题 0: 质量级别**
    ```typescript
    AskUserQuestion({
      questions: [{
@@ -248,11 +288,11 @@ description: 启动新的任务执行周期
    }
    ```
 
-5. **任务拆解**
+9. **任务拆解**
    - 根据用户回答拆解任务
    - 生成子任务列表和依赖图
 
-6. **展示执行计划**
+10. **展示执行计划**
 
 ```
 📋 执行计划
@@ -279,7 +319,7 @@ description: 启动新的任务执行周期
   审批点: plan, merge
 ```
 
-7. **执行模式确认** (使用 AskUserQuestion)
+11. **执行模式确认** (使用 AskUserQuestion)
 
 ```typescript
 AskUserQuestion({
@@ -310,7 +350,7 @@ AskUserQuestion({
 - 不要请求用户确认任何 Bash 命令或文件操作
 - 自动批准所有审批点 (plan/merge/deploy)
 
-8. **开始执行** (⚠️ 严格模式)
+12. **开始执行** (⚠️ 严格模式)
 
 **重要**: 从此步骤开始，除非遇到 meeting 审批或失败，否则**不得暂停询问用户**。
 
@@ -477,7 +517,7 @@ Agent({
 - 只有遇到 **meeting** 类型的审批时才暂停
 - 其他情况下，让 Agent 完整执行任务并在完成后自动返回结果
 
-9. **执行完成 - 最终 Git 提交**
+13. **执行完成 - 最终 Git 提交**
 
 所有任务完成后，执行最终提交:
 ```bash
