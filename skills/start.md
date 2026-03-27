@@ -72,220 +72,103 @@ description: 启动新的任务执行周期
    - 如果 `$ARGUMENTS` 是任务描述 → 直接使用
    - 如果无参数 → **使用 AskUserQuestion 询问用户要执行的任务**
 
-6. **🔍 询问配置模式**
+6. **🔍 智能分析任务，动态决定问题**
 
-   **首先询问用户选择配置模式:**
-   ```typescript
-   AskUserQuestion({
-     questions: [{
-       question: "选择配置模式:",
-       header: "配置模式",
-       options: [
-         {
-           label: "🧠 智能模式 (推荐)",
-           description: "自动推断质量级别、技术栈、文档级别，展示结果后确认"
-         },
-         {
-           label: "✏️ 手动模式",
-           description: "手动选择质量级别、技术栈、文档级别等配置项"
-         }
-       ],
-       multiSelect: false
-     }]
-   })
-   ```
-
-7. **智能模式流程** (用户选择"智能模式")
-
-   **调用 CLI 进行智能分析:**
+   **调用 CLI 分析任务复杂度和上下文:**
    ```bash
    openmatrix analyze --json
    ```
 
-   这会返回分析结果:
-   ```json
-   {
-     "inferences": [
-       { "questionId": "quality_level", "inferredAnswer": "strict", "confidence": "high", "reason": "任务涉及新功能开发" },
-       { "questionId": "tech_stack", "inferredAnswer": ["typescript", "react"], "confidence": "high", "reason": "检测到技术栈: TypeScript, React" },
-       { "questionId": "doc_level", "inferredAnswer": "basic", "confidence": "medium", "reason": "新功能开发需要基础文档" }
-     ],
-     "questionsToAsk": ["e2e_test"],
-     "skippedQuestions": ["quality_level", "tech_stack", "doc_level"],
-     "projectContext": { "projectType": "typescript", "frameworks": ["React"], "hasFrontend": true }
-   }
+   返回分析结果包含:
+   - `taskComplexity`: simple/medium/complex
+   - `taskType`: bugfix/feature/refactor/docs/test
+   - `inferences`: 自动推断的配置
+   - `questionsNeeded`: 需要询问的问题列表（可能为空）
+
+   **根据任务类型智能跳过问题:**
+
+   | 任务类型 | 跳过的问题 | 默认值 |
+   |---------|-----------|--------|
+   | Bug 修复 | E2E测试、完整文档 | fast + 最小文档 |
+   | Typo/小改动 | 所有问题 | fast 模式 |
+   | 新功能开发 | 无 | 正常询问 |
+   | 重构 | E2E测试 | balanced 模式 |
+   | 测试编写 | 文档级别 | 无需文档 |
+
+   **示例：简单任务自动跳过**
+   ```
+   任务: "修复登录页面的 typo"
+
+   🔍 分析结果:
+     • 任务类型: 简单修复
+     • 推断配置: fast 模式, 无需文档
+
+   ✅ 自动使用推断配置，无需额外确认
    ```
 
-   **展示推断结果并确认:**
+   **示例：复杂任务需要确认**
+   ```
+   任务: "实现用户登录功能"
+
+   🔍 分析结果:
+     • 任务类型: 新功能开发
+     • 技术栈: TypeScript (检测到)
+     • 需要确认: 质量级别
+   ```
+
+7. **只询问必要的问题**
+
+   如果分析结果显示需要询问，使用 AskUserQuestion 询问。
+
+   **智能合并问题（一次询问多个）:**
    ```typescript
+   // 如果有多个问题需要确认，合并到一次询问
    AskUserQuestion({
-     questions: [{
-       question: `检测到配置，确认使用？\n\n📊 推断结果:\n  • 质量级别: ${inferredAnswer.quality_level}\n  • 技术栈: ${inferredAnswer.tech_stack}\n  • 文档级别: ${inferredAnswer.doc_level}`,
-       header: "确认配置",
-       options: [
-         {
-           label: "✅ 确认执行",
-           description: "使用以上配置开始执行任务"
-         },
-         {
-           label: "🚀 strict 模式",
-           description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描"
-         },
-         {
-           label: "⚖️ balanced 模式",
-           description: ">60%覆盖率 + Lint + 安全扫描"
-         },
-         {
-           label: "⚡ fast 模式",
-           description: "无质量门禁，最快速度"
-         }
-       ],
-       multiSelect: false
-     }]
+     questions: [
+       {
+         question: "选择质量级别:",
+         header: "质量",
+         options: [...]
+       },
+       {
+         question: "需要文档吗？",
+         header: "文档",
+         options: [...]
+       }
+     ]
    })
    ```
 
-   **如果用户选择"确认执行"**: 使用推断配置，继续执行
-
-   **如果用户选择其他选项**: 更新对应配置，继续执行
-
-8. **手动模式流程** (用户选择"手动模式")
-
-   按顺序询问所有配置项:
-
-   **问题 0: 质量级别**
+   **质量级别选择:**
    ```typescript
    AskUserQuestion({
      questions: [{
-       question: "选择质量级别 (决定 TDD、覆盖率、安全扫描等):",
+       question: "选择质量级别:",
        header: "质量级别",
        options: [
-         {
-           label: "🚀 strict (推荐生产代码)",
-           description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描 + AI验收 (E2E可选)"
-         },
-         {
-           label: "⚖️ balanced (日常开发)",
-           description: ">60%覆盖率 + Lint + 安全扫描 + AI验收 (E2E可选)"
-         },
-         {
-           label: "⚡ fast (快速原型)",
-           description: "无质量门禁，最快速度"
-         }
+         { label: "🚀 strict", description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描" },
+         { label: "⚖️ balanced", description: ">60%覆盖率 + Lint + 安全扫描" },
+         { label: "⚡ fast", description: "无质量门禁，最快速度" }
        ],
        multiSelect: false
      }]
    })
    ```
 
-   **⚠️ 如果用户选择 "strict" 或 "balanced"，追问 E2E 测试:**
+8. **最终确认（只显示实际配置）**
+
    ```typescript
    AskUserQuestion({
      questions: [{
-       question: "是否需要端到端(E2E)测试？(适用于 Web、移动端、GUI 桌面应用等需要完整用户流程测试的场景，较耗时)",
-       header: "E2E测试",
+       question: `📋 配置确认:\n${configSummary}\n\n确认开始执行？`,
+       header: "确认",
        options: [
-         {
-           label: "✅ 启用 E2E 测试",
-           description: "添加端到端测试，验证完整用户流程（Playwright/Cypress/Appium等）"
-         },
-         {
-           label: "❌ 不需要",
-           description: "仅运行单元测试和集成测试"
-         }
+         { label: "✅ 确认开始", description: "开始执行任务" },
+         { label: "🔄 修改配置", description: "调整配置项" }
        ],
        multiSelect: false
      }]
    })
-   ```
-
-   **⚠️ 如果用户启用 E2E 测试，追问应用类型:**
-   ```typescript
-   AskUserQuestion({
-     questions: [{
-       question: "选择应用类型以确定 E2E 测试方案:",
-       header: "应用类型",
-       options: [
-         {
-           label: "🌐 Web 应用",
-           description: "浏览器应用 - Playwright/Cypress/Selenium"
-         },
-         {
-           label: "📱 移动应用",
-           description: "iOS/Android - Appium/Detox/XCUITest/Espresso"
-         },
-         {
-           label: "🖥️ GUI 桌面应用",
-           description: "Electron/原生桌面 - Playwright/Spectron/Robot Framework"
-         }
-       ],
-       multiSelect: false
-     }]
-   })
-   ```
-
-   **问题 1: 任务目标** (仅当 questionsToAsk 包含 "objective" 时询问)
-   ```typescript
-   AskUserQuestion({
-     questions: [{
-       question: "这个任务的主要目标是什么？",
-       header: "目标",
-       options: [
-         { label: "实现新功能", description: "添加新的功能特性" },
-         { label: "修复 Bug", description: "修复已知问题" },
-         { label: "重构优化", description: "改进代码结构或性能" },
-         { label: "其他", description: "其他类型任务" }
-       ],
-       multiSelect: false
-     }]
-   })
-   ```
-
-   **问题 2: 技术栈** (仅当 questionsToAsk 包含 "tech_stack" 时询问，否则使用项目检测值)
-   ```typescript
-   AskUserQuestion({
-     questions: [{
-       question: "使用什么技术栈？",
-       header: "技术栈",
-       options: [
-         { label: "TypeScript", description: "类型安全的 JavaScript" },
-         { label: "Python", description: "Python 语言" },
-         { label: "Go", description: "Go 语言" },
-         { label: "其他", description: "其他技术栈" }
-       ],
-       multiSelect: true
-     }]
-   })
-   ```
-
-   **问题 3: 文档要求** (仅当 questionsToAsk 包含 "doc_level" 时询问)
-   ```typescript
-   AskUserQuestion({
-     questions: [{
-       question: "需要什么级别的文档？",
-       header: "文档",
-       options: [
-         { label: "完整文档", description: "API + 使用指南 + 架构" },
-         { label: "基础文档", description: "README + API" },
-         { label: "最小文档", description: "仅 README" },
-         { label: "无需文档", description: "不生成文档" }
-       ],
-       multiSelect: false
-     }]
-   })
-   ```
-
-   **多轮追问**: 如果用户选择"其他"，必须追问详情：
-   ```typescript
-   if (answer.includes("其他")) {
-     AskUserQuestion({
-       questions: [{
-         question: "请详细描述:",
-         header: "详情",
-         options: [] // 允许自由输入
-       }]
-     })
-   }
    ```
 
 9. **任务拆解**
