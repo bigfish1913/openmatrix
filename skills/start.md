@@ -39,14 +39,23 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 
 ## === 准备阶段（此阶段不得写任何业务代码）===
 
-### Step 1: 初始化
+### Step 1: 智能检测状态
 
-检查 `.openmatrix/` 目录是否存在，不存在则初始化:
+检查 `.openmatrix/` 目录和 `state.json` 的状态:
+
+| 状态 | 处理方式 |
+|------|---------|
+| `.openmatrix/` 不存在 | 全新初始化: `openmatrix start --init-only` |
+| `status: initialized` | 正常继续（首次使用） |
+| `status: completed` | 提示用户：开始新任务会清理旧数据，确认后继续 |
+| `status: running` | 提示用户先完成或暂停当前任务，然后退出 |
+| `status: paused` | 询问用户：继续上次任务（→`/om:resume`）还是开始新任务 |
+| `status: failed` | 询问用户：重试失败任务（→`/om:retry`）还是开始新任务 |
+
+**如果是全新初始化:**
 ```bash
 openmatrix start --init-only
 ```
-
-读取 `.openmatrix/state.json`，如果 `status === 'running'`，提示用户先完成或暂停。
 
 检查 Git 仓库:
 - 无 `.git` → 询问用户是否初始化

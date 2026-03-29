@@ -121,41 +121,66 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
    })
    ```
 
-6. **自动执行 start**
+6. **智能检测 .openmatrix 状态后执行**
 
    如果用户选择"开始执行":
-   - 调用 CLI 标记头脑风暴完成:
-     ```bash
-     openmatrix brainstorm --complete --json
-     ```
-   - **将头脑风暴结论转换为 goals** (这是最关键的步骤):
 
-     根据头脑风暴收集的信息，生成 3-8 个独立可交付的功能目标:
-     ```json
-     {
-       "title": "任务标题",
-       "description": "基于头脑风暴的整体描述",
-       "goals": [
-         "目标1: 独立功能模块 (如: 项目初始化和基础配置)",
-         "目标2: 独立功能模块 (如: 游戏核心引擎和场景管理)",
-         "目标3: 独立功能模块 (如: 敌人系统)",
-         "..."
-       ],
-       "constraints": ["从头脑风暴中提取的约束"],
-       "deliverables": ["交付物列表"],
-       "answers": { "从头脑风暴问答中收集的答案" },
-       "quality": "根据任务复杂度选择: strict/balanced/fast",
-       "mode": "auto",
-       "plan": "## 技术方案\n基于头脑风暴的技术方案..."
-     }
-     ```
+   **先检测当前状态:**
+   ```bash
+   # 检查 .openmatrix 目录是否存在
+   ls .openmatrix/state.json 2>/dev/null
+   ```
 
-   - 写入 `.openmatrix/tasks-input.json`
-   - 执行:
-     ```bash
-     openmatrix start --tasks-json @.openmatrix/tasks-input.json --json
-     ```
-   - 从 CLI 返回的 `subagentTasks` 开始逐个执行 Agent
+   **根据状态走不同路径:**
+
+   | .openmatrix 状态 | 处理方式 |
+   |-----------------|---------|
+   | 不存在 | 全新开始 → init → 写 tasks-input → CLI start |
+   | 存在，`status: completed` | 清理旧数据后重新开始 → 写 tasks-input → CLI start |
+   | 存在，`status: running` | 提示用户先完成或暂停当前任务 |
+   | 存在，`status: paused` | 询问用户：继续上次任务 还是 开始新任务 |
+   | 存在，`status: initialized` | 直接写 tasks-input → CLI start |
+
+   **路径 A: 全新开始 / 重新开始**
+   ```bash
+   # 初始化 (如果不存在)
+   openmatrix start --init-only
+
+   # 如果是重新开始，清理旧数据
+   # rm -rf .openmatrix/tasks/ .openmatrix/approvals/ .openmatrix/meetings/
+   ```
+
+   **将头脑风暴结论转换为 goals:**
+   ```json
+   {
+     "title": "任务标题",
+     "description": "基于头脑风暴的整体描述",
+     "goals": [
+       "目标1: 独立功能模块",
+       "目标2: 独立功能模块",
+       "..."
+     ],
+     "constraints": ["约束"],
+     "deliverables": ["交付物"],
+     "answers": { "问答答案" },
+     "quality": "strict/balanced/fast",
+     "mode": "auto",
+     "plan": "## 技术方案\n..."
+   }
+   ```
+
+   写入 `.openmatrix/tasks-input.json` 后执行:
+   ```bash
+   openmatrix start --tasks-json @.openmatrix/tasks-input.json --json
+   ```
+
+   **路径 B: 继续上次任务**
+   ```bash
+   openmatrix step --json
+   ```
+   从返回的 next task 继续执行。
+
+   **最终：从 CLI 返回的 `subagentTasks` 开始逐个执行 Agent**
 
 </process>
 
