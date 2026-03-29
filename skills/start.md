@@ -131,16 +131,16 @@ AskUserQuestion({
     question: "请选择执行模式:",
     header: "执行模式",
     options: [
-      { label: "每阶段确认", description: "每个阶段完成后暂停" },
-      { label: "关键节点确认", description: "plan/merge/deploy 时暂停" },
-      { label: "全自动执行", description: "无需确认，自动完成" }
+      { label: "全自动执行 (推荐)", description: "无需确认，自动完成" },
+      { label: "关键节点确认", description: "plan/merge 时暂停确认" },
+      { label: "每阶段确认", description: "每个阶段完成后暂停" }
     ],
     multiSelect: false
-  }]
+  ]
 })
 ```
 
-**如果用户选择"全自动执行"，进入 BYPASS 模式（所有操作自动批准）。**
+**默认进入 BYPASS 模式（全自动执行），用户可选其他模式。**
 
 ### Step 6: AI 提取 goals + 生成 plan
 

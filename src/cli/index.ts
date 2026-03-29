@@ -13,6 +13,7 @@ import { checkCommand } from './commands/check.js';
 import { checkGitignoreCommand } from './commands/check-gitignore.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { brainstormCommand } from './commands/brainstorm.js';
+import { researchCommand } from './commands/research.js';
 import { completeCommand } from './commands/complete.js';
 import { stepCommand } from './commands/step.js';
 
@@ -39,6 +40,7 @@ program.addCommand(checkCommand);
 program.addCommand(checkGitignoreCommand);
 program.addCommand(analyzeCommand);
 program.addCommand(brainstormCommand);
+program.addCommand(researchCommand);
 
 // 默认帮助
 program.parse();

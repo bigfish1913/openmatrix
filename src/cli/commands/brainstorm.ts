@@ -40,6 +40,8 @@ interface BrainstormResult {
   answers: Record<string, string | string[]>;
   insights: string[];
   designNotes: string[];
+  /** 如果检测到垂直领域，建议进入 research */
+  suggestResearch?: string;
 }
 
 export const brainstormCommand = new Command('brainstorm')
@@ -183,6 +185,9 @@ export const brainstormCommand = new Command('brainstorm')
     // 生成头脑风暴问题
     const questions: BrainstormQuestion[] = generateBrainstormQuestions(taskContent, taskTitle);
 
+    // 检测是否涉及垂直领域
+    const domainDetection = detectVerticalDomain(taskContent);
+
     // 创建会话
     const session: BrainstormResult = {
       status: 'brainstorming',
@@ -191,14 +196,15 @@ export const brainstormCommand = new Command('brainstorm')
       questions,
       answers: {},
       insights: [],
-      designNotes: []
+      designNotes: [],
+      suggestResearch: domainDetection.isVertical ? domainDetection.domain : undefined
     };
 
     await fs.writeFile(brainstormPath, JSON.stringify(session, null, 2));
 
     if (options.json) {
       // JSON 输出供 Skill 解析
-      console.log(JSON.stringify({
+      const output: Record<string, unknown> = {
         status: 'brainstorming',
         message: '开始头脑风暴',
         taskTitle,
@@ -210,10 +216,24 @@ export const brainstormCommand = new Command('brainstorm')
           multiSelect: q.multiSelect
         })),
         hint: '请逐一回答问题，完成后再调用 --complete'
-      }));
+      };
+
+      // 如果检测到垂直领域，添加建议
+      if (domainDetection.isVertical) {
+        output.suggestResearch = domainDetection.domain;
+        output.researchHint = `检测到垂直领域「${domainDetection.domain}」，建议先进行领域调研`;
+      }
+
+      console.log(JSON.stringify(output));
     } else {
       console.log('\n🧠 开始头脑风暴...\n');
       console.log(`📋 任务: ${taskTitle}\n`);
+
+      if (domainDetection.isVertical) {
+        console.log(`🔍 检测到垂直领域: ${domainDetection.domain}`);
+        console.log('   建议使用 /om:research 进行领域调研\n');
+      }
+
       console.log('需要探索以下问题:');
       questions.forEach((q, i) => {
         console.log(`  ${i + 1}. ${q.question}`);
@@ -221,6 +241,42 @@ export const brainstormCommand = new Command('brainstorm')
       console.log('\n💡 使用 /om:brainstorm 技能进行交互式问答');
     }
   });
+
+/**
+ * 检测是否可能需要领域调研
+ * 不硬编码领域，只判断是否像垂直领域任务
+ */
+function detectVerticalDomain(taskContent: string): { isVertical: boolean; domain: string } {
+  const lower = taskContent.toLowerCase();
+
+  // 检测"做X"模式 - 这是垂直领域任务的典型特征
+  const actionPatterns = [
+    /做(一个|个)(.+?)(的|app|网站|系统|平台|工具|应用|游戏|$)/,
+    /开发(一个|个)?(.+?)(系统|应用|平台|工具|游戏|$)/,
+    /构建(一个|个)?(.+?)(系统|应用|平台|工具|$)/,
+    /build (a |an )?(.+?)(app|website|system|tool|platform|game|$)/i,
+    /create (a |an )?(.+?)(app|website|system|tool|platform|game|$)/i,
+  ];
+
+  for (const pattern of actionPatterns) {
+    const match = taskContent.match(pattern);
+    if (match && match[2]) {
+      const extracted = match[2].trim();
+      // 如果提取的内容有意义，认为是垂直领域任务
+      if (extracted.length > 1) {
+        return { isVertical: true, domain: extracted };
+      }
+    }
+  }
+
+  // 检测是否包含"系统"、"平台"、"应用"等大词
+  const systemKeywords = ['系统', '平台', '应用', 'system', 'platform', 'app'];
+  if (systemKeywords.some(kw => lower.includes(kw))) {
+    return { isVertical: true, domain: '待分析' };
+  }
+
+  return { isVertical: false, domain: '' };
+}
 
 /**
  * 根据任务内容生成头脑风暴问题

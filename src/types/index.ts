@@ -16,6 +16,8 @@ export type TaskStatus =
 
 export type TaskPriority = 'P0' | 'P1' | 'P2' | 'P3';
 
+export type ResearchMode = 'domain' | 'tech' | 'problem';
+
 export interface TaskPhase {
   status: TaskStatus;
   duration: number | null;
@@ -277,4 +279,41 @@ export interface ParsedTask {
   constraints: string[];
   deliverables: string[];
   rawContent: string;
+}
+
+// ============ Research Types ============
+
+export interface ResearchAgentConfig {
+  role: string;
+  focus: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: string;
+}
+
+export interface ResearchQuestion {
+  id: string;
+  question: string;
+  header: string;
+  options: Array<{ label: string; description: string }>;
+  multiSelect: boolean;
+}
+
+export interface ResearchSession {
+  status: 'initialized' | 'preview' | 'researching' | 'questioning' | 'completed';
+  topic: string;
+  domain: string;
+  aspects: string[];
+  estimatedQuestions: number;
+  agents: ResearchAgentConfig[];
+  domainQuestions: ResearchQuestion[];
+  answers: Record<string, string | string[]>;
+  report?: string;
+  knowledge: string[];
+  context?: {
+    goals: string[];
+    constraints: string[];
+    deliverables: string[];
+  };
+  createdAt: string;
+  completedAt?: string;
 }

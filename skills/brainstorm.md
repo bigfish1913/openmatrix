@@ -25,20 +25,37 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
      "status": "brainstorming",
      "message": "开始头脑风暴",
      "taskTitle": "任务标题",
-     "questions": [
-       {
-         "id": "core_objective",
-         "question": "这个任务的核心目标是什么？",
-         "header": "核心目标",
-         "options": [...],
-         "multiSelect": false
-       }
-     ],
+     "questions": [...],
+     "suggestResearch": "游戏开发",
+     "researchHint": "检测到垂直领域「游戏开发」，建议先进行领域调研",
      "hint": "请逐一回答问题，完成后再调用 --complete"
    }
    ```
 
-2. **交互式问答**
+2. **检测垂直领域** (如果 suggestResearch 存在)
+
+   如果 CLI 返回了 `suggestResearch` 字段，说明检测到垂直领域:
+
+   ```typescript
+   if (result.suggestResearch) {
+     AskUserQuestion({
+       questions: [{
+         question: `检测到垂直领域「${result.suggestResearch}」，建议先进行领域调研。\n\n领域调研可以帮助您:\n• 了解行业最佳实践\n• 获取技术方案建议\n• 生成领域专属文档 (如 GDD/PRD)\n\n是否进入领域调研？`,
+         header: "领域调研",
+         options: [
+           { label: "进入调研 (推荐)", description: "启动 /om:research 进行深度调研" },
+           { label: "跳过调研", description: "直接进行头脑风暴问答" }
+         ],
+         multiSelect: false
+       }]
+     })
+   }
+   ```
+
+   - 如果用户选择"进入调研"，调用 `/om:research`，研究完成后自动返回 start
+   - 如果用户选择"跳过调研"，继续下面的问答流程
+
+3. **交互式问答**
 
    对每个问题使用 `AskUserQuestion` 进行提问:
 
@@ -58,7 +75,7 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
    - 记录可能的设计决策
    - 识别潜在风险
 
-3. **深入追问** (可选)
+4. **深入追问** (可选)
 
    如果用户选择了"其他"或回答不够清晰，进行追问:
    ```typescript
@@ -71,7 +88,7 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
    })
    ```
 
-4. **总结头脑风暴结果**
+5. **总结头脑风暴结果**
 
    所有问题回答完成后，总结:
    - 核心目标
@@ -122,8 +139,6 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
    ```
 
 6. **智能检测 .openmatrix 状态后执行**
-
-   如果用户选择"开始执行":
 
    **先检测当前状态:**
    ```bash
