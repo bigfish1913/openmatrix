@@ -111,7 +111,7 @@ export interface GlobalState {
   version: string;
   runId: string;
   status: RunStatus;
-  currentPhase: 'planning' | 'execution' | 'verification' | 'acceptance';
+  currentPhase: 'planning' | 'execution' | 'verification' | 'acceptance' | 'completed';
   startedAt: string;
   config: AppConfig;
   statistics: {

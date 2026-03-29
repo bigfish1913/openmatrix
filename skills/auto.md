@@ -126,23 +126,21 @@ CLI 返回的 JSON 中 `subagentTasks` 数组包含每个待执行任务:
 ❌ **禁止在还有未完成任务时停止** — 即使 Agent 返回了大段输出，也必须继续下一个
 ❌ **禁止询问"是否继续"** — 直接执行下一个任务
 ❌ **禁止输出"让我知道是否..."后停止** — 继续执行
-❌ **禁止因为上下文压缩而忘记剩余任务** — 每完成一个任务后，重新读取 state.json 确认剩余任务
+❌ **禁止因为上下文压缩而忘记剩余任务** — 通过 CLI 命令从磁盘获取真实状态
 
-**执行循环伪代码:**
+**文件持久化循环（防止上下文压缩丢失状态）:**
+```bash
+# 每个 Agent 完成后执行:
+openmatrix complete TASK-XXX --success       # 标记完成 + 更新统计
+openmatrix step --json                       # 获取下一个任务 + 检查是否全部完成
 ```
-remaining = subagentTasks 中 status !== 'completed' 的任务
-while (remaining.length > 0) {
-  task = remaining[0]
-  result = Agent(task)           // 执行
-  更新任务状态为 completed
-  remaining = 从 state.json 重新读取未完成任务
-}
-```
+`openmatrix step` 从磁盘读取真实状态，不依赖上下文记忆。
 
 **中断恢复:** 如果会话中断，再次执行 `/om:auto` 时:
-1. 读取 `.openmatrix/state.json`
-2. 如果 `status === 'running'`，读取所有任务，找到 status 不是 completed 的任务
-3. 从中断的任务继续执行，不需要重新开始
+1. 执行 `openmatrix step --json`
+2. 如果返回 `status: "next"` → 从返回的任务继续执行
+3. 如果返回 `status: "done"` → 所有任务已完成
+4. 如果返回 `status: "blocked"` → 有阻塞任务需要处理
 </LOOP-ENFORCEMENT>
 
 对 `subagentTasks` 列表中的每个任务，调用 Agent 工具执行:
@@ -176,8 +174,17 @@ Agent({
 - [下一个 Agent 应该注意什么]
 ```
 
-2. 更新任务状态
-3. **立即检查是否还有未完成任务** — 读取 `.openmatrix/state.json` 中的 statistics，如果 completed < totalTasks，继续执行下一个
+2. **标记完成并更新统计（必须执行）:**
+```bash
+openmatrix complete TASK-XXX --success
+```
+3. **获取下一个任务（防止上下文压缩丢失）:**
+```bash
+openmatrix step --json
+```
+如果返回 `status: "next"` → 继续执行返回的 task
+如果返回 `status: "done"` → 所有任务完成，进入最终提交
+如果返回 `status: "blocked"` → 有阻塞任务，处理 Meeting
 4. Git 自动提交（**必须使用 HEREDOC 格式**）:
 
 **Agent 上下文共享机制 (Agent Memory):**

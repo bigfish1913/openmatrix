@@ -13,6 +13,8 @@ import { checkCommand } from './commands/check.js';
 import { checkGitignoreCommand } from './commands/check-gitignore.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { brainstormCommand } from './commands/brainstorm.js';
+import { completeCommand } from './commands/complete.js';
+import { stepCommand } from './commands/step.js';
 
 const program = new Command();
 
@@ -30,6 +32,8 @@ program.addCommand(retryCommand);
 program.addCommand(reportCommand);
 program.addCommand(meetingCommand);
 program.addCommand(autoCommand);
+program.addCommand(completeCommand);
+program.addCommand(stepCommand);
 program.addCommand(installSkillsCommand);
 program.addCommand(checkCommand);
 program.addCommand(checkGitignoreCommand);
