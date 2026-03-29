@@ -157,9 +157,37 @@ Agent({
 ```
 
 每个 Agent 完成后:
-1. 更新任务状态
-2. **立即检查是否还有未完成任务** — 读取 `.openmatrix/state.json` 中的 statistics，如果 completed < totalTasks，继续执行下一个
-3. Git 自动提交（**必须使用 HEREDOC 格式**）:
+1. **保存 Agent 上下文** — 将执行结果摘要写入 `.openmatrix/tasks/TASK-XXX/context.md`，格式如下:
+
+```markdown
+## 任务: TASK-XXX 任务标题
+
+### 关键决策
+- [做出的重要决策]
+
+### 创建/修改的文件
+- `path/to/file1.ts` - 简述用途
+- `path/to/file2.ts` - 简述用途
+
+### 重要发现
+- [发现的问题、模式、注意事项]
+
+### 对后续任务的建议
+- [下一个 Agent 应该注意什么]
+```
+
+2. 更新任务状态
+3. **立即检查是否还有未完成任务** — 读取 `.openmatrix/state.json` 中的 statistics，如果 completed < totalTasks，继续执行下一个
+4. Git 自动提交（**必须使用 HEREDOC 格式**）:
+
+**Agent 上下文共享机制 (Agent Memory):**
+
+每个 Agent 执行时会自动接收前序 Agent 的上下文信息（通过 `context.md` 文件）。
+这确保 Agent 之间共享知识、避免重复工作、保持决策一致性。
+
+```
+Agent-1 完成 → 写入 context.md → Agent-2 读取 Agent-1 的上下文 → 写入 context.md → ...
+```
 ```bash
 git add -A && git commit -m "$(cat <<'EOF'
 feat: (TASK-XXX) 任务标题

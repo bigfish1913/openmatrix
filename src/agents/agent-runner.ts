@@ -2,6 +2,8 @@
 import type { Task, AgentType, AgentResult, AgentStatus, SubagentTask, ClaudeCodeSubagentType } from '../types/index.js';
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from '../orchestrator/approval-manager.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface AgentRunnerConfig {
   maxConcurrent: number;
@@ -142,6 +144,7 @@ export class AgentRunner {
   buildExecutionPrompt(task: Task): string {
     const agentPrompt = this.buildAgentPrompt(task);
     const phaseContext = this.buildPhaseContext(task);
+    const accumulatedContext = this.buildAccumulatedContext(task);
 
     return `# 任务执行
 
@@ -160,6 +163,8 @@ ${task.dependencies.length > 0
   ? task.dependencies.map(d => `- ${d}`).join('\n')
   : '无依赖'}
 
+${accumulatedContext}
+
 ---
 
 ${agentPrompt.context}
@@ -172,8 +177,50 @@ ${agentPrompt.instructions}
 
 1. 完成任务后，更新任务状态文件: \`.openmatrix/tasks/${task.id}/task.json\`
 2. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
-3. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
+3. 将上下文摘要写入: \`.openmatrix/tasks/${task.id}/context.md\` (供后续 Agent 读取)
+4. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
 `;
+  }
+
+  /**
+   * 构建累积上下文 - 从已完成任务中提取共享信息
+   *
+   * 读取所有已完成任务的 context.md，为当前 Agent 提供前序 Agent 的决策和知识
+   */
+  private buildAccumulatedContext(currentTask: Task): string {
+    const omPath = path.join(process.cwd(), '.openmatrix');
+    const tasksDir = path.join(omPath, 'tasks');
+
+    try {
+      if (!fs.existsSync(tasksDir)) return '';
+
+      const contextParts: string[] = [];
+
+      // 读取所有已完成任务的 context.md
+      const taskDirs = fs.readdirSync(tasksDir).filter(name => name.startsWith('TASK-'));
+      for (const taskId of taskDirs) {
+        const contextFile = path.join(tasksDir, taskId, 'context.md');
+        if (fs.existsSync(contextFile)) {
+          const content = fs.readFileSync(contextFile, 'utf-8').trim();
+          if (content) {
+            contextParts.push(`### ${taskId}\n${content}`);
+          }
+        }
+      }
+
+      if (contextParts.length === 0) return '';
+
+      return `
+## 前序 Agent 共享上下文 (Agent Memory)
+
+以下是之前执行的 Agent 留下的上下文信息，包含它们的决策、发现和注意事项。
+你应该基于这些信息来工作，避免重复犯错或与已有决策冲突。
+
+${contextParts.join('\n\n')}
+`;
+    } catch {
+      return '';
+    }
   }
 
   /**
