@@ -128,8 +128,34 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
      ```bash
      openmatrix brainstorm --complete --json
      ```
-   - 自动调用 `/om:start` 开始执行任务
-   - 将头脑风暴收集的洞察传递给 start
+   - **将头脑风暴结论转换为 goals** (这是最关键的步骤):
+
+     根据头脑风暴收集的信息，生成 3-8 个独立可交付的功能目标:
+     ```json
+     {
+       "title": "任务标题",
+       "description": "基于头脑风暴的整体描述",
+       "goals": [
+         "目标1: 独立功能模块 (如: 项目初始化和基础配置)",
+         "目标2: 独立功能模块 (如: 游戏核心引擎和场景管理)",
+         "目标3: 独立功能模块 (如: 敌人系统)",
+         "..."
+       ],
+       "constraints": ["从头脑风暴中提取的约束"],
+       "deliverables": ["交付物列表"],
+       "answers": { "从头脑风暴问答中收集的答案" },
+       "quality": "根据任务复杂度选择: strict/balanced/fast",
+       "mode": "auto",
+       "plan": "## 技术方案\n基于头脑风暴的技术方案..."
+     }
+     ```
+
+   - 写入 `.openmatrix/tasks-input.json`
+   - 执行:
+     ```bash
+     openmatrix start --tasks-json @.openmatrix/tasks-input.json --json
+     ```
+   - 从 CLI 返回的 `subagentTasks` 开始逐个执行 Agent
 
 </process>
 
