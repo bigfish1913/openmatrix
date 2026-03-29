@@ -1,6 +1,7 @@
 // src/cli/commands/complete.ts
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
+import { GitCommitManager } from '../../orchestrator/git-commit-manager.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -65,7 +66,32 @@ export const completeCommand = new Command('complete')
       ...(allDone ? { completedAt: now } : {})
     });
 
-    // 5. 输出结果
+    // 5. Git 自动提交
+    if (isSuccess) {
+      const state = await stateManager.getState();
+      const gitManager = new GitCommitManager(basePath);
+
+      try {
+        const commitResult = await gitManager.commit({
+          taskId,
+          taskTitle: task.title,
+          runId: state.runId,
+          phase: 'develop',
+          changes: [],
+          impactScope: []
+        });
+
+        if (commitResult.success) {
+          console.error(`✅ Git 提交成功: ${commitResult.commitHash}`);
+        } else if (commitResult.message !== 'No changes to commit') {
+          console.error(`⚠️ Git 提交跳过: ${commitResult.message || commitResult.error}`);
+        }
+      } catch (error) {
+        console.error(`⚠️ Git 提交失败: ${error}`);
+      }
+    }
+
+    // 6. 输出结果
     const result = {
       taskId,
       status: isSuccess ? 'completed' : 'failed',
