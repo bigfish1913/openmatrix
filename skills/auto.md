@@ -118,7 +118,32 @@ CLI 返回的 JSON 中 `subagentTasks` 数组包含每个待执行任务:
 
 ## === 执行阶段（只有此阶段才能写业务代码）===
 
-### Step 6: 逐个执行 subagentTasks
+### Step 6: 逐个执行 subagentTasks（禁止中断）
+
+<LOOP-ENFORCEMENT>
+**此步骤是执行循环，必须执行完所有任务后才能停止。**
+
+❌ **禁止在还有未完成任务时停止** — 即使 Agent 返回了大段输出，也必须继续下一个
+❌ **禁止询问"是否继续"** — 直接执行下一个任务
+❌ **禁止输出"让我知道是否..."后停止** — 继续执行
+❌ **禁止因为上下文压缩而忘记剩余任务** — 每完成一个任务后，重新读取 state.json 确认剩余任务
+
+**执行循环伪代码:**
+```
+remaining = subagentTasks 中 status !== 'completed' 的任务
+while (remaining.length > 0) {
+  task = remaining[0]
+  result = Agent(task)           // 执行
+  更新任务状态为 completed
+  remaining = 从 state.json 重新读取未完成任务
+}
+```
+
+**中断恢复:** 如果会话中断，再次执行 `/om:auto` 时:
+1. 读取 `.openmatrix/state.json`
+2. 如果 `status === 'running'`，读取所有任务，找到 status 不是 completed 的任务
+3. 从中断的任务继续执行，不需要重新开始
+</LOOP-ENFORCEMENT>
 
 对 `subagentTasks` 列表中的每个任务，调用 Agent 工具执行:
 
@@ -133,16 +158,44 @@ Agent({
 
 每个 Agent 完成后:
 1. 更新任务状态
-2. Git 自动提交:
+2. **立即检查是否还有未完成任务** — 读取 `.openmatrix/state.json` 中的 statistics，如果 completed < totalTasks，继续执行下一个
+3. Git 自动提交（**必须使用 HEREDOC 格式**）:
 ```bash
-git add -A
-git commit -m "feat(task-id): 任务标题
+git add -A && git commit -m "$(cat <<'EOF'
+feat: (TASK-XXX) 任务标题
 
-任务ID: TASK-XXX
-RunID: run-XXX"
+- 改动点1
+- 改动点2
+
+影响范围: 模块名
+文件改动: 文件1, 文件2
+
+Run: run-XXX
+Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
+EOF
+)"
 ```
 
 **在 auto 模式下不得询问用户确认，自动批准所有审批点。**
+
+**Git 提交格式规范（所有提交必须遵守）:**
+
+```
+<type>: (TASK-XXX) 简短描述
+
+- 改动点1
+- 改动点2
+
+影响范围: 模块名
+文件改动: 文件1, 文件2
+
+Run: run-XXX
+Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
+```
+
+**type 映射:** feat(新功能) / fix(修复) / test(测试) / refactor(重构) / docs(文档)
+**禁止使用:** `Co-Authored-By: Claude` 格式，必须使用 `Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>`
+**禁止使用 emoji**，使用纯文本格式
 
 </process>
 
