@@ -386,6 +386,27 @@ Accept 阶段由 Reviewer Agent 执行:
 }
 ```
 
+## 状态存储
+
+任务状态持久化在 `.openmatrix/` 目录:
+
+```
+.openmatrix/
+├── state.json              # 全局状态 (runId, status, config, statistics)
+├── plan.md                 # AI 生成的执行计划
+├── tasks-input.json        # 任务输入 (goals, constraints, deliverables)
+├── tasks/
+│   └── TASK-001/
+│       ├── task.json       # 任务定义 + 状态 + 阶段信息
+│       ├── context.md      # Agent 上下文 (供后续 Agent 读取)
+│       ├── develop.json    # 开发阶段结果
+│       ├── verify.json     # 验证阶段结果 (质量门禁)
+│       ├── accept.json     # 验收阶段结果
+│       └── artifacts/      # 产出文件 (result.md, quality-report.json 等)
+├── approvals/              # 审批记录
+└── meetings/               # Meeting 记录
+```
+
 ---
 
 ## 多语言支持
@@ -465,6 +486,9 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] `/om:brainstorm` 头脑风暴模式
 - [x] 多语言支持 (Python/Go/Java/TypeScript 等)
 - [x] E2E 测试支持 (Web/Mobile/GUI)
+- [x] Agent 上下文共享 (Agent Memory)
+- [x] Task 子目录结构 + Phase 结果持久化
+- [x] 执行循环持久化 (`openmatrix step`/`complete` 防上下文压缩丢失)
 - [ ] VSCode 扩展
 - [ ] CI/CD 集成
 

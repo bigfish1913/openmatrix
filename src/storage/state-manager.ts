@@ -87,7 +87,10 @@ export class StateManager {
       updatedAt: now
     };
 
-    await this.store.writeJson(`tasks/${taskId}.json`, task);
+    await this.store.writeJson(`tasks/${taskId}/task.json`, task);
+
+    // Create artifacts subdirectory
+    await this.store.ensureDir(`tasks/${taskId}/artifacts`);
 
     // Update statistics
     const state = await this.getState();
@@ -103,7 +106,12 @@ export class StateManager {
   }
 
   async getTask(taskId: string): Promise<Task | null> {
-    return await this.store.readJson<Task>(`tasks/${taskId}.json`);
+    // Try subdirectory structure first, fall back to flat file
+    let task = await this.store.readJson<Task>(`tasks/${taskId}/task.json`);
+    if (!task) {
+      task = await this.store.readJson<Task>(`tasks/${taskId}.json`);
+    }
+    return task;
   }
 
   async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
@@ -117,7 +125,8 @@ export class StateManager {
       updatedAt: new Date().toISOString()
     };
 
-    await this.store.writeJson(`tasks/${taskId}.json`, updatedTask);
+    // Always write to subdirectory structure
+    await this.store.writeJson(`tasks/${taskId}/task.json`, updatedTask);
 
     // Update statistics if status changed
     if (updates.status && updates.status !== oldStatus) {
@@ -126,15 +135,64 @@ export class StateManager {
   }
 
   async listTasks(): Promise<Task[]> {
-    const files = await this.store.listFiles('tasks');
     const tasks: Task[] = [];
 
-    for (const file of files) {
-      const task = await this.store.readJson<Task>(`tasks/${file}`);
+    // Read from subdirectory structure: tasks/TASK-XXX/task.json
+    const dirs = await this.store.listDirs('tasks');
+    for (const dir of dirs) {
+      const task = await this.store.readJson<Task>(`tasks/${dir}/task.json`);
       if (task) tasks.push(task);
     }
 
+    // Also check flat files (backward compat)
+    const files = await this.store.listFiles('tasks');
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      const task = await this.store.readJson<Task>(`tasks/${file}`);
+      if (task) {
+        // Avoid duplicate if already found in subdirectory
+        if (!tasks.some(t => t.id === task.id)) {
+          tasks.push(task);
+        }
+      }
+    }
+
     return tasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  // ============ Task Artifact Methods ============
+
+  /**
+   * 保存 Phase 结果到任务子目录
+   */
+  async savePhaseResult(taskId: string, phase: string, result: Record<string, unknown>): Promise<void> {
+    await this.store.writeJson(`tasks/${taskId}/${phase}.json`, {
+      taskId,
+      phase,
+      timestamp: new Date().toISOString(),
+      ...result
+    });
+  }
+
+  /**
+   * 读取 Phase 结果
+   */
+  async getPhaseResult(taskId: string, phase: string): Promise<Record<string, unknown> | null> {
+    return await this.store.readJson(`tasks/${taskId}/${phase}.json`);
+  }
+
+  /**
+   * 保存 Agent 上下文到 context.md
+   */
+  async saveTaskContext(taskId: string, content: string): Promise<void> {
+    await this.store.writeMarkdown(`tasks/${taskId}/context.md`, content);
+  }
+
+  /**
+   * 读取 Agent 上下文
+   */
+  async getTaskContext(taskId: string): Promise<string | null> {
+    return await this.store.readMarkdown(`tasks/${taskId}/context.md`);
   }
 
   private async updateTaskStatistics(oldStatus: string, newStatus: string): Promise<void> {

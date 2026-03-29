@@ -359,6 +359,27 @@ Generated after each task completion:
 }
 ```
 
+## State Storage
+
+Task state is persisted in the `.openmatrix/` directory:
+
+```
+.openmatrix/
+├── state.json              # Global state (runId, status, config, statistics)
+├── plan.md                 # AI-generated execution plan
+├── tasks-input.json        # Task input (goals, constraints, deliverables)
+├── tasks/
+│   └── TASK-001/
+│       ├── task.json       # Task definition + status + phase info
+│       ├── context.md      # Agent context (read by subsequent Agents)
+│       ├── develop.json    # Develop phase result
+│       ├── verify.json     # Verify phase result (quality gates)
+│       ├── accept.json     # Accept phase result
+│       └── artifacts/      # Outputs (result.md, quality-report.json, etc.)
+├── approvals/              # Approval records
+└── meetings/               # Meeting records
+```
+
 ---
 
 ## Multi-Language Support
@@ -438,6 +459,9 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] `/om:brainstorm` Brainstorm Mode
 - [x] Multi-language Support (Python/Go/Java/TypeScript etc.)
 - [x] E2E Test Support (Web/Mobile/GUI)
+- [x] Agent Context Sharing (Agent Memory)
+- [x] Task Subdirectory Structure + Phase Result Persistence
+- [x] Execution Loop Persistence (`openmatrix step`/`complete` - survives context compression)
 - [ ] VSCode Extension
 - [ ] CI/CD Integration
 

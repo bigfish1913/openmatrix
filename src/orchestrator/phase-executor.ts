@@ -797,6 +797,14 @@ ACCEPT_FAILED
 
       await this.stateManager.updateTask(task.id, updates);
 
+      // 持久化 Phase 结果到磁盘
+      await this.stateManager.savePhaseResult(task.id, phase, {
+        success: true,
+        output: result.output,
+        phaseStatus: 'completed',
+        completedAt: now
+      });
+
       // 自动提交代码
       if (this.runId) {
         try {
@@ -833,6 +841,14 @@ ACCEPT_FAILED
       await this.stateManager.updateTask(task.id, {
         status: 'failed',
         error: result.error || `${phase} phase failed`
+      });
+
+      // 持久化失败结果
+      await this.stateManager.savePhaseResult(task.id, phase, {
+        success: false,
+        error: result.error || `${phase} phase failed`,
+        phaseStatus: 'failed',
+        failedAt: now
       });
 
       return {
