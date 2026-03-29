@@ -28,6 +28,8 @@ interface AIParsedInput {
   mode?: 'confirm-all' | 'confirm-key' | 'auto';
   /** AI 生成的执行计划，供 TaskPlanner 和 agent 参考 */
   plan?: string;
+  /** 是否启用 E2E 测试 */
+  e2eTests?: boolean;
 }
 
 /**
@@ -184,7 +186,12 @@ async function handleTasksJson(
 
   // 解析质量配置
   const qualityLevel = tasksInput.quality || options.quality || 'balanced';
-  const qualityConfig = QUALITY_PRESETS[qualityLevel.toLowerCase()] || QUALITY_PRESETS.balanced;
+  const qualityConfig = { ...(QUALITY_PRESETS[qualityLevel.toLowerCase()] || QUALITY_PRESETS.balanced) };
+
+  // E2E 测试覆盖（用户在 Skill 问答中选择启用）
+  if (tasksInput.e2eTests) {
+    qualityConfig.e2eTests = true;
+  }
 
   if (!options.json) {
     console.log(`\n📋 任务: ${parsedTask.title}`);

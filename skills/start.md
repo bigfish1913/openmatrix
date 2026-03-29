@@ -96,6 +96,15 @@ AskUserQuestion({
         { label: "fast", description: "无质量门禁" }
       ],
       multiSelect: false
+    },
+    {
+      question: "是否启用 E2E 测试? (Web/Mobile/GUI 项目推荐)",
+      header: "E2E",
+      options: [
+        { label: "跳过 (推荐)", description: "E2E 测试耗时较长，大多数项目不需要" },
+        { label: "启用", description: "适合 Web 应用 (Playwright/Cypress)、Mobile (Appium/Detox)" }
+      ],
+      multiSelect: false
     }
   ]
 })
@@ -158,6 +167,12 @@ AskUserQuestion({
   "plan": "## 技术方案\n1. ...\n2. ..."
 }
 ```
+
+**E2E 测试:** 如果用户在 Step 4 选择了"启用 E2E"，在 quality 后面加上:
+```
+"e2eTests": true
+```
+这会让 CLI 的 TaskPlanner 在任务拆分时生成额外的 E2E 测试任务。
 
 ### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
 
