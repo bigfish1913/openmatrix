@@ -1,5 +1,5 @@
 // src/orchestrator/task-planner.ts
-import type { ParsedTask } from '../types/index.js';
+import type { ParsedTask, QualityConfig } from '../types/index.js';
 import type { Task } from '../types/index.js';
 
 export interface TaskBreakdown {
@@ -25,6 +25,8 @@ export interface UserAnswers {
   e2eTests?: boolean;
   /** E2E 测试类型 (web/mobile/gui) */
   e2eType?: 'web' | 'mobile' | 'gui';
+  /** 质量级别 */
+  qualityLevel?: 'fast' | 'balanced' | 'strict';
 }
 
 /**
@@ -36,9 +38,12 @@ export interface UserAnswers {
  * 3. 验收标准注入 (从用户回答中提取)
  * 4. 用户上下文注入 (将用户回答注入任务描述)
  * 5. 依赖关系分析 (自动分析任务间依赖)
+ * 6. 并行执行 (独立任务互不依赖)
+ * 7. 质量级别感知 (根据配置调整测试覆盖率)
  */
 export class TaskPlanner {
   private userAnswers: UserAnswers;
+  private taskCounter = 0;
 
   constructor(userAnswers?: UserAnswers) {
     this.userAnswers = userAnswers || {};
@@ -53,26 +58,33 @@ export class TaskPlanner {
 
   /**
    * Break down a parsed task into sub-tasks
-   *
-   * 增强版: 生成更细粒度的任务，包含设计、开发、测试配对
    */
-  breakdown(parsedTask: ParsedTask, answers: Record<string, string>): TaskBreakdown[] {
+  breakdown(
+    parsedTask: ParsedTask,
+    answers: Record<string, string>,
+    qualityConfig?: QualityConfig,
+    plan?: string
+  ): TaskBreakdown[] {
     const breakdowns: TaskBreakdown[] = [];
     const seenTitles = new Set<string>();
     const userContext = this.extractUserContext(answers);
 
-    // 0. 设计阶段任务
-    if (parsedTask.goals.length > 1) {
+    // 确定测试覆盖率
+    const coverageTarget = this.getCoverageTarget(qualityConfig, userContext);
+
+    // 构建全局上下文块（注入到每个子任务描述中，供 agent 参考）
+    const globalContext = this.buildGlobalContext(parsedTask, userContext, plan);
+
+    // 0. 设计阶段任务 (根据复杂度判断)
+    let designTaskId: string | undefined;
+    if (this.needsDesignPhase(parsedTask)) {
+      designTaskId = this.generateTaskId();
       breakdowns.push({
-        taskId: this.generateTaskId(),
+        taskId: designTaskId,
         title: '架构设计和任务规划',
         description: `分析需求，设计整体架构，规划实现方案
 
-## 用户需求
-${userContext.objective || '未指定'}
-
-## 技术栈
-${userContext.techStack?.join(', ') || '未指定'}
+${globalContext}
 
 ## 输出
 - 架构设计文档
@@ -92,7 +104,7 @@ ${userContext.techStack?.join(', ') || '未指定'}
       });
     }
 
-    // 1. 为每个目标创建细粒度任务
+    // 1. 为每个目标创建开发+测试任务（并行，只依赖设计任务）
     const devTaskIds: string[] = [];
 
     for (let i = 0; i < parsedTask.goals.length; i++) {
@@ -104,7 +116,7 @@ ${userContext.techStack?.join(', ') || '未指定'}
       }
       seenTitles.add(goal);
 
-      // 创建开发任务
+      // 创建开发任务 — 所有开发任务并行，仅依赖设计任务
       const devTaskId = this.generateTaskId();
       devTaskIds.push(devTaskId);
 
@@ -113,11 +125,10 @@ ${userContext.techStack?.join(', ') || '未指定'}
       breakdowns.push({
         taskId: devTaskId,
         title: `实现: ${goal}`,
-        description: this.buildTaskDescription(goal, userContext, answers),
+        description: this.buildTaskDescription(goal, globalContext),
         priority: this.determinePriority(i),
-        dependencies: i === 0 && parsedTask.goals.length > 1
-          ? [breakdowns[0].taskId] // 依赖设计任务
-          : (i > 0 ? [devTaskIds[i - 1]] : []), // 依赖前一个开发任务
+        // 并行: 所有开发任务只依赖设计任务（如果有），互不依赖
+        dependencies: designTaskId ? [designTaskId] : [],
         estimatedComplexity: this.estimateComplexity(goal),
         assignedAgent: 'coder',
         phase: 'develop',
@@ -130,14 +141,14 @@ ${userContext.techStack?.join(', ') || '未指定'}
       breakdowns.push({
         taskId: testTaskId,
         title: `测试: ${goal}`,
-        description: this.buildTestDescription(goal, devTaskId, userContext),
+        description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext),
         priority: this.determinePriority(i),
-        dependencies: [devTaskId], // 测试依赖开发任务
+        dependencies: [devTaskId], // 测试依赖对应的开发任务
         estimatedComplexity: 'medium',
         assignedAgent: 'tester',
         phase: 'verify',
         acceptanceCriteria: [
-          `单元测试覆盖率 >= ${userContext.testCoverage || '60%'}`,
+          `单元测试覆盖率 >= ${coverageTarget}%`,
           '边界情况已测试',
           '异常处理已验证',
           '所有测试通过'
@@ -155,6 +166,8 @@ ${userContext.techStack?.join(', ') || '未指定'}
         title: '代码审查',
         description: `对所有开发任务进行代码审查
 
+${globalContext}
+
 ## 审查范围
 ${devTaskIds.map(id => `- ${id}`).join('\n')}
 
@@ -164,7 +177,7 @@ ${devTaskIds.map(id => `- ${id}`).join('\n')}
 - 性能
 - 最佳实践`,
         priority: 'P1',
-        dependencies: devTaskIds,
+        dependencies: devTaskIds, // 审查依赖所有开发任务完成
         estimatedComplexity: 'medium',
         assignedAgent: 'reviewer',
         phase: 'verify',
@@ -184,8 +197,7 @@ ${devTaskIds.map(id => `- ${id}`).join('\n')}
         title: '集成测试',
         description: `验证所有交付物正确集成
 
-## 交付物
-${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}
+${globalContext}
 
 ## 测试范围
 - 模块间接口
@@ -205,12 +217,11 @@ ${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}
       });
     }
 
-    // 4. E2E 测试任务 (如果启用，作为 verify 阶段的一部分)
+    // 4. E2E 测试任务 (如果启用)
     if (userContext.e2eTests) {
       const e2eTaskId = this.generateTaskId();
       const e2eType = userContext.e2eType || 'web';
 
-      // E2E 测试依赖所有开发任务和单元测试任务
       const allTestDependencies = [...devTaskIds];
       breakdowns.forEach(b => {
         if (b.phase === 'verify' && b.title.startsWith('测试:')) {
@@ -222,8 +233,8 @@ ${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}
         taskId: e2eTaskId,
         title: '端到端(E2E)测试',
         description: this.buildE2ETestDescription(e2eType, parsedTask, userContext),
-        priority: 'P0', // E2E 测试是关键任务
-        dependencies: allTestDependencies, // 依赖所有开发任务和单元测试
+        priority: 'P0',
+        dependencies: allTestDependencies,
         estimatedComplexity: 'high',
         assignedAgent: 'tester',
         phase: 'verify',
@@ -268,6 +279,42 @@ ${userContext.documentationLevel}
   }
 
   /**
+   * 判断是否需要设计阶段
+   *
+   * 条件: 多个 goal，或 goal 包含复杂关键词
+   */
+  private needsDesignPhase(parsedTask: ParsedTask): boolean {
+    if (parsedTask.goals.length > 1) return true;
+
+    // 单 goal 但包含复杂关键词
+    const complexKeywords = [
+      '系统', '架构', '模块', '集成', '完整', '平台',
+      '体系', '框架', '全栈', '端到端', '多个', '一系列',
+      'system', 'architecture', 'framework', 'fullstack', 'integration'
+    ];
+
+    const allText = `${parsedTask.title} ${parsedTask.goals.join(' ')} ${parsedTask.description}`.toLowerCase();
+    return complexKeywords.some(kw => allText.includes(kw.toLowerCase()));
+  }
+
+  /**
+   * 获取测试覆盖率目标
+   */
+  private getCoverageTarget(qualityConfig?: QualityConfig, userContext?: UserAnswers): number {
+    // 优先使用 qualityConfig
+    if (qualityConfig) {
+      return qualityConfig.minCoverage;
+    }
+    // 其次使用用户回答
+    if (userContext?.testCoverage) {
+      const match = userContext.testCoverage.match(/(\d+)/);
+      if (match) return parseInt(match[1], 10);
+    }
+    // 默认
+    return 60;
+  }
+
+  /**
    * 提取用户上下文
    */
   private extractUserContext(answers: Record<string, string>): UserAnswers {
@@ -285,71 +332,88 @@ ${userContext.documentationLevel}
     };
   }
 
-  /**
-   * 解析数组类型的回答
-   */
   private parseArrayAnswer(answer: string): string[] {
     if (!answer) return [];
-    // 处理逗号分隔或换行分隔的答案
     return answer.split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
   }
 
   /**
-   * 构建任务描述 (注入用户上下文)
+   * 构建全局上下文块（注入到每个子任务描述中）
    */
-  private buildTaskDescription(
-    goal: string,
+  private buildGlobalContext(
+    parsedTask: ParsedTask,
     userContext: UserAnswers,
-    answers: Record<string, string>
+    plan?: string
   ): string {
     const parts: string[] = [];
 
-    parts.push(`## 任务目标\n${goal}\n`);
+    if (parsedTask.title) {
+      parts.push(`## 整体任务\n${parsedTask.title}`);
+    }
 
-    if (userContext.objective) {
-      parts.push(`## 整体目标\n${userContext.objective}\n`);
+    if (parsedTask.description) {
+      parts.push(`## 任务描述\n${parsedTask.description}`);
+    }
+
+    if (plan) {
+      parts.push(`## 执行计划\n${plan}`);
+    }
+
+    if (parsedTask.goals.length > 0) {
+      parts.push(`## 所有目标\n${parsedTask.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}`);
+    }
+
+    if (parsedTask.constraints.length > 0) {
+      parts.push(`## 约束条件\n${parsedTask.constraints.map(c => `- ${c}`).join('\n')}`);
+    }
+
+    if (parsedTask.deliverables.length > 0) {
+      parts.push(`## 交付物\n${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}`);
     }
 
     if (userContext.techStack && userContext.techStack.length > 0) {
-      parts.push(`## 技术栈要求\n${userContext.techStack.map(t => `- ${t}`).join('\n')}\n`);
+      parts.push(`## 技术栈\n${userContext.techStack.map(t => `- ${t}`).join('\n')}`);
     }
 
-    // 注入所有用户回答
-    const relevantAnswers = Object.entries(answers).filter(
-      ([key]) => !['目标', '技术栈', '测试', '文档', 'objective', 'techStack', 'testCoverage', 'documentationLevel'].includes(key)
-    );
-
-    if (relevantAnswers.length > 0) {
-      parts.push(`## 其他要求\n${relevantAnswers.map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n`);
+    if (userContext.additionalContext) {
+      const relevantAnswers = Object.entries(userContext.additionalContext).filter(
+        ([key]) => !['目标', '技术栈', '测试', '文档', 'objective', 'techStack', 'testCoverage', 'documentationLevel'].includes(key)
+      );
+      if (relevantAnswers.length > 0) {
+        parts.push(`## 其他要求\n${relevantAnswers.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`);
+      }
     }
-
-    parts.push(`## 输出要求
-- 完成功能实现
-- 代码可编译
-- 遵循项目规范
-- 添加必要注释`);
 
     return parts.join('\n');
   }
 
-  /**
-   * 构建测试任务描述
-   */
+  private buildTaskDescription(
+    goal: string,
+    globalContext: string
+  ): string {
+    return `## 当前子任务目标\n${goal}\n\n${globalContext}\n\n## 输出要求
+- 完成功能实现
+- 代码可编译
+- 遵循项目规范
+- 添加必要注释`;
+  }
+
   private buildTestDescription(
     goal: string,
     devTaskId: string,
-    userContext: UserAnswers
+    coverageTarget: number,
+    globalContext: string
   ): string {
-    const coverage = this.parseCoverage(userContext.testCoverage || '60%');
-
     return `## 测试目标
 为 "${goal}" 编写测试用例
+
+${globalContext}
 
 ## 关联开发任务
 ${devTaskId}
 
 ## 测试要求
-- 单元测试覆盖率 >= ${coverage}%
+- 单元测试覆盖率 >= ${coverageTarget}%
 - 测试正常流程
 - 测试边界情况
 - 测试异常处理
@@ -364,9 +428,6 @@ ${devTaskId}
 - 覆盖率报告`;
   }
 
-  /**
-   * 构建 E2E 测试任务描述
-   */
   private buildE2ETestDescription(
     e2eType: 'web' | 'mobile' | 'gui',
     parsedTask: ParsedTask,
@@ -419,9 +480,6 @@ ${typeConfig.runCommand}
 - [ ] 无阻塞级别的缺陷`;
   }
 
-  /**
-   * 获取 E2E 测试类型配置
-   */
   private getE2ETypeConfig(type: 'web' | 'mobile' | 'gui'): {
     description: string;
     frameworks: string[];
@@ -451,14 +509,10 @@ ${typeConfig.runCommand}
     return configs[type];
   }
 
-  /**
-   * 生成用户流程测试用例
-   */
   private generateUserFlows(parsedTask: ParsedTask, type: 'web' | 'mobile' | 'gui'): string {
     const flows: string[] = [];
     const goals = parsedTask.goals;
 
-    // 根据目标生成用户流程
     goals.forEach((goal, i) => {
       flows.push(`\n### 流程 ${i + 1}: ${goal}`);
       flows.push('```gherkin');
@@ -474,17 +528,6 @@ ${typeConfig.runCommand}
     return flows.join('\n');
   }
 
-  /**
-   * 解析覆盖率数值
-   */
-  private parseCoverage(coverageStr: string): number {
-    const match = coverageStr.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 60;
-  }
-
-  /**
-   * 生成验收标准
-   */
   private generateAcceptanceCriteria(goal: string, userContext: UserAnswers): string[] {
     const criteria: string[] = [
       `功能 "${goal}" 已实现`,
@@ -508,13 +551,11 @@ ${typeConfig.runCommand}
   }
 
   private generateTaskId(): string {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).slice(2, 4).toUpperCase();
-    return `TASK-${timestamp}${rand}`;
+    this.taskCounter++;
+    return `TASK-${String(this.taskCounter).padStart(3, '0')}`;
   }
 
   private determinePriority(goalIndex: number): 'P0' | 'P1' | 'P2' | 'P3' {
-    // First goal is highest priority
     if (goalIndex === 0) return 'P1';
     return 'P2';
   }

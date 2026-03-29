@@ -87,7 +87,7 @@ export class StateManager {
       updatedAt: now
     };
 
-    await this.store.writeJson(`tasks/${taskId}/task.json`, task);
+    await this.store.writeJson(`tasks/${taskId}.json`, task);
 
     // Update statistics
     const state = await this.getState();
@@ -103,7 +103,7 @@ export class StateManager {
   }
 
   async getTask(taskId: string): Promise<Task | null> {
-    return await this.store.readJson<Task>(`tasks/${taskId}/task.json`);
+    return await this.store.readJson<Task>(`tasks/${taskId}.json`);
   }
 
   async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
@@ -117,7 +117,7 @@ export class StateManager {
       updatedAt: new Date().toISOString()
     };
 
-    await this.store.writeJson(`tasks/${taskId}/task.json`, updatedTask);
+    await this.store.writeJson(`tasks/${taskId}.json`, updatedTask);
 
     // Update statistics if status changed
     if (updates.status && updates.status !== oldStatus) {
@@ -126,11 +126,11 @@ export class StateManager {
   }
 
   async listTasks(): Promise<Task[]> {
-    const dirs = await this.store.listDirs('tasks');
+    const files = await this.store.listFiles('tasks');
     const tasks: Task[] = [];
 
-    for (const dir of dirs) {
-      const task = await this.getTask(dir);
+    for (const file of files) {
+      const task = await this.store.readJson<Task>(`tasks/${file}`);
       if (task) tasks.push(task);
     }
 
@@ -163,9 +163,9 @@ export class StateManager {
   }
 
   private generateTaskId(): string {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).slice(2, 4).toUpperCase();
-    return `TASK-${timestamp}${rand}`;
+    const count = this.stateCache?.statistics.totalTasks ?? 0;
+    const seq = count + 1;
+    return `TASK-${String(seq).padStart(3, '0')}`;
   }
 
   // ============ Approval Methods ============

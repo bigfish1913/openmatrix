@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { MeetingManager } from '../../orchestrator/meeting-manager.js';
 import * as path from 'path';
 
 export const meetingCommand = new Command('meeting')
@@ -22,27 +23,31 @@ export const meetingCommand = new Command('meeting')
     await stateManager.initialize();
 
     const approvalManager = new ApprovalManager(stateManager);
+    const meetingManager = new MeetingManager(stateManager, approvalManager);
 
     try {
-      // 获取所有 pending 的 meeting
+      // 获取所有 pending 的 meeting approvals
       const pendingApprovals = await stateManager.getApprovalsByStatus('pending');
-      const meetings = pendingApprovals.filter(a => a.type === 'meeting');
+      const meetingApprovals = pendingApprovals.filter(a => a.type === 'meeting');
 
       // 列出所有 Meeting
       if (options.list || (!meetingId && !options.skipAll)) {
-        if (meetings.length === 0) {
+        // 同时获取 MeetingManager 中的详细 Meeting 信息
+        const pendingMeetings = await meetingManager.getPendingMeetings();
+
+        if (meetingApprovals.length === 0 && pendingMeetings.length === 0) {
           console.log('✅ 没有待处理的 Meeting\n');
-          console.log('当前状态:');
           const allApprovals = await stateManager.getApprovalsByStatus('approved');
-          const meetingApprovals = allApprovals.filter(a => a.type === 'meeting');
-          console.log(`  - 已解决: ${meetingApprovals.length}`);
-          console.log(`  - 总计: ${meetingApprovals.length}`);
+          const resolvedMeetings = allApprovals.filter(a => a.type === 'meeting');
+          console.log('当前状态:');
+          console.log(`  - 已解决: ${resolvedMeetings.length}`);
+          console.log(`  - 总计: ${resolvedMeetings.length}`);
           return;
         }
 
-        console.log(`\n📋 待处理 Meeting (${meetings.length}个)\n`);
+        console.log(`\n📋 待处理 Meeting (${meetingApprovals.length}个)\n`);
 
-        meetings.forEach((meeting, index) => {
+        meetingApprovals.forEach((meeting, index) => {
           const icon = meeting.title.includes('决策') ? '🤔' : '🔴';
           const shortTitle = meeting.title.slice(0, 40);
           console.log(`  [${index + 1}] ${icon} ${meeting.id} - ${shortTitle}`);
@@ -60,9 +65,9 @@ export const meetingCommand = new Command('meeting')
 
       // 批量跳过
       if (options.skipAll) {
-        console.log(`\n⏭️  批量跳过 ${meetings.length} 个 Meeting...\n`);
+        console.log(`\n⏭️  批量跳过 ${meetingApprovals.length} 个 Meeting...\n`);
 
-        for (const meeting of meetings) {
+        for (const meeting of meetingApprovals) {
           await approvalManager.processDecision({
             approvalId: meeting.id,
             decision: 'approve',
@@ -70,6 +75,16 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+
+          // 尝试通过 MeetingManager 解决关联的 Meeting
+          try {
+            const parsed = JSON.parse(meeting.content || '{}');
+            if (parsed.meetingId) {
+              await meetingManager.cancelMeeting(parsed.meetingId, options.message || '批量跳过');
+            }
+          } catch {
+            // content 可能不是 JSON，跳过 Meeting 更新
+          }
 
           // 更新关联任务状态为 skipped
           const task = await stateManager.getTask(meeting.taskId);
@@ -93,7 +108,7 @@ export const meetingCommand = new Command('meeting')
         return;
       }
 
-      const meeting = meetings.find(m => m.id === meetingId);
+      const meeting = meetingApprovals.find(m => m.id === meetingId);
       if (!meeting) {
         console.log(`❌ Meeting ${meetingId} 不存在或已处理`);
         return;
@@ -103,7 +118,7 @@ export const meetingCommand = new Command('meeting')
       console.log(`\n📋 Meeting: ${meeting.id}`);
       console.log(`🎯 任务: ${meeting.taskId}`);
       console.log(`\n## 详情\n`);
-      console.log(meeting.content || '无详细内容');
+      console.log(meeting.description || '无详细内容');
       console.log('');
 
       // 执行操作
@@ -119,6 +134,15 @@ export const meetingCommand = new Command('meeting')
         return;
       }
 
+      // 解析关联的 Meeting ID
+      let internalMeetingId: string | undefined;
+      try {
+        const parsed = JSON.parse(meeting.content || '{}');
+        internalMeetingId = parsed.meetingId;
+      } catch {
+        // content 可能不是 JSON
+      }
+
       switch (action) {
         case 'provide-info':
           if (!options.info) {
@@ -132,6 +156,10 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          // 通过 MeetingManager 解决关联 Meeting
+          if (internalMeetingId) {
+            await meetingManager.resolveMeeting(internalMeetingId, `提供信息: ${options.info}`);
+          }
           console.log('✅ 信息已记录，任务将恢复执行');
           break;
 
@@ -143,6 +171,9 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          if (internalMeetingId) {
+            await meetingManager.cancelMeeting(internalMeetingId, options.message || '跳过');
+          }
           // 标记任务为跳过
           const skipTask = await stateManager.getTask(meeting.taskId);
           if (skipTask) {
@@ -162,6 +193,9 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          if (internalMeetingId) {
+            await meetingManager.resolveMeeting(internalMeetingId, '重试任务');
+          }
           // 重置任务状态
           await stateManager.updateTask(meeting.taskId, {
             status: 'retry_queue',
@@ -182,6 +216,9 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          if (internalMeetingId) {
+            await meetingManager.resolveMeeting(internalMeetingId, `修改方案: ${options.newPlan}`);
+          }
           // 更新任务描述
           const modifyTask = await stateManager.getTask(meeting.taskId);
           if (modifyTask) {
@@ -202,6 +239,9 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          if (internalMeetingId) {
+            await meetingManager.resolveMeeting(internalMeetingId, `决策: ${options.reason || '已做出决策'}`);
+          }
           console.log('✅ 决策已记录');
           break;
 
@@ -213,6 +253,9 @@ export const meetingCommand = new Command('meeting')
             decidedBy: 'user',
             decidedAt: new Date().toISOString()
           });
+          if (internalMeetingId) {
+            await meetingManager.cancelMeeting(internalMeetingId, options.message || '用户取消');
+          }
           // 标记任务为失败
           await stateManager.updateTask(meeting.taskId, {
             status: 'failed',

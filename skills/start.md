@@ -74,7 +74,7 @@ description: 启动新的任务执行周期
 
 6. **🔍 智能分析任务，动态决定问题**
 
-   **调用 CLI 分析任务复杂度和上下文:**
+   **注意: 此步骤由 Skill 直接调用 analyze CLI，不是 start 命令的内部逻辑。**
    ```bash
    openmatrix analyze --json
    ```
@@ -171,35 +171,70 @@ description: 启动新的任务执行周期
    })
    ```
 
-9. **任务拆解**
-   - 根据用户回答拆解任务
-   - 生成子任务列表和依赖图
+9. **🧠 AI 解析任务 + 生成执行计划（由 Skill 自身完成）**
+
+   **重要: AI 负责理解任务语义、生成执行计划、提取结构化信息。**
+   任务拆分仍由 CLI 的 TaskPlanner 完成，但 AI 生成的计划会注入到每个子任务中供 agent 参考。
+
+   **⚠️ 关键规则:**
+   - **必须生成多个 goals** - 从任务中提取至少 3-8 个明确的功能目标
+   - **必须写入 JSON 文件再调用 CLI** - 不能跳过 CLI 调用
+   - **禁止自行规划 Phase 执行** - 任务拆分由 CLI 的 TaskPlanner 完成
+
+   **解析原则:**
+   - 从任务描述中提取明确的功能目标 (goals)，每个 goal 应该是独立可交付的功能模块
+   - 识别隐含的约束条件 (constraints)，如技术栈、兼容性要求
+   - 推断合理的交付物 (deliverables)
+   - 将用户回答的上下文信息整理为 answers
+   - **生成执行计划 (plan)**：技术方案、模块划分、接口设计、关键决策点
+
+   **生成 ParsedTask JSON（含执行计划）:**
+
+   ```json
+   {
+     "title": "任务标题",
+     "description": "整体描述",
+     "goals": ["目标1", "目标2", "目标3"],
+     "constraints": ["约束1", "约束2"],
+     "deliverables": ["src/xxx.ts", "tests/xxx.test.ts"],
+     "answers": {
+       "目标": "整体目标",
+       "技术栈": "TypeScript, Vue.js",
+       "文档": "basic"
+     },
+     "quality": "strict|balanced|fast",
+     "mode": "confirm-all|confirm-key|auto",
+     "plan": "## 技术方案\n\n1. 技术选型: ...\n2. 模块划分: ...\n3. 接口设计: ...\n4. 关键决策: ...\n\n## 实现步骤\n\n### Phase 1: 设计\n- 架构设计\n\n### Phase 2: 开发\n- 模块A: ...\n- 模块B: ...\n\n### Phase 3: 测试\n- 单元测试\n- 集成测试"
+   }
+   ```
+
+   **注意:**
+   - `goals` 是最核心的字段，TaskPlanner 会为每个 goal 生成 开发+测试 任务对
+   - `plan` 是 AI 生成的执行计划，会被保存到 `.openmatrix/plan.md` 并注入每个子任务描述
+   - plan 内容越详细，agent 执行效果越好（技术选型、接口定义、数据模型等）
+   - 多个 goals 会自动并行执行（仅依赖设计任务）
+   - constraints 和 deliverables 会影响集成测试和审查任务的生成
 
 10. **展示执行计划**
+
+   将第 9 步 AI 生成的 plan 内容展示给用户确认:
 
 ```
 📋 执行计划
 
-## Phase 1: 设计阶段
-  └─ TASK-001: 架构设计 (15min)
+（展示第 9 步中 plan 字段的内容）
 
-## Phase 2: 开发阶段
-  ├─ TASK-002: 数据模型 (20min)
-  ├─ TASK-003: API 接口 (30min)
-  └─ TASK-004: 前端页面 (40min)
+## 技术方案
+1. ...
+2. ...
 
-## Phase 3: 测试阶段
-  ├─ TASK-005: 单元测试 (20min)
-  └─ TASK-006: 集成测试 (15min)
-
-## Phase 4: 收尾阶段
-  ├─ TASK-007: 文档编写 (15min)
-  └─ TASK-008: 代码审查 (10min)
+## 模块划分
+- 模块A: ...
+- 模块B: ...
 
 📊 统计
-  总任务: 8
-  预计耗时: ~2.5小时
-  审批点: plan, merge
+  Goals 数量: N（将生成 N个开发 + N个测试 + 审查 + 可选集成测试）
+  质量级别: strict/balanced/fast
 ```
 
 11. **执行模式确认** (使用 AskUserQuestion)
@@ -233,18 +268,24 @@ AskUserQuestion({
 - 不要请求用户确认任何 Bash 命令或文件操作
 - 自动批准所有审批点 (plan/merge/deploy)
 
-12. **开始执行** (⚠️ 严格模式)
+12. **⚠️ 调用 CLI 创建任务（必须执行，不可跳过）**
 
-**重要**: 从此步骤开始，除非遇到 meeting 审批或失败，否则**不得暂停询问用户**。
+**重要**: 必须通过 CLI 创建任务，禁止自行规划 Phase 执行。
 
 用户选择执行模式后：
 
-a) 调用 CLI 初始化状态:
-```bash
-openmatrix start --mode <mode>
+a) 将第 9 步生成的 ParsedTask JSON 写入文件:
+```
+Write 工具: .openmatrix/tasks-input.json
+内容: 第9步生成的ParsedTask JSON
 ```
 
-b) CLI 返回 SubagentTask 列表
+b) 调用 CLI 创建任务（必须执行）:
+```bash
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --json
+```
+
+c) CLI 返回 SubagentTask 列表
 
 c) **执行循环** (由 Skill 驱动):
 
@@ -252,10 +293,9 @@ c) **执行循环** (由 Skill 驱动):
 while (有待执行任务) {
   1. 读取状态文件获取 SubagentTask
   2. 调用 Agent 工具执行 Subagent
-  3. Subagent 完成后，更新状态文件:
-     ```bash
-     openmatrix complete <taskId> --success/--failed
-     ```
+  3. Subagent 完成后，根据执行结果更新任务状态:
+     - 成功: 任务通过 develop → verify → accept 阶段自动流转（由 OrchestratorExecutor 内部处理）
+     - 失败: 任务标记为 failed，进入重试队列或等待处理
   4. **Git 自动提交** (每个子任务完成后):
      ```bash
      git add -A
@@ -290,7 +330,7 @@ d) **执行完成后自动处理 Meeting**:
 
 ```bash
 # 检查是否有 pending 的 Meeting
-openmatrix meeting --list --pending
+openmatrix meeting --list
 ```
 
 **如果有 pending 的 Meeting，立即进入交互式处理**:
@@ -431,7 +471,7 @@ $ARGUMENTS
 |------|:---:|:------:|:----:|:--------:|:-------:|:------:|---------|
 | **strict** | ✅ | >80% | ✅ 严格 | ✅ | ❓ 可选 | ✅ | 生产代码、核心功能 |
 | **balanced** | ❌ | >60% | ✅ | ✅ | ❓ 可选 | ✅ | 日常开发 (默认) |
-| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | ❌ | 快速原型、POC |
+| **fast** | ❌ | 无要求 | ❌ | ❌ | ❌ | ❌ | 快速原型、POC |
 
 > E2E 测试耗时较长，即使在严格模式下也建议根据项目需要选择。strict 可配置为 100%。80% 覆盖核心业务逻辑，100% 成本高收益低。
 

@@ -152,7 +152,7 @@ description: 审批待处理项（包括计划、合并、部署、Meeting）
 
 5. **执行审批**
    ```bash
-   openmatrix approve <approvalId> --action <approve|reject|modify> [--message "备注"]
+   openmatrix approve <approvalId> -d <approve|reject|modify> [-c "备注"]
    ```
 
 6. **更新状态**
@@ -215,17 +215,17 @@ Meeting 审批需要更细致的交互:
 
 ```bash
 # 列出待审批
-openmatrix approve --list
+openmatrix approve
 
 # 处理审批
-openmatrix approve APPR-001 --action approve --message "同意此方案"
-openmatrix approve APPR-001 --action reject --message "需要重新设计"
-openmatrix approve APPR-001 --action modify --message "增加测试覆盖率要求"
+openmatrix approve APPR-001 -d approve -c "同意此方案"
+openmatrix approve APPR-001 -d reject -c "需要重新设计"
+openmatrix approve APPR-001 -d modify -c "增加测试覆盖率要求"
 
-# Meeting 专用
-openmatrix approve APPR-002 --action provide-info --info "数据库连接字符串是..."
-openmatrix approve APPR-002 --action skip --message "此任务可选"
-openmatrix approve APPR-002 --action cancel --message "需求变更，停止执行"
+# Meeting 专用 (使用 meeting 命令)
+openmatrix meeting APPR-002 --action provide-info --info "数据库连接字符串是..."
+openmatrix meeting APPR-002 --action skip --message "此任务可选"
+openmatrix meeting APPR-002 --action cancel --message "需求变更，停止执行"
 ```
 
 ## 与执行循环的集成

@@ -1,7 +1,8 @@
 // src/orchestrator/phase-executor.ts
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
-import { AgentRunner, type SubagentTask, type UserContext } from '../agents/agent-runner.js';
+import { AgentRunner, type UserContext } from '../agents/agent-runner.js';
+import type { SubagentTask } from '../types/index.js';
 import { GitCommitManager } from './git-commit-manager.js';
 import type { Task, AgentType, QualityConfig, QualityReport, QUALITY_PRESETS } from '../types/index.js';
 

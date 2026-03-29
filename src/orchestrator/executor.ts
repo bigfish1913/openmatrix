@@ -1,6 +1,7 @@
 // src/orchestrator/executor.ts
 import { Scheduler } from './scheduler.js';
-import { AgentRunner, type SubagentTask } from '../agents/agent-runner.js';
+import { AgentRunner } from '../agents/agent-runner.js';
+import type { SubagentTask } from '../types/index.js';
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
 import { StateMachine } from './state-machine.js';
