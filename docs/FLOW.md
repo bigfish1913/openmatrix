@@ -59,7 +59,7 @@ flowchart LR
     end
 
     subgraph Ver["✅ 验证阶段"]
-        V1["6 道质量门禁"]
+        V1["7 道质量门禁"]
     end
 
     subgraph Acc["🎉 验收阶段"]
@@ -79,7 +79,7 @@ flowchart LR
     end
 
     subgraph Ver["✅ 验证阶段"]
-        V1["4 道质量门禁"]
+        V1["5 道质量门禁"]
     end
 
     subgraph Acc["🎉 验收阶段"]
@@ -105,20 +105,21 @@ flowchart LR
     D1 --> E1
 ```
 
-## 六道质量门禁
+## 七道质量门禁
 
 ```mermaid
 flowchart TB
-    subgraph Gates["🚪 6 Quality Gates"]
+    subgraph Gates["🚪 7 Quality Gates"]
         direction TB
         G1["Gate 1: 编译检查<br/>npm run build"]
         G2["Gate 2: 测试运行<br/>npm test"]
         G3["Gate 3: 覆盖率检查<br/>>20%/60%/80%"]
         G4["Gate 4: Lint 检查<br/>无 error"]
         G5["Gate 5: 安全扫描<br/>npm audit"]
-        G6["Gate 6: 验收标准<br/>用户定义"]
+        G6["Gate 6: E2E 测试<br/>Playwright 等 (可选)"]
+        G7["Gate 7: 验收标准<br/>用户定义"]
 
-        G1 --> G2 --> G3 --> G4 --> G5 --> G6
+        G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7
     end
 
     G1 -->|❌ 失败| FAIL["阻止继续"]
@@ -126,9 +127,87 @@ flowchart TB
     G3 -->|⚠️ 不达标| WARN["警告但继续"]
     G4 -->|❌ 失败| FAIL
     G5 -->|❌ 有漏洞| FAIL
-    G6 -->|❌ 未满足| FAIL
+    G6 -->|⏭️ 跳过| SKIP["可选，可跳过"]
+    G7 -->|❌ 未满足| FAIL
 
-    G6 -->|✅ 全部通过| PASS["进入 Accept 阶段"]
+    G7 -->|✅ 全部通过| PASS["进入 Accept 阶段"]
+```
+
+## Research 调研模式
+
+**适用场景**: 垂直领域任务（游戏开发、支付系统、电商网站等），需要先了解领域知识再执行任务。
+
+```mermaid
+flowchart TB
+    subgraph Init["📚 初始化"]
+        A["/om:research 做一个游戏"]
+        B["CLI: 创建研究会话"]
+    end
+
+    subgraph Analyze["🔍 AI 领域分析"]
+        C["Agent: 识别领域"]
+        D["识别核心方面<br/>(5-10个)"]
+        E["识别关键决策"]
+    end
+
+    subgraph Preview["📋 用户确认"]
+        F["展示调研范围"]
+        F -->|确认| G["开始研究"]
+        F -->|调整| H["修改方向"]
+        F -->|跳过| I["直接进入 /om:start"]
+    end
+
+    subgraph Research["🔬 并行研究"]
+        R1["Agent 1: 领域知识<br/>核心概念 + 行业标准"]
+        R2["Agent 2: 技术方案<br/>主流架构 + 最佳实践"]
+        R3["Agent 3: 应用场景<br/>实际案例 + 常见挑战"]
+    end
+
+    subgraph Survey["📝 领域问卷"]
+        S1["基于研究结果提问"]
+        S2["收集用户决策"]
+    end
+
+    subgraph Output["📄 生成领域文档"]
+        O1["GDD / PRD / 技术方案"]
+        O2["knowledge/ 关键发现"]
+        O3["context.json → start"]
+    end
+
+    subgraph Next["🚀 接入执行"]
+        N1["/om:start 任务执行"]
+    end
+
+    A --> B --> C --> D --> E --> F
+    G --> R1
+    G --> R2
+    G --> R3
+    R1 --> S1
+    R2 --> S1
+    R3 --> S1
+    S1 --> S2 --> O1 --> O2 --> O3 --> N1
+    H --> C
+    I --> N1
+```
+
+### Research 输出文件
+
+```
+.openmatrix/research/
+├── session.json          # 研究会话状态
+├── RESEARCH.md           # 领域专属文档 (GDD/PRD/技术方案)
+├── knowledge/
+│   ├── finding-1.md      # 关键发现
+│   └── finding-2.md
+└── context.json          # → start 的任务上下文
+```
+
+### 与 brainstorm 的关系
+
+brainstorm 检测到垂直领域时，会建议使用 `/om:research` 进行深度调研，调研完成后再接入 `/om:start` 执行任务。
+
+```
+brainstorm → 检测到垂直领域 → suggestResearch → /om:research → /om:start
 ```
 
 ## Meeting 处理流程
@@ -231,11 +310,33 @@ flowchart LR
 sequenceDiagram
     participant U as 用户
     participant S as Skill
+    participant RS as Researcher
     participant P as Planner
     participant C as Coder
     participant T as Tester
     participant R as Reviewer
     participant M as Meeting
+
+    alt 垂直领域任务
+        U->>S: /om:research 做一个游戏
+        S->>RS: AI 分析主题，识别领域
+        RS->>S: 领域 + 调研方向
+        S->>U: 确认研究范围?
+        U->>S: 确认
+        par 并行研究
+            S->>RS: Agent 1: 领域知识
+        and
+            S->>RS: Agent 2: 技术方案
+        and
+            S->>RS: Agent 3: 应用场景
+        end
+        RS->>S: 研究结果
+        S->>U: 领域问卷
+        U->>S: 回答
+        S->>S: 生成领域文档 (GDD/PRD)
+        S->>U: 开始执行?
+        U->>S: 确认
+    end
 
     U->>S: /om:start 实现登录
     S->>U: Q0: 质量级别?

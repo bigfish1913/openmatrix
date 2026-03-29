@@ -76,7 +76,7 @@
 | 0 | 交互问答 | **第一个问题选质量级别** |
 | 1 | 任务规划 | Planner Agent 生成计划 |
 | 2 | 任务执行 | strict/balanced/fast 三种模式 |
-| 3 | 质量门禁 | 6 道质量门禁验证 |
+| 3 | 质量门禁 | 7 道质量门禁验证 |
 | 4 | AI 验收 | Reviewer Agent 最终确认 |
 | 5 | Meeting | 阻塞不中断，最后处理并**重新执行** |
 | 6 | 最终报告 | 质量评分 + 产出文件 |
@@ -194,7 +194,7 @@ ls ~/.claude/commands/om/
 OpenMatrix TDD (strict):
   🧪 测试阶段: 先写测试 (RED - 测试必须失败)
   ✨ 开发阶段: 再写代码 (GREEN - 测试必须通过)
-  ✅ 验证阶段: 6道质量门禁
+  ✅ 验证阶段: 7道质量门禁
   🎉 验收阶段: AI Reviewer 最终确认
 
 结果: 第一次就写对，无需返工
@@ -231,7 +231,7 @@ Accept 阶段由 Reviewer Agent 执行:
 ```
 ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
 │   TDD   │────▶│ Develop │────▶│  Verify │────▶│ Accept  │
-│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 6门禁│     │ 🎉 AI   │
+│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 7门禁│     │ 🎉 AI   │
 └─────────┘     └─────────┘     └─────────┘     └─────────┘
 ```
 
@@ -252,6 +252,7 @@ Accept 阶段由 Reviewer Agent 执行:
 |------|------|
 | `/om` | **默认入口** - 直接输入任务描述即可启动 |
 | `/om:brainstorm` | 🧠 **头脑风暴** - 先探索需求和设计，再执行任务 |
+| `/om:research` | 📚 **领域调研** - AI 驱动的领域调研和问题探索 |
 | `/om:start` | 启动新任务 (第一个问题选质量级别) |
 | `/om:auto` | 🚀 **全自动执行** - 无阻塞、无确认、直接完成 |
 | `/check` | 🔍 **项目检查** - 自动检测可改进点并提供升级建议 |
@@ -489,6 +490,9 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Agent 上下文共享 (Agent Memory)
 - [x] Task 子目录结构 + Phase 结果持久化
 - [x] 执行循环持久化 (`openmatrix step`/`complete` 防上下文压缩丢失)
+- [x] `/om:research` AI 驱动领域调研
+- [x] Git 自动提交 (任务完成后自动 commit)
+- [x] Brainstorm/Start 智能状态检测
 - [ ] VSCode 扩展
 - [ ] CI/CD 集成
 

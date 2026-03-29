@@ -229,7 +229,7 @@ Accept Phase executed by Reviewer Agent:
 ```
 ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
 │   TDD   │────▶│ Develop │────▶│  Verify │────▶│ Accept  │
-│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 6gate│     │ 🎉 AI   │
+│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 7gate│     │ 🎉 AI   │
 └─────────┘     └─────────┘     └─────────┘     └─────────┘
 ```
 
@@ -250,6 +250,7 @@ Accept Phase executed by Reviewer Agent:
 |---------|---------|
 | `/om` | **Default entry** - Just type task description to start |
 | `/om:brainstorm` | 🧠 **Brainstorm** - Explore requirements and design before execution |
+| `/om:research` | 📚 **Research** - AI-driven domain research and problem exploration |
 | `/om:start` | Start new task (first question selects quality level) |
 | `/om:auto` | 🚀 **Full auto execution** - No blocking, no confirmation, direct completion |
 | `/check` | 🔍 **Project check** - Auto-detect improvements and provide suggestions |
@@ -462,6 +463,9 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Agent Context Sharing (Agent Memory)
 - [x] Task Subdirectory Structure + Phase Result Persistence
 - [x] Execution Loop Persistence (`openmatrix step`/`complete` - survives context compression)
+- [x] `/om:research` AI-Driven Domain Research
+- [x] Git Auto-Commit (automatic commit after task completion)
+- [x] Brainstorm/Start Smart State Detection
 - [ ] VSCode Extension
 - [ ] CI/CD Integration
 
