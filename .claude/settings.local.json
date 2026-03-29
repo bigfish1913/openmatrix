@@ -9,7 +9,11 @@
       "Bash(openmatrix --help)",
       "Bash(openmatrix start:*)",
       "Bash(npx openmatrix:*)",
-      "Bash(node dist/cli/index.js start --init-only)"
+      "Bash(node dist/cli/index.js start --init-only)",
+      "Read(//c/tmp/**)",
+      "Bash(rm -rf .openmatrix)",
+      "Bash(node c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/dist/cli/index.js research \"做一个游戏\" --json)",
+      "Bash(node c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/dist/cli/index.js research --confirm --json)"
     ]
   }
 }
