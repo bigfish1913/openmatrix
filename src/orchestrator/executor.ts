@@ -60,7 +60,7 @@ export class OrchestratorExecutor {
     this.approvalManager = approvalManager;
     this.config = {
       maxConcurrent: 3,
-      taskTimeout: 120000,
+      taskTimeout: 600000, // 10 分钟
       ...config
     };
 
