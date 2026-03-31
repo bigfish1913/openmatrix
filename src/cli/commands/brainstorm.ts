@@ -394,5 +394,51 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     why: '优先级决定资源分配和实施策略'
   });
 
+  // 问题 8: 质量级别
+  questions.push({
+    id: 'quality',
+    question: '选择质量门禁级别（决定测试覆盖、Lint、安全扫描等要求）',
+    header: '质量级别',
+    options: [
+      { label: 'strict', description: 'TDD + 80% 覆盖率 + 严格 Lint + 安全扫描 — 生产级代码' },
+      { label: 'balanced (推荐)', description: '60% 覆盖率 + Lint + 安全扫描 — 日常开发' },
+      { label: 'fast', description: '无质量门禁 — 快速原型/验证' }
+    ],
+    multiSelect: false,
+    why: '质量级别影响任务拆分、测试要求和执行时间'
+  });
+
+  // 问题 9: 执行模式
+  questions.push({
+    id: 'execution_mode',
+    question: '选择执行模式（控制 AI 执行过程中的审批节点）',
+    header: '执行模式',
+    options: [
+      { label: 'auto (推荐)', description: '全自动执行，无需人工审批，遇到阻塞自动 Meeting' },
+      { label: 'confirm-key', description: '关键节点审批（计划、合并、部署）' },
+      { label: 'confirm-all', description: '每个阶段都需人工确认' }
+    ],
+    multiSelect: false,
+    why: '执行模式决定自动化程度和人工干预频率'
+  });
+
+  // 问题 10: E2E 测试（Web/Mobile/GUI 项目）
+  if (content.includes('web') || content.includes('前端') || content.includes('页面') ||
+      content.includes('网站') || content.includes('app') || content.includes('应用') ||
+      content.includes('游戏') || content.includes('管理') || content.includes('后台') ||
+      content.includes('ui') || content.includes('mobile') || content.includes('mobile')) {
+    questions.push({
+      id: 'e2e_tests',
+      question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
+      header: 'E2E 测试',
+      options: [
+        { label: '启用 E2E 测试', description: '使用 Playwright/Cypress 等框架进行端到端测试' },
+        { label: '不启用 (推荐)', description: '仅进行单元测试和集成测试，节省时间' }
+      ],
+      multiSelect: false,
+      why: 'E2E 测试能验证完整用户流程，但增加执行时间'
+    });
+  }
+
   return questions;
 }

@@ -185,8 +185,9 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
      "constraints": ["约束"],
      "deliverables": ["交付物"],
      "answers": { "问答答案" },
-     "quality": "strict/balanced/fast",
-     "mode": "auto",
+     "quality": "<从 quality 问题答案取值: strict/balanced/fast>",
+     "mode": "<从 execution_mode 问题答案取值: auto/confirm-key/confirm-all>",
+     "e2eTests": "<从 e2e_tests 问题答案判断: true/false>",
      "plan": "## 技术方案\n..."
    }
    ```
