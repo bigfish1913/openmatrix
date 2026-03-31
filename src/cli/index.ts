@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import * as fs from 'fs';
+import * as path from 'path';
 import { statusCommand } from './commands/status.js';
 import { startCommand } from './commands/start.js';
 import { approveCommand } from './commands/approve.js';
@@ -17,12 +19,22 @@ import { researchCommand } from './commands/research.js';
 import { completeCommand } from './commands/complete.js';
 import { stepCommand } from './commands/step.js';
 
+// 读取 package.json 版本
+let version = '0.0.0';
+try {
+  const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  version = packageJson.version;
+} catch {
+  // 忽略错误
+}
+
 const program = new Command();
 
 program
   .name('openmatrix')
   .description('AI Agent Task Orchestration System - 多 Agent 任务编排系统')
-  .version('0.1.0');
+  .version(version);
 
 // 添加命令
 program.addCommand(statusCommand);
