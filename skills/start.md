@@ -13,9 +13,9 @@ description: 启动新的任务执行周期
 ```
 Step 1:  初始化 .openmatrix 目录
 Step 2:  解析任务输入（文件或描述）
-Step 3:  智能分析，动态决定是否需要交互问答
-Step 4:  如需问答 → AskUserQuestion（可跳过简单任务）
-Step 5:  展示执行计划 + 确认执行模式
+Step 3:  智能分析任务类型
+Step 4:  必选问题（质量等级、E2E、执行模式）← 不可跳过
+Step 5:  可选问题（仅复杂任务）+ 展示执行计划
 Step 6:  AI 提取 goals，生成 plan
 Step 7:  写入 .openmatrix/tasks-input.json          ← 必须完成
 Step 8:  调用 openmatrix start --tasks-json          ← 必须完成，不可跳过
@@ -26,13 +26,19 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 **违反以下任一规则将导致任务执行失败：**
 
 ❌ **禁止在 Step 8 之前写任何业务代码** — 所有代码必须在 Step 10 通过 Agent 执行
+❌ **禁止跳过 Step 4 必选问题** — 质量等级、执行模式必须由用户选择
 ❌ **禁止跳过 Step 8** — 必须调用 CLI，不能用其他方式代替
 ❌ **禁止自行规划 Phase** — 任务由 CLI 的 TaskPlanner 拆分，AI 只提取 goals
 ❌ **禁止用 Bash/npm/write 直接写业务代码** — 业务代码只能通过 Step 10 的 Agent 执行
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
-解析任务文档，智能推断配置，仅对不确定的问题交互问答，确认后通过 CLI 拆分任务并执行。
+解析任务文档，通过必选问答确定质量等级、E2E测试、执行模式，确认后通过 CLI 拆分任务并执行。
+
+⚠️ **Step 4 必选问题不可跳过** — 必须让用户选择：
+1. 质量等级 (strict/balanced/fast)
+2. E2E 测试 (当选择 strict/balanced 时必问)
+3. 执行模式 (全自动/关键节点确认/每阶段确认)
 </objective>
 
 <process>
