@@ -185,9 +185,7 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
      "constraints": ["约束"],
      "deliverables": ["交付物"],
      "answers": { "问答答案" },
-     "quality": "<从 quality 问题答案取值: strict/balanced/fast>",
-     "mode": "<从 execution_mode 问题答案取值: auto/confirm-key/confirm-all>",
-     "e2eTests": "<从 e2e_tests 问题答案判断: true/false>",
+     # quality, mode, e2eTests 在 /om:start 时由用户选择
      "plan": "## 技术方案\n..."
    }
    ```
@@ -274,14 +272,15 @@ $ARGUMENTS
 | 问题 ID | 目的 | 为什么重要 |
 |---------|------|-----------|
 | objective | 明确任务目标（新功能/修复/重构） | 选择正确的实现策略 |
-| quality_level | 质量门禁级别（strict/balanced/fast） | 影响测试覆盖、Lint、安全扫描要求 |
 | tech_stack | 技术栈选择 | 决定使用什么框架和工具 |
-| execution_mode | 执行模式（auto/confirm-key/confirm-all） | 控制审批节点和自动化程度 |
 | test_coverage | 测试覆盖率要求 | 影响测试任务生成 |
 | documentation_level | 文档要求级别 | 影响文档任务生成 |
-| e2e_tests | 是否启用 E2E 测试 | Web/Mobile/GUI 项目适用 |
 | risks | 风险评估 | 提前规划应对策略 |
 | acceptance | 验收标准 | 判断任务完成度 |
+
+> **注意**: 以下问题在 `/om:start` 时必问，不在头脑风暴阶段:
+> - **quality_level** (质量等级) - strict/balanced/fast
+> - **quality_level** / **execution_mode** / **e2e_tests** - 这些在 `/om:start` 时必问，不在头脑风暴阶段
 
 > **智能预填**：当 `SmartQuestionAnalyzer` 对某个问题有高置信度推断时，该问题会被自动跳过，不需要用户回答。
 
@@ -304,12 +303,9 @@ $ARGUMENTS
 {
   "answers": {
     "objective": "new_feature",
-    "quality_level": "balanced",
     "tech_stack": ["typescript", "react"],
-    "execution_mode": "auto",
     "test_coverage": "medium",
     "documentation_level": "basic",
-    "e2e_tests": "false",
     "risks": ["technical", "compatibility"],
     "acceptance": ["functional", "tested"]
   },
