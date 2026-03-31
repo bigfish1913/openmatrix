@@ -232,7 +232,8 @@ CLI 返回 JSON 中 `subagentTasks` 数组包含待执行任务。
 **文件持久化循环（防止上下文压缩丢失状态）:**
 ```bash
 # 每个 Agent 完成后执行:
-openmatrix complete TASK-XXX --success       # 标记完成 + 更新统计（含自动 git commit）
+# --summary 传入执行摘要，自动追加到全局 context.md
+openmatrix complete TASK-XXX --success --summary "决策: xxx; 文件: xxx"
 
 # 提交验证（防止 commit 静默失败）:
 git status --porcelain                        # 检查是否有未提交的文件
@@ -258,26 +259,15 @@ Agent({
 每个 Agent 完成后:
 1. **标记完成并更新统计（必须执行）:**
 ```bash
-openmatrix complete TASK-XXX --success
+# --summary 参数传入 Agent 执行摘要，自动追加到全局 context.md
+openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 创建文件: xxx"
 ```
-2. **保存 Agent 上下文** — 将执行结果摘要写入 `.openmatrix/tasks/TASK-XXX/context.md`，格式如下:
 
-```markdown
-## 任务: TASK-XXX 任务标题
+2. **全局上下文文件** — 所有任务的上下文累积在 `.openmatrix/context.md`:
+   - 每次任务完成后，通过 `--summary` 参数追加写入
+   - 后续 Agent 可读取此文件了解前序任务的决策和发现
 
-### 关键决策
-- [做出的重要决策]
-
-### 创建/修改的文件
-- `path/to/file1.ts` - 简述用途
-- `path/to/file2.ts` - 简述用途
-
-### 重要发现
-- [发现的问题、模式、注意事项]
-
-### 对后续任务的建议
-- [下一个 Agent 应该注意什么]
-```
+3. Git 自动提交（必须使用下方统一提交格式）
 
 3. Git 自动提交（必须使用下方统一提交格式）
 4. **获取下一个任务（防止上下文压缩丢失）:**

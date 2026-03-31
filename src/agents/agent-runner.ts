@@ -177,46 +177,24 @@ ${agentPrompt.instructions}
 
 1. 完成任务后，更新任务状态文件: \`.openmatrix/tasks/${task.id}/task.json\`
 2. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
-3. 将上下文摘要写入: \`.openmatrix/tasks/${task.id}/context.md\` (供后续 Agent 读取)
-4. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
+3. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
+
+注意: 任务完成后，由 Skill 调用 \`openmatrix complete\` 并传入 --summary 参数，
+该摘要会自动追加到全局 \`.openmatrix/context.md\` 供后续 Agent 参考。
 `;
   }
 
   /**
-   * 构建累积上下文 - 从已完成任务中提取共享信息
-   *
-   * 读取所有已完成任务的 context.md，为当前 Agent 提供前序 Agent 的决策和知识
+   * 构建累积上下文 - 从全局 context.md 读取前序 Agent 的决策和知识
    */
   private async buildAccumulatedContext(currentTask: Task): Promise<string> {
     const omPath = path.join(process.cwd(), '.openmatrix');
-    const tasksDir = path.join(omPath, 'tasks');
+    const contextFile = path.join(omPath, 'context.md');
 
     try {
-      // 异步检查目录是否存在
-      try {
-        await fs.access(tasksDir);
-      } catch {
-        return '';
-      }
-
-      const contextParts: string[] = [];
-
-      // 异步读取目录
-      const taskDirs = (await fs.readdir(tasksDir)).filter(name => name.startsWith('TASK-'));
-      for (const taskId of taskDirs) {
-        const contextFile = path.join(tasksDir, taskId, 'context.md');
-        try {
-          const content = await fs.readFile(contextFile, 'utf-8');
-          const trimmed = content.trim();
-          if (trimmed) {
-            contextParts.push(`### ${taskId}\n${trimmed}`);
-          }
-        } catch {
-          // 文件不存在或读取失败，跳过
-        }
-      }
-
-      if (contextParts.length === 0) return '';
+      const content = await fs.readFile(contextFile, 'utf-8');
+      const trimmed = content.trim();
+      if (!trimmed) return '';
 
       return `
 ## 前序 Agent 共享上下文 (Agent Memory)
@@ -224,7 +202,7 @@ ${agentPrompt.instructions}
 以下是之前执行的 Agent 留下的上下文信息，包含它们的决策、发现和注意事项。
 你应该基于这些信息来工作，避免重复犯错或与已有决策冲突。
 
-${contextParts.join('\n\n')}
+${trimmed}
 `;
     } catch {
       return '';

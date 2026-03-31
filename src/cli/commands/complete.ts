@@ -11,6 +11,7 @@ export const completeCommand = new Command('complete')
   .option('--success', '标记为成功完成 (默认)', true)
   .option('--failed', '标记为失败')
   .option('--output <text>', '执行结果摘要')
+  .option('--summary <text>', 'Agent 执行摘要 (写入 context.md)')
   .option('--error <text>', '错误信息 (失败时)')
   .action(async (taskId: string, options) => {
     const basePath = process.cwd();
@@ -72,28 +73,28 @@ export const completeCommand = new Command('complete')
       ...(allDone ? { completedAt: now } : {})
     });
 
-    // 5. 写入 context.md (Agent Memory)
+    // 5. 追加写入全局 context.md (Agent Memory)
     if (isSuccess) {
-      const taskDir = path.join(omPath, 'tasks', taskId);
-      const contextFile = path.join(taskDir, 'context.md');
+      const contextFile = path.join(omPath, 'context.md');
+      const timestamp = new Date().toISOString();
+
+      // 构建上下文内容
+      const summary = options.summary || '任务已完成';
+      const contextEntry = `## ${taskId} ${task.title}
+- 时间: ${timestamp}
+- 摘要: ${summary}
+
+`;
 
       try {
-        await fs.mkdir(taskDir, { recursive: true });
-        const contextContent = `## 任务：${task.id} ${task.title}
-
-### 关键决策
-- [待补充]
-
-### 创建/修改的文件
-- [待补充]
-
-### 重要发现
-- [待补充]
-
-### 对后续任务的建议
-- [待补充]
-`;
-        await fs.writeFile(contextFile, contextContent, 'utf-8');
+        // 追加写入全局 context.md
+        let existingContent = '';
+        try {
+          existingContent = await fs.readFile(contextFile, 'utf-8');
+        } catch {
+          // 文件不存在，创建新文件
+        }
+        await fs.writeFile(contextFile, existingContent + contextEntry, 'utf-8');
       } catch {
         // 忽略写入错误
       }
