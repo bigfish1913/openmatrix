@@ -72,7 +72,34 @@ export const completeCommand = new Command('complete')
       ...(allDone ? { completedAt: now } : {})
     });
 
-    // 5. Git 自动提交
+    // 5. 写入 context.md (Agent Memory)
+    if (isSuccess) {
+      const taskDir = path.join(omPath, 'tasks', taskId);
+      const contextFile = path.join(taskDir, 'context.md');
+
+      try {
+        await fs.mkdir(taskDir, { recursive: true });
+        const contextContent = `## 任务：${task.id} ${task.title}
+
+### 关键决策
+- [待补充]
+
+### 创建/修改的文件
+- [待补充]
+
+### 重要发现
+- [待补充]
+
+### 对后续任务的建议
+- [待补充]
+`;
+        await fs.writeFile(contextFile, contextContent, 'utf-8');
+      } catch {
+        // 忽略写入错误
+      }
+    }
+
+    // 6. Git 自动提交
     if (isSuccess) {
       const state = await stateManager.getState();
       const gitManager = new GitCommitManager(basePath);

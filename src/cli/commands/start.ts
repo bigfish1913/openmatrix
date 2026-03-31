@@ -115,7 +115,7 @@ export const startCommand = new Command('start')
     // 路径 A: AI 已拆分 (--tasks-json)
     // ============================
     if (options.tasksJson) {
-      await handleTasksJson(options, stateManager, state, omPath);
+      await handleTasksJson(options, stateManager, state, omPath, basePath);
       return;
     }
 
@@ -133,7 +133,8 @@ async function handleTasksJson(
   options: StartOptions,
   stateManager: StateManager,
   state: Awaited<ReturnType<StateManager['getState']>>,
-  omPath: string
+  omPath: string,
+  basePath: string
 ): Promise<void> {
   let tasksInput: AIParsedInput;
 
@@ -141,7 +142,10 @@ async function handleTasksJson(
     // 支持 @file 语法读取文件
     let jsonStr = options.tasksJson!;
     if (jsonStr.startsWith('@')) {
-      jsonStr = await fs.readFile(jsonStr.slice(1), 'utf-8');
+      const filePath = jsonStr.slice(1);
+      // 如果是相对路径，转换为绝对路径
+      const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(basePath, filePath);
+      jsonStr = await fs.readFile(resolvedPath, 'utf-8');
     }
     tasksInput = JSON.parse(jsonStr);
   } catch (e) {

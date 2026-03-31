@@ -426,23 +426,19 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     why: '执行模式决定自动化程度和人工干预频率'
   });
 
-  // 问题 10: E2E 测试（Web/Mobile/GUI 项目）
-  if (content.includes('web') || content.includes('前端') || content.includes('页面') ||
-      content.includes('网站') || content.includes('app') || content.includes('应用') ||
-      content.includes('游戏') || content.includes('管理') || content.includes('后台') ||
-      content.includes('ui') || content.includes('mobile') || content.includes('mobile')) {
-    questions.push({
-      id: 'e2e_tests',
-      question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
-      header: 'E2E 测试',
-      options: [
-        { label: '启用 E2E 测试', description: '使用 Playwright/Cypress 等框架进行端到端测试' },
-        { label: '不启用 (推荐)', description: '仅进行单元测试和集成测试，节省时间' }
-      ],
-      multiSelect: false,
-      why: 'E2E 测试能验证完整用户流程，但增加执行时间'
-    });
-  }
+  // 问题 10: E2E 测试（必填）
+  // E2E 测试是必问问题，由用户在问答中选择是否启用
+  questions.push({
+    id: 'e2e_tests',
+    question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
+    header: 'E2E 测试',
+    options: [
+      { label: '启用 E2E 测试', description: '使用 Playwright/Cypress 等框架进行端到端测试' },
+      { label: '不启用 (推荐)', description: '仅进行单元测试和集成测试，节省时间' }
+    ],
+    multiSelect: false,
+    why: 'E2E 测试能验证完整用户流程，但增加执行时间'
+  });
 
   return questions;
 }
