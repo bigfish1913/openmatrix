@@ -16,28 +16,43 @@ export class FileStore {
     await writeFile(fullPath, JSON.stringify(data, null, 2), 'utf-8');
   }
 
-  async readJson<T>(path: string): Promise<T | null> {
-    const fullPath = join(this.basePath, path);
-    try {
-      const content = await readFile(fullPath, 'utf-8');
-      return JSON.parse(content);
-    } catch {
-      return null;
-    }
-  }
-
   async writeMarkdown(path: string, content: string): Promise<void> {
     const fullPath = join(this.basePath, path);
     await mkdir(dirname(fullPath), { recursive: true });
     await writeFile(fullPath, content, 'utf-8');
   }
 
+  /**
+   * 读取 JSON 文件
+   * @returns 文件内容，如果文件不存在则返回 null；其他错误会抛出异常
+   */
+  async readJson<T>(path: string): Promise<T | null> {
+    const fullPath = join(this.basePath, path);
+    try {
+      const content = await readFile(fullPath, 'utf-8');
+      return JSON.parse(content);
+    } catch (error: any) {
+      // 只隐藏"文件不存在"错误，其他错误（权限、磁盘等）抛出以便调用者处理
+      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 读取 Markdown 文件
+   * @returns 文件内容，如果文件不存在则返回 null；其他错误会抛出异常
+   */
   async readMarkdown(path: string): Promise<string | null> {
     const fullPath = join(this.basePath, path);
     try {
       return await readFile(fullPath, 'utf-8');
-    } catch {
-      return null;
+    } catch (error: any) {
+      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+        return null;
+      }
+      throw error;
     }
   }
 

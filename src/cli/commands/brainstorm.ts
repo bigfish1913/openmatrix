@@ -418,7 +418,7 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     question: '选择执行模式（控制 AI 执行过程中的审批节点）',
     header: '执行模式',
     options: [
-      { label: 'auto (推荐)', description: '全自动执行，无需人工审批，遇到阻塞自动 Meeting' },
+      { label: '全自动执行 (推荐)', description: '全自动执行，无需人工审批，遇到阻塞自动 Meeting' },
       { label: 'confirm-key', description: '关键节点审批（计划、合并、部署）' },
       { label: 'confirm-all', description: '每个阶段都需人工确认' }
     ],
@@ -487,10 +487,141 @@ async function generateSmartQuestions(taskContent: string, basePath: string): Pr
         why: ''
       }));
 
+    // 7. 追加领域分析问题（底层逻辑思考）
+    const domainQuestions = generateDomainAnalysisQuestions(taskContent);
+    questions.push(...domainQuestions);
+
     return questions;
   } catch (error) {
     // Fallback: 如果智能管道出错，使用静态问题
     console.error(`⚠️ 智能问题生成失败，使用静态问题: ${error instanceof Error ? error.message : error}`);
     return generateBrainstormQuestions(taskContent, '');
   }
+}
+
+/**
+ * 领域分析问题 — 底层逻辑思考
+ *
+ * 从任务描述中提取：
+ * 1. 核心领域实体及其关系
+ * 2. 数据流转路径
+ * 3. 关键不变量/约束
+ * 4. 核心用户场景链路
+ */
+function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestion[] {
+  const questions: BrainstormQuestion[] = [];
+  const content = taskContent.toLowerCase();
+
+  // ===== 问题 1: 领域实体建模 =====
+  const entityHints = extractEntities(taskContent);
+  if (entityHints.length > 0) {
+    questions.push({
+      id: 'domain_entities',
+      question: `从任务描述中识别到以下核心实体，请确认或补充：\n${entityHints.map(e => `  • ${e}`).join('\n')}`,
+      header: '领域实体',
+      options: [
+        { label: '以上实体正确', description: '已覆盖核心领域实体，无需补充' },
+        { label: '需要补充实体', description: '还有重要实体未被识别，我会在"其他"中补充' },
+        { label: '需要调整实体', description: '部分实体不准确，需要修正' }
+      ],
+      multiSelect: false,
+      why: '明确领域实体是设计数据模型和 API 的基础'
+    });
+  } else {
+    questions.push({
+      id: 'domain_entities',
+      question: '这个系统涉及哪些核心领域实体？它们之间是什么关系？（如 用户-订单-商品）',
+      header: '领域实体',
+      options: [
+        { label: '单一实体', description: '系统围绕一个核心实体（如用户管理）' },
+        { label: '2-3 个实体', description: '少量实体间有简单关系（如用户-文章）' },
+        { label: '多实体复杂关系', description: '多个实体间有多对多等复杂关系' },
+        { label: '我来说明', description: '在"其他"中描述具体实体' }
+      ],
+      multiSelect: false,
+      why: '明确领域实体是设计数据模型和 API 的基础'
+    });
+  }
+
+  // ===== 问题 2: 数据流分析 =====
+  questions.push({
+    id: 'data_flow',
+    question: '数据在系统中如何流转？（从输入到存储到输出）',
+    header: '数据流',
+    options: [
+      { label: '用户输入 → 处理 → 存储 → 展示', description: '经典 CRUD 流程（如后台管理、博客）' },
+      { label: '外部 API → 转换 → 存储 → 查询', description: '数据采集/聚合类系统' },
+      { label: '事件触发 → 处理 → 通知/存储', description: '事件驱动型（如消息队列、Webhook）' },
+      { label: '实时流处理', description: '数据持续流入，实时处理（如监控、聊天）' },
+      { label: '我来说明', description: '在"其他"中描述具体数据流' }
+    ],
+    multiSelect: false,
+    why: '数据流决定架构选型（请求驱动 vs 事件驱动 vs 流处理）'
+  });
+
+  // ===== 问题 3: 不变量/约束 =====
+  questions.push({
+    id: 'invariants',
+    question: '系统中存在哪些关键不变量或业务约束？（什么条件必须永远成立）',
+    header: '不变量',
+    options: [
+      { label: '数据一致性', description: '如：余额不能为负、库存不能超卖、状态只能单向流转' },
+      { label: '权限控制', description: '如：用户只能操作自己的数据、管理员才能访问后台' },
+      { label: '唯一性约束', description: '如：用户名唯一、订单号不重复、同一时间只能有一个活跃会话' },
+      { label: '无明显约束', description: '纯展示或简单计算，无严格不变量' }
+    ],
+    multiSelect: true,
+    why: '不变量决定了哪些地方需要加锁、事务、校验和防御性编程'
+  });
+
+  // ===== 问题 4: 核心场景链路 =====
+  questions.push({
+    id: 'core_scenarios',
+    question: '从用户视角，核心操作链路是什么？（用户会走过的关键路径）',
+    header: '场景链路',
+    options: [
+      { label: '注册→登录→使用→退出', description: '典型用户系统链路' },
+      { label: '浏览→选择→下单→支付→确认', description: '电商/交易类链路' },
+      { label: '创建→编辑→预览→发布', description: '内容管理类链路' },
+      { label: '输入→处理→查看结果', description: '工具/计算类链路' },
+      { label: '我来说明', description: '在"其他"中描述具体场景链路' }
+    ],
+    multiSelect: true,
+    why: '核心场景链路决定了 MVP 的功能范围和优先级排序'
+  });
+
+  return questions;
+}
+
+/**
+ * 从任务描述中提取可能的领域实体
+ */
+function extractEntities(taskContent: string): string[] {
+  const entities: string[] = [];
+
+  // 中文常见领域实体
+  const zhPatterns: Array<{ pattern: RegExp; entity: string }> = [
+    { pattern: /用户|账号|账户|注册|登录|权限|角色/gi, entity: '用户 (User)' },
+    { pattern: /订单|交易|购买|支付|退款|结算/gi, entity: '订单 (Order)' },
+    { pattern: /商品|产品|物品|库存|上架|下架/gi, entity: '商品 (Product)' },
+    { pattern: /文章|帖子|内容|评论|标签|分类/gi, entity: '内容 (Content)' },
+    { pattern: /任务|工单|项目|里程碑|迭代/gi, entity: '任务 (Task)' },
+    { pattern: /消息|通知|推送|邮件|短信/gi, entity: '消息 (Message)' },
+    { pattern: /文件|附件|图片|视频|媒体|上传/gi, entity: '文件 (File)' },
+    { pattern: /配置|设置|参数|选项|规则/gi, entity: '配置 (Config)' },
+    { pattern: /日志|记录|审计|追踪|监控/gi, entity: '日志 (Log)' },
+    { pattern: /数据|报表|统计|分析|仪表盘|dashboard/gi, entity: '数据 (Data)' },
+    { pattern: /API|接口|端点|路由|endpoint/gi, entity: 'API' },
+    { pattern: /数据库|存储|缓存|表|collection/gi, entity: '存储 (Storage)' },
+  ];
+
+  const seen = new Set<string>();
+  for (const { pattern, entity } of zhPatterns) {
+    if (pattern.test(taskContent) && !seen.has(entity)) {
+      entities.push(entity);
+      seen.add(entity);
+    }
+  }
+
+  return entities;
 }

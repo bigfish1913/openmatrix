@@ -345,4 +345,19 @@ openmatrix meeting --skip-all --message "批量跳过"
         ↓
 恢复执行或标记完成
 ```
+
+## 与 start 的集成
+
+执行 `/om:start` 时：
+1. 阻塞任务自动跳过，创建 Meeting 记录
+2. 非阻塞任务继续执行，最大化并行度
+3. 所有非阻塞任务完成后，自动提示有待处理的 Meeting
+4. 用户使用 `/om:meeting` 统一处理阻塞问题
+
+**全自动执行模式下的 Meeting 流程:**
+```
+/om:start → 执行任务 → 遇到阻塞 → 创建 Meeting → 跳过阻塞 → 继续执行其他任务
+          ↓
+所有非阻塞任务完成 → 提示 Meeting → /om:meeting → 用户处理 → 完成
+```
 </notes>

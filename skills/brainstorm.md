@@ -269,15 +269,32 @@ $ARGUMENTS
 
 ## 问题类型
 
+### 项目配置问题（智能管道生成）
+
 | 问题 ID | 目的 | 为什么重要 |
 |---------|------|-----------|
-| core_objective | 明确核心目标 | 选择正确的实现策略 |
-| user_value | 了解用户价值 | 设计合适的接口 |
-| complexity | 评估复杂度 | 决定实施策略 |
-| tech_constraints | 技术约束 | 影响方案选择 |
-| risks | 风险评估 | 提前规划应对 |
-| acceptance | 验收标准 | 判断完成度 |
-| priority | 优先级 | 资源分配 |
+| objective | 明确任务目标（新功能/修复/重构） | 选择正确的实现策略 |
+| quality_level | 质量门禁级别（strict/balanced/fast） | 影响测试覆盖、Lint、安全扫描要求 |
+| tech_stack | 技术栈选择 | 决定使用什么框架和工具 |
+| execution_mode | 执行模式（auto/confirm-key/confirm-all） | 控制审批节点和自动化程度 |
+| test_coverage | 测试覆盖率要求 | 影响测试任务生成 |
+| documentation_level | 文档要求级别 | 影响文档任务生成 |
+| e2e_tests | 是否启用 E2E 测试 | Web/Mobile/GUI 项目适用 |
+| risks | 风险评估 | 提前规划应对策略 |
+| acceptance | 验收标准 | 判断任务完成度 |
+
+> **智能预填**：当 `SmartQuestionAnalyzer` 对某个问题有高置信度推断时，该问题会被自动跳过，不需要用户回答。
+
+### 领域分析问题（底层逻辑思考）
+
+| 问题 ID | 目的 | 为什么重要 |
+|---------|------|-----------|
+| domain_entities | 核心领域实体建模 | 决定数据模型和 API 设计的基础 |
+| data_flow | 数据流转路径分析 | 决定架构选型（请求驱动 vs 事件驱动 vs 流处理） |
+| invariants | 关键不变量/业务约束 | 决定哪里需要加锁、事务、校验 |
+| core_scenarios | 核心用户场景链路 | 决定 MVP 功能范围和优先级排序 |
+
+> **领域分析的价值**：这四个问题帮助 AI 在执行前建立对系统的深层理解，而不是机械地按需求列表编码。答案会作为上下文注入到每个 Agent 的执行提示词中。
 
 ## 与 start 的集成
 
@@ -286,12 +303,15 @@ $ARGUMENTS
 ```json
 {
   "answers": {
-    "core_objective": "实现新功能",
-    "user_value": "终端用户",
-    "complexity": "中等",
-    "risks": ["技术风险", "兼容性风险"],
-    "acceptance": ["功能完整", "测试覆盖"],
-    "priority": "中优先级"
+    "objective": "new_feature",
+    "quality_level": "balanced",
+    "tech_stack": ["typescript", "react"],
+    "execution_mode": "auto",
+    "test_coverage": "medium",
+    "documentation_level": "basic",
+    "e2e_tests": "false",
+    "risks": ["technical", "compatibility"],
+    "acceptance": ["functional", "tested"]
   },
   "insights": [
     "需要考虑安全性",

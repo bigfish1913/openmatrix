@@ -6,6 +6,7 @@ import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
 import { StateMachine } from './state-machine.js';
 import { PhaseExecutor } from './phase-executor.js';
+import { RetryManager } from './retry-manager.js';
 import type { Task, GlobalState, Approval } from '../types/index.js';
 
 export interface ExecutorConfig {
@@ -46,7 +47,9 @@ export class OrchestratorExecutor {
   private approvalManager: ApprovalManager;
   private stateMachine: StateMachine;
   private phaseExecutor: PhaseExecutor;
+  private retryManager: RetryManager;
   private config: ExecutorConfig;
+  private taskTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
     stateManager: StateManager,
@@ -73,6 +76,7 @@ export class OrchestratorExecutor {
 
     this.stateMachine = new StateMachine();
     this.phaseExecutor = new PhaseExecutor(stateManager, approvalManager);
+    this.retryManager = new RetryManager();
   }
 
   /**
@@ -106,6 +110,18 @@ export class OrchestratorExecutor {
       // 4. 检查是否有失败任务需要重试
       const failedTasks = allTasks.filter(t => t.status === 'failed');
       if (failedTasks.length > 0) {
+        // 尝试自动重试
+        const retried = await this.processRetries(failedTasks);
+        if (retried > 0) {
+          // 有任务被重新放入队列，继续执行循环
+          return {
+            status: 'continue',
+            subagentTasks: [],
+            message: `${retried} 个失败任务已加入重试队列`,
+            statistics: this.getStatistics(state)
+          };
+        }
+        // 所有重试次数已耗尽
         return this.createRetryNeededResult(failedTasks, state);
       }
 
@@ -136,9 +152,10 @@ export class OrchestratorExecutor {
     // 10. 准备 Subagent 任务
     const subagentTasks = await this.agentRunner.prepareSubagentTasks(executableTasks);
 
-    // 8. 更新任务状态为 scheduled
+    // 8. 更新任务状态为 scheduled 并设置超时
     for (const task of executableTasks) {
       await this.scheduler.markTaskStarted(task.id);
+      this.setupTaskTimeout(task.id);
     }
 
     return {
@@ -318,6 +335,9 @@ export class OrchestratorExecutor {
     }
 
     if (result.success) {
+      // 清除超时计时器
+      this.clearTaskTimeout(taskId);
+
       // 更新阶段状态
       const currentPhase = this.getCurrentPhase(task);
       const updatedPhases = { ...task.phases };
@@ -356,6 +376,7 @@ export class OrchestratorExecutor {
         await this.scheduler.markTaskCompleted(taskId);
       }
     } else {
+      this.clearTaskTimeout(taskId);
       await this.scheduler.markTaskFailed(taskId, result.error || 'Unknown error');
     }
   }
@@ -398,5 +419,69 @@ export class OrchestratorExecutor {
    */
   getScheduler(): Scheduler {
     return this.scheduler;
+  }
+
+  // ============ Timeout Management ============
+
+  /**
+   * 设置任务超时计时器
+   */
+  private setupTaskTimeout(taskId: string): void {
+    const timer = setTimeout(async () => {
+      console.error(`⏰ 任务超时: ${taskId} (${this.config.taskTimeout / 1000}s)`);
+      this.taskTimers.delete(taskId);
+      await this.scheduler.markTaskFailed(taskId, `Task timed out after ${this.config.taskTimeout / 1000}s`);
+    }, this.config.taskTimeout);
+    this.taskTimers.set(taskId, timer);
+  }
+
+  /**
+   * 清除任务超时计时器
+   */
+  private clearTaskTimeout(taskId: string): void {
+    const timer = this.taskTimers.get(taskId);
+    if (timer) {
+      clearTimeout(timer);
+      this.taskTimers.delete(taskId);
+    }
+  }
+
+  // ============ Retry Management ============
+
+  /**
+   * 处理失败任务的重试
+   * @returns 成功加入重试队列的任务数量
+   */
+  private async processRetries(failedTasks: Task[]): Promise<number> {
+    let retried = 0;
+
+    for (const task of failedTasks) {
+      this.retryManager.addToQueue(task.id, task.error || 'Unknown error');
+
+      if (this.retryManager.shouldRetry(task.id)) {
+        // 将任务从 failed 转为 retry_queue 再转为 pending
+        await this.stateManager.updateTask(task.id, {
+          status: 'retry_queue',
+          retryCount: (task.retryCount || 0) + 1
+        });
+        await this.stateManager.updateTask(task.id, {
+          status: 'pending'
+        });
+        this.retryManager.removeFromQueue(task.id);
+        retried++;
+      }
+    }
+
+    return retried;
+  }
+
+  /**
+   * 销毁执行器，清理所有资源
+   */
+  destroy(): void {
+    for (const timer of this.taskTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.taskTimers.clear();
   }
 }

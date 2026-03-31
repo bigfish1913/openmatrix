@@ -42,7 +42,13 @@ export const stepCommand = new Command('step')
         completed: completed,
         inProgress: allTasks.filter(t => t.status === 'in_progress').length,
         failed: allTasks.filter(t => t.status === 'failed').length,
-        pending: allTasks.filter(t => t.status === 'pending').length
+        pending: allTasks.filter(t => t.status === 'pending').length,
+        scheduled: allTasks.filter(t => t.status === 'scheduled').length,
+        blocked: allTasks.filter(t => t.status === 'blocked').length,
+        waiting: allTasks.filter(t => t.status === 'waiting').length,
+        verify: allTasks.filter(t => t.status === 'verify').length,
+        accept: allTasks.filter(t => t.status === 'accept').length,
+        retry_queue: allTasks.filter(t => t.status === 'retry_queue').length
       };
 
       const allDone = completed + stats.failed === total;

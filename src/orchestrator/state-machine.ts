@@ -54,6 +54,9 @@ const TRANSITIONS: StateTransition[] = [
   // scheduled → in_progress
   { from: 'scheduled', to: 'in_progress', event: 'start' },
 
+  // pending → in_progress (跳过 scheduled，直接开始)
+  { from: 'pending', to: 'in_progress', event: 'start' },
+
   // in_progress → verify
   { from: 'in_progress', to: 'verify', event: 'develop_done' },
 

@@ -1,7 +1,16 @@
 ---
 name: om:auto
-description: 全自动执行任务 - AI 拆分，无阻塞，bypass permissions
+description: 全自动执行任务指令 - AI 拆分，无阻塞，bypass permissions
 ---
+
+<NOTE>
+## 注意：区分 `/om:auto` 指令与「全自动执行」模式
+
+- **`/om:auto`** 是一个 **Skill 指令**，为 Agent 无障碍执行准备
+- **「全自动执行」**是 `/om:start` 中用户选择的 **执行模式选项**
+
+**关键区别**：`/om/auto` 不创建 Meeting 记录，直接跳过阻塞任务。
+</NOTE>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
@@ -191,7 +200,10 @@ openmatrix step --json
 如果返回 `status: "next"` → 继续执行返回的 task
 如果返回 `status: "done"` → 所有任务完成，进入最终提交
 如果返回 `status: "blocked"` → 有阻塞任务，处理 Meeting
-4. Git 自动提交（**必须使用 HEREDOC 格式**）:
+
+**Meeting 处理机制:**
+ `/om:auto` 不创建 Meeting 记录，直接跳过阻塞任务，无障碍执行。
+
 
 **Agent 上下文共享机制 (Agent Memory):**
 

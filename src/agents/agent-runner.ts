@@ -2,7 +2,7 @@
 import type { Task, AgentType, AgentResult, AgentStatus, SubagentTask, ClaudeCodeSubagentType } from '../types/index.js';
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from '../orchestrator/approval-manager.js';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 
 export interface AgentRunnerConfig {
@@ -187,24 +187,32 @@ ${agentPrompt.instructions}
    *
    * 读取所有已完成任务的 context.md，为当前 Agent 提供前序 Agent 的决策和知识
    */
-  private buildAccumulatedContext(currentTask: Task): string {
+  private async buildAccumulatedContext(currentTask: Task): Promise<string> {
     const omPath = path.join(process.cwd(), '.openmatrix');
     const tasksDir = path.join(omPath, 'tasks');
 
     try {
-      if (!fs.existsSync(tasksDir)) return '';
+      // 异步检查目录是否存在
+      try {
+        await fs.access(tasksDir);
+      } catch {
+        return '';
+      }
 
       const contextParts: string[] = [];
 
-      // 读取所有已完成任务的 context.md
-      const taskDirs = fs.readdirSync(tasksDir).filter(name => name.startsWith('TASK-'));
+      // 异步读取目录
+      const taskDirs = (await fs.readdir(tasksDir)).filter(name => name.startsWith('TASK-'));
       for (const taskId of taskDirs) {
         const contextFile = path.join(tasksDir, taskId, 'context.md');
-        if (fs.existsSync(contextFile)) {
-          const content = fs.readFileSync(contextFile, 'utf-8').trim();
-          if (content) {
-            contextParts.push(`### ${taskId}\n${content}`);
+        try {
+          const content = await fs.readFile(contextFile, 'utf-8');
+          const trimmed = content.trim();
+          if (trimmed) {
+            contextParts.push(`### ${taskId}\n${trimmed}`);
           }
+        } catch {
+          // 文件不存在或读取失败，跳过
         }
       }
 

@@ -122,6 +122,12 @@ export interface GlobalState {
     inProgress: number;
     failed: number;
     pending: number;
+    scheduled: number;
+    blocked: number;
+    waiting: number;
+    verify: number;
+    accept: number;
+    retry_queue: number;
   };
 }
 

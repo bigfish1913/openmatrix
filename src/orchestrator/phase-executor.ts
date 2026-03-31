@@ -543,17 +543,36 @@ npm audit --audit-level=high || echo "Security scan skipped"
 
 ### 6. E2E 测试 (端到端测试)
 ${qc.e2eTests ? `\`\`\`bash
-# Web 应用: Playwright / Cypress
-npx playwright test || npx cypress run
+# 首先检查 E2E 测试工具是否可用
+# 不要直接运行测试 - 先检查工具是否存在
 
-# 移动端: Appium / Detox
-npx appium ... || npx detox test
-
-# GUI 桌面应用: 根据项目配置
-npm run test:e2e
+# 检查 Playwright
+if command -v npx &> /dev/null && npx playwright --version 2>/dev/null; then
+  echo "✅ Playwright available"
+  npx playwright test
+elif command -v npx &> /dev/null && npx cypress --version 2>/dev/null; then
+  echo "✅ Cypress available"
+  npx cypress run
+# 检查移动端工具
+elif command -v appium &> /dev/null; then
+  echo "✅ Appium available"
+  npx appium ...
+elif command -v detox &> /dev/null; then
+  echo "✅ Detox available"
+  npx detox test
+# 检查项目自定义脚本
+elif npm run | grep -q "test:e2e"; then
+  echo "✅ Using project e2e script"
+  npm run test:e2e
+else
+  echo "⚠️ No E2E test tool found - skipping E2E tests"
+  echo "Install Playwright: npm install -D @playwright/test"
+  echo "Or Cypress: npm install -D cypress"
+  exit 0
+fi
 \`\`\`
-**要求**: 所有 E2E 测试通过
-**失败后果**: ❌ VERIFY_FAILED` : '⏭️ 已禁用'}
+**要求**: 所有 E2E 测试通过（如果工具可用）
+**失败后果**: ❌ VERIFY_FAILED (工具可用但未通过) / ⏭️ Skipped (工具不可用)` : '⏭️ 已禁用'}
 
 ### 7. 验收标准验证`);
 
@@ -911,6 +930,9 @@ ACCEPT_FAILED
 
   /**
    * 解析质量报告
+   *
+   * 策略：优先解析 JSON 格式，失败时使用正则表达式回退
+   * 支持多种测试框架输出格式（Vitest, Jest, Mocha, Tape）
    */
   parseQualityReport(output: string): QualityGateResult {
     const result: QualityGateResult = {
@@ -923,11 +945,97 @@ ACCEPT_FAILED
       acceptance: { met: 0, total: 0 }
     };
 
-    // 解析测试结果
-    const testMatch = output.match(/(\d+)\s*(?:passed|passing)/i);
-    if (testMatch) result.tests.passed = parseInt(testMatch[1], 10);
-    const failMatch = output.match(/(\d+)\s*(?:failed|failing)/i);
-    if (failMatch) result.tests.failed = parseInt(failMatch[1], 10);
+    // 策略 1: 尝试解析 JSON 格式（质量门禁首选）
+    const jsonMatch = output.match(/```(?:json)?\s*\{[\s\S]*?"tests":\s*\{[\s\S]*?\}[\s\S]*?\}\s*```/);
+    if (jsonMatch) {
+      try {
+        const jsonStr = jsonMatch[0].replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        const jsonReport = JSON.parse(jsonStr);
+
+        // 解析 tests
+        if (jsonReport.tests) {
+          result.tests.passed = jsonReport.tests.passed ?? 0;
+          result.tests.failed = jsonReport.tests.failed ?? 0;
+          result.tests.coverage = jsonReport.tests.coverage ?? 0;
+        }
+
+        // 解析 build
+        if (jsonReport.build) {
+          result.build.success = jsonReport.build.success ?? false;
+          result.build.errors = jsonReport.build.errors ?? [];
+        }
+
+        // 解析 lint
+        if (jsonReport.lint) {
+          result.lint.errors = jsonReport.lint.errors ?? 0;
+          result.lint.warnings = jsonReport.lint.warnings ?? 0;
+        }
+
+        // 解析 security
+        if (jsonReport.security) {
+          result.security.vulnerabilities = jsonReport.security.vulnerabilities?.length ?? 0;
+        }
+
+        // 解析 e2e
+        if (jsonReport.e2e) {
+          result.e2e.passed = jsonReport.e2e.passed ?? 0;
+          result.e2e.failed = jsonReport.e2e.failed ?? 0;
+          result.e2e.skipped = jsonReport.e2e.skipped ?? 0;
+          result.e2e.duration = jsonReport.e2e.duration ?? 0;
+        }
+
+        // 解析 acceptance
+        if (jsonReport.acceptance) {
+          result.acceptance.total = jsonReport.acceptance.total ?? 0;
+          result.acceptance.met = jsonReport.acceptance.met ?? 0;
+        }
+
+        // 判断是否通过
+        const qc = this.qualityConfig;
+        const testsPassed = result.tests.failed === 0;
+        const coverageOk = result.tests.coverage >= qc.minCoverage;
+        const lintOk = qc.strictLint ? result.lint.errors === 0 : true;
+        const buildOk = result.build.success;
+        const e2eOk = qc.e2eTests ? result.e2e.failed === 0 : true;
+        result.passed = testsPassed && coverageOk && lintOk && buildOk && e2eOk;
+
+        return result;
+      } catch (e) {
+        console.debug('JSON report parse failed, falling back to regex:', e);
+      }
+    }
+
+    // 策略 2: 正则表达式回退 - 支持多种测试框架输出格式
+    // Vitest: "✓ 10 tests | 10 passed"
+    // Jest: "Tests:       10 passed, 10 total"
+    // Mocha: "10 passing"
+    // Tape: "# tests 10\n# ok\n# pass 10"
+    const testPatterns = [
+      /✓\s*(\d+)\s*tests.*?\|\s*(\d+)\s*passed/i,  // Vitest
+      /Tests?:\s*(\d+)\s*passed/i,                  // Jest
+      /(\d+)\s*(?:passed|passing)/i,                // Mocha/Tape
+    ];
+    for (const pattern of testPatterns) {
+      const match = output.match(pattern);
+      if (match) {
+        result.tests.passed = parseInt(match[1], 10);
+        break;
+      }
+    }
+
+    const failPatterns = [
+      /✗\s*(\d+)\s*tests/i,                         // Vitest
+      /Tests?:\s*(\d+)\s*failed/i,                  // Jest
+      /(\d+)\s*(?:failed|failing)/i,                // Mocha/Tape
+    ];
+    for (const pattern of failPatterns) {
+      const match = output.match(pattern);
+      if (match) {
+        result.tests.failed = parseInt(match[1], 10);
+        break;
+      }
+    }
+
     const coverageMatch = output.match(/(?:coverage|covered).*?(\d+)%/i);
     if (coverageMatch) result.tests.coverage = parseInt(coverageMatch[1], 10);
 

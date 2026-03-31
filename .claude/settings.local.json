@@ -14,7 +14,9 @@
       "Bash(rm -rf .openmatrix)",
       "Bash(node c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/dist/cli/index.js research \"做一个游戏\" --json)",
       "Bash(node c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/dist/cli/index.js research --confirm --json)",
-      "Bash(ls -la \"c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/src/orchestrator/smart\"*)"
+      "Bash(ls -la \"c:/Users/bigfish/Projects/github.com/bigfish1913/openmatrix/src/orchestrator/smart\"*)",
+      "Bash(/tmp/e2e_fix.txt:*)",
+      "Read(//tmp/**)"
     ]
   }
 }

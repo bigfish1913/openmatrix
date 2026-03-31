@@ -131,7 +131,7 @@ AskUserQuestion({
     question: "请选择执行模式:",
     header: "执行模式",
     options: [
-      { label: "全自动执行 (推荐)", description: "无需确认，自动完成" },
+      { label: "全自动执行 (推荐)", description: "无需确认，自动完成，阻塞任务 (Meeting) 留到最后统一处理" },
       { label: "关键节点确认", description: "plan/merge 时暂停确认" },
       { label: "每阶段确认", description: "每个阶段完成后暂停" }
     ],
@@ -277,9 +277,18 @@ Agent-1 完成 → 写入 context.md → Agent-2 读取 Agent-1 的上下文 →
 **Meeting 处理（auto 模式）:** 记录并跳过，执行完成后统一展示。
 
 **执行完成后:**
+
+### Meeting 机制
+
+在「全自动执行」模式下:
+- 遇到阻塞任务时，创建 Meeting 记录并跳过该任务
+- 继续执行其他独立任务，最大化并行度
+- 所有非阻塞任务完成后，提示用户使用 `/om:meeting` 统一处理阻塞问题
+
 ```bash
 openmatrix meeting --list
 ```
+
 如有 pending Meeting，交互式处理。
 
 所有任务完成后，执行最终 Git 提交（**必须使用 HEREDOC 格式**）:

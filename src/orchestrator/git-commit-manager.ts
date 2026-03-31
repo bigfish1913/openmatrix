@@ -242,8 +242,19 @@ export class GitCommitManager {
       // 生成提交信息
       const commitMessage = this.generateCommitMessage(fullInfo);
 
-      // 添加所有文件
-      await execAsync('git add -A', { cwd: this.repoPath });
+      // 添加文件 - 使用 git add . 而不是 git add -A
+      // git add . 只添加当前目录及子目录的文件，不会添加上级目录的文件
+      // 同时通过 .gitignore 排除不需要的文件
+      await execAsync('git add .', { cwd: this.repoPath });
+
+      // 检查是否有文件被暂存（避免空提交）
+      const { stdout: staged } = await execAsync('git diff --cached --name-only', { cwd: this.repoPath });
+      if (!staged.trim()) {
+        return {
+          success: false,
+          message: 'No files to commit (all changes ignored or no changes)'
+        };
+      }
 
       // 使用临时文件传递 commit message（避免 Windows 下多行消息转义问题）
       const tmpFile = path.join(this.repoPath, '.git', 'COMMIT_MSG_TMP');
