@@ -88,7 +88,31 @@ export class StateManager {
   async updateState(updates: Partial<GlobalState>): Promise<void> {
     await this.withLock(async () => {
       const state = await this.getState();
-      const newState = { ...state, ...updates };
+
+      // 确保 statistics 存在（兼容旧版本）
+      if (!state.statistics) {
+        state.statistics = {
+          totalTasks: 0,
+          completed: 0,
+          inProgress: 0,
+          failed: 0,
+          pending: 0,
+          scheduled: 0,
+          blocked: 0,
+          waiting: 0,
+          verify: 0,
+          accept: 0,
+          retry_queue: 0
+        };
+      }
+
+      // 合并 updates，statistics 需要单独处理
+      const newState: GlobalState = {
+        ...state,
+        ...updates,
+        statistics: updates.statistics ? { ...state.statistics, ...updates.statistics } : state.statistics
+      };
+
       await this.store.writeJson('state.json', newState);
       this.stateCache = newState;
     });

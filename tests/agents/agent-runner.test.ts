@@ -182,14 +182,14 @@ describe('AgentRunner', () => {
   });
 
   describe('buildExecutionPrompt', () => {
-    it('should include all task information', () => {
+    it('should include all task information', async () => {
       const task = createTestTask({
         title: 'Implement Feature X',
         description: 'Add new feature to the system',
         priority: 'P0'
       });
 
-      const prompt = agentRunner.buildExecutionPrompt(task);
+      const prompt = await agentRunner.buildExecutionPrompt(task);
 
       expect(prompt).toContain('Implement Feature X');
       expect(prompt).toContain('Add new feature to the system');
@@ -197,9 +197,9 @@ describe('AgentRunner', () => {
       expect(prompt).toContain('TASK-TEST001');
     });
 
-    it('should include completion requirements', () => {
+    it('should include completion requirements', async () => {
       const task = createTestTask();
-      const prompt = agentRunner.buildExecutionPrompt(task);
+      const prompt = await agentRunner.buildExecutionPrompt(task);
 
       expect(prompt).toContain('更新任务状态文件');
       expect(prompt).toContain('执行结果');

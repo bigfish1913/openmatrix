@@ -291,36 +291,27 @@ async function handleTasksJson(
     return;
   }
 
-  // 无审批点，直接开始执行
-  const executor = new OrchestratorExecutor(stateManager, approvalManager, {
-    maxConcurrent: state.config.maxConcurrentAgents,
-    taskTimeout: state.config.timeout * 1000
-  });
-
-  const phaseExecutor = executor.getPhaseExecutor();
-  if (phaseExecutor) {
-    phaseExecutor.setRunId(state.runId);
-    if (executionMode === 'auto') {
-      phaseExecutor.setAutoMode(true);
-    }
-  }
-
-  const result = await executor.step();
+  // 无审批点，返回任务列表供 Skill 执行
+  const allTasks = await stateManager.listTasks();
+  const subagentTasks = allTasks.map(t => ({
+    taskId: t.id,
+    agentType: t.assignedAgent,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    dependencies: t.dependencies,
+    timeout: t.timeout
+  }));
 
   if (options.json) {
     console.log(JSON.stringify({
-      status: result.status,
-      message: result.message,
-      statistics: result.statistics,
-      subagentTasks: result.subagentTasks.map(t => ({
-        subagent_type: t.subagent_type,
-        description: t.description,
-        prompt: t.prompt,
-        isolation: t.isolation,
-        taskId: t.taskId,
-        agentType: t.agentType,
-        timeout: t.timeout
-      })),
+      status: 'tasks_ready',
+      message: '任务已准备就绪，等待 Skill 执行',
+      statistics: {
+        totalTasks: allTasks.length,
+        pending: allTasks.filter(t => t.status === 'pending').length
+      },
+      subagentTasks,
       taskInfo: {
         title: tasksInput.title,
         description: tasksInput.description,
@@ -329,9 +320,9 @@ async function handleTasksJson(
     }));
   } else {
     console.log(`\n📋 ${tasksInput.title} - ${subTasks.length} 个子任务已创建`);
-    console.log(`🎯 执行模式: ${executionMode}`);
-    console.log(`   质量级别: ${qualityLevel}`);
-    console.log('\n🚀 开始执行...');
+    console.log(`🎯 执行模式：${executionMode}`);
+    console.log(`   质量级别：${qualityLevel}`);
+    console.log('\n🚀 等待 Skill 执行任务...');
     console.log('   使用 /om:status 查看进度');
   }
 }
@@ -485,36 +476,27 @@ async function handleAutoParse(
     }
     return;
   }
-
-  const executor = new OrchestratorExecutor(stateManager, approvalManager, {
-    maxConcurrent: state.config.maxConcurrentAgents,
-    taskTimeout: state.config.timeout * 1000
-  });
-
-  const phaseExecutor = executor.getPhaseExecutor();
-  if (phaseExecutor) {
-    phaseExecutor.setRunId(state.runId);
-    if (executionMode === 'auto') {
-      phaseExecutor.setAutoMode(true);
-    }
-  }
-
-  const result = await executor.step();
+  // 无审批点，返回任务列表供 Skill 执行
+  const allTasks = await stateManager.listTasks();
+  const subagentTasks = allTasks.map(t => ({
+    taskId: t.id,
+    agentType: t.assignedAgent,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    dependencies: t.dependencies,
+    timeout: t.timeout
+  }));
 
   if (options.json) {
     console.log(JSON.stringify({
-      status: result.status,
-      message: result.message,
-      statistics: result.statistics,
-      subagentTasks: result.subagentTasks.map(t => ({
-        subagent_type: t.subagent_type,
-        description: t.description,
-        prompt: t.prompt,
-        isolation: t.isolation,
-        taskId: t.taskId,
-        agentType: t.agentType,
-        timeout: t.timeout
-      })),
+      status: 'tasks_ready',
+      message: '任务已准备就绪，等待 Skill 执行',
+      statistics: {
+        totalTasks: allTasks.length,
+        pending: allTasks.filter(t => t.status === 'pending').length
+      },
+      subagentTasks,
       taskInfo: {
         title: options.title || parsedTask.title,
         description: options.description,
@@ -525,8 +507,8 @@ async function handleAutoParse(
     }));
   } else {
     console.log(`\n📋 生成 ${subTasks.length} 个子任务`);
-    console.log(`🎯 执行模式: ${executionMode}`);
-    console.log('\n🚀 开始执行...');
+    console.log(`🎯 执行模式：${executionMode}`);
+    console.log('\n🚀 等待 Skill 执行任务...');
     console.log('   使用 /om:status 查看进度');
   }
 }

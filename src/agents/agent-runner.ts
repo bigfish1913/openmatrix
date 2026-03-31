@@ -79,7 +79,7 @@ export class AgentRunner {
    */
   async prepareSubagentTask(task: Task): Promise<SubagentTask> {
     const subagentType = this.mapAgentType(task.assignedAgent);
-    const prompt = this.buildExecutionPrompt(task);
+    const prompt = await this.buildExecutionPrompt(task);
     const needsIsolation = this.needsIsolation(task);
 
     console.log(`🤖 Preparing ${task.assignedAgent} subagent for task ${task.id}`);
@@ -141,10 +141,10 @@ export class AgentRunner {
   /**
    * 构建完整的执行提示词
    */
-  buildExecutionPrompt(task: Task): string {
+  async buildExecutionPrompt(task: Task): Promise<string> {
     const agentPrompt = this.buildAgentPrompt(task);
     const phaseContext = this.buildPhaseContext(task);
-    const accumulatedContext = this.buildAccumulatedContext(task);
+    const accumulatedContext = await this.buildAccumulatedContext(task);
 
     return `# 任务执行
 
