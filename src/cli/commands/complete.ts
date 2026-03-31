@@ -83,8 +83,9 @@ export const completeCommand = new Command('complete')
 
         if (commitResult.success) {
           console.error(`✅ Git 提交成功: ${commitResult.commitHash}`);
-        } else if (commitResult.message !== 'No changes to commit') {
-          console.error(`⚠️ Git 提交跳过: ${commitResult.message || commitResult.error}`);
+        } else {
+          const reason = commitResult.message || commitResult.error || 'Unknown reason';
+          console.error(`⚠️ Git 提交跳过: ${reason}`);
         }
       } catch (error) {
         console.error(`⚠️ Git 提交失败: ${error}`);

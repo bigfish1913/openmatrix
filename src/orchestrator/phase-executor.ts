@@ -805,8 +805,8 @@ ACCEPT_FAILED
         completedAt: now
       });
 
-      // 自动提交代码
-      if (this.runId) {
+      // 自动提交代码（始终尝试，不依赖 runId 是否为空）
+      {
         try {
           const commitResult = await this.gitCommitManager.commit({
             taskId: task.id,
@@ -819,8 +819,9 @@ ACCEPT_FAILED
 
           if (commitResult.success) {
             console.log(`✅ Git 提交成功: ${commitResult.commitHash}`);
-          } else if (commitResult.message !== 'No changes to commit') {
-            console.log(`⚠️ Git 提交跳过: ${commitResult.message || commitResult.error}`);
+          } else {
+            const reason = commitResult.message || commitResult.error || 'Unknown reason';
+            console.log(`⚠️ Git 提交跳过: ${reason}`);
           }
         } catch (error) {
           console.error(`❌ Git 提交失败: ${error}`);

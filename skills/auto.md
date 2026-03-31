@@ -131,7 +131,13 @@ CLI 返回的 JSON 中 `subagentTasks` 数组包含每个待执行任务:
 **文件持久化循环（防止上下文压缩丢失状态）:**
 ```bash
 # 每个 Agent 完成后执行:
-openmatrix complete TASK-XXX --success       # 标记完成 + 更新统计
+openmatrix complete TASK-XXX --success       # 标记完成 + 更新统计（含自动 git commit）
+
+# 提交验证（防止 commit 静默失败）:
+git status --porcelain                        # 检查是否有未提交的文件
+# 如果有未提交文件 → 必须手动提交:
+git add -A && git commit -m "feat: (TASK-XXX) 任务标题"
+
 openmatrix step --json                       # 获取下一个任务 + 检查是否全部完成
 ```
 `openmatrix step` 从磁盘读取真实状态，不依赖上下文记忆。

@@ -245,21 +245,29 @@ export class GitCommitManager {
       // 添加所有文件
       await execAsync('git add -A', { cwd: this.repoPath });
 
-      // 执行提交
-      const { stdout } = await execAsync(
-        `git commit -m "${commitMessage.replace(/"/g, '\\"')}"`,
-        { cwd: this.repoPath }
-      );
+      // 使用临时文件传递 commit message（避免 Windows 下多行消息转义问题）
+      const tmpFile = path.join(this.repoPath, '.git', 'COMMIT_MSG_TMP');
+      await fs.writeFile(tmpFile, commitMessage, 'utf-8');
 
-      // 提取 commit hash
-      const hashMatch = stdout.match(/\[.+?\s+([a-f0-9]+)\]/);
-      const commitHash = hashMatch ? hashMatch[1] : undefined;
+      try {
+        const { stdout } = await execAsync(
+          `git commit -F "${tmpFile}"`,
+          { cwd: this.repoPath }
+        );
 
-      return {
-        success: true,
-        commitHash,
-        message: `Committed ${files.length} files`
-      };
+        // 提取 commit hash
+        const hashMatch = stdout.match(/\[.+?\s+([a-f0-9]+)\]/);
+        const commitHash = hashMatch ? hashMatch[1] : undefined;
+
+        return {
+          success: true,
+          commitHash,
+          message: `Committed ${files.length} files`
+        };
+      } finally {
+        // 清理临时文件
+        await fs.unlink(tmpFile).catch(() => {});
+      }
 
     } catch (error) {
       return {
