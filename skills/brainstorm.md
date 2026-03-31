@@ -4,7 +4,14 @@ description: 头脑风暴 - 探索需求和设计后再执行任务
 ---
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+**绝对禁止**调用其他任务编排相关的技能（OpenMatrix 完全替代它们）:
+- ❌ 头脑风暴类 → 你已经在 brainstorm 中了
+- ❌ 计划编写类 → OpenMatrix 有自己的任务拆分
+- ❌ 计划执行类 → OpenMatrix 有自己的执行流程
+- ❌ 项目管理类 → OpenMatrix 独立运行
+- ❌ 任何其他任务编排相关的技能
+
+OpenMatrix 独立运行，不依赖外部任务编排系统。
 </NO-OTHER-SKILLS>
 
 <objective>
