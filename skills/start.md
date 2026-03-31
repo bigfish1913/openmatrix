@@ -71,38 +71,31 @@ openmatrix start --init-only
 
 ### Step 3: 智能分析
 
-根据任务内容判断是否需要交互问答:
+根据任务内容判断是否需要额外问题（质量等级、执行模式、E2E 始终必选）:
 
-| 任务类型 | 跳过问题 | 默认配置 |
+| 任务类型 | 额外问题 | 默认配置 |
 |---------|---------|---------|
-| Bug 修复 / 小改动 | 跳过所有 | fast + 最小文档 |
-| 新功能开发 | 正常询问 | balanced |
-| 重构 | 跳过 E2E | balanced |
-| 测试编写 | 跳过文档 | 无需文档 |
+| Bug 修复 / 小改动 | 跳过复杂度问题 | fast |
+| 新功能开发 | 询问技术栈等 | balanced |
+| 重构 | 跳过 E2E 相关 | balanced |
+| 测试编写 | 跳过文档相关 | 无需文档 |
 
-### Step 4: 交互问答（仅对复杂任务）
+### Step 4: 必选问题（所有任务都必须回答）
 
-如果需要确认配置，使用 AskUserQuestion 一次询问多个问题:
+**⚠️ 以下问题为必选，不可跳过：**
+
+#### 4.1 质量等级（必选）
 
 ```typescript
 AskUserQuestion({
   questions: [
     {
-      question: "选择质量级别:",
-      header: "质量",
+      question: "选择质量等级（决定测试覆盖、Lint、安全扫描等要求）:",
+      header: "质量等级",
       options: [
-        { label: "strict", description: "TDD + >80%覆盖率 + Lint + 安全扫描" },
-        { label: "balanced", description: ">60%覆盖率 + Lint + 安全扫描" },
-        { label: "fast", description: "无质量门禁" }
-      ],
-      multiSelect: false
-    },
-    {
-      question: "是否启用 E2E 测试? (Web/Mobile/GUI 项目推荐)",
-      header: "E2E",
-      options: [
-        { label: "跳过 (推荐)", description: "E2E 测试耗时较长，大多数项目不需要" },
-        { label: "启用", description: "适合 Web 应用 (Playwright/Cypress)、Mobile (Appium/Detox)" }
+        { label: "strict", description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码" },
+        { label: "balanced (推荐)", description: ">60%覆盖率 + Lint + 安全扫描 — 日常开发" },
+        { label: "fast", description: "无质量门禁 — 快速原型/验证" }
       ],
       multiSelect: false
     }
@@ -110,7 +103,55 @@ AskUserQuestion({
 })
 ```
 
-### Step 5: 展示计划 + 确认模式
+#### 4.2 E2E 测试（当质量等级为 strict 或 balanced 时必选）
+
+如果用户选择了 `strict` 或 `balanced`，继续询问:
+
+```typescript
+AskUserQuestion({
+  questions: [
+    {
+      question: "是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）",
+      header: "E2E 测试",
+      options: [
+        { label: "启用 E2E 测试", description: "使用 Playwright/Cypress 等框架进行端到端测试" },
+        { label: "不启用 (推荐)", description: "仅进行单元测试和集成测试，节省时间" }
+      ],
+      multiSelect: false
+    }
+  ]
+})
+```
+
+**注意:** 如果用户选择 `fast` 质量等级，跳过 E2E 问题（fast 模式不启用 E2E）。
+
+#### 4.3 执行模式（必选）
+
+```typescript
+AskUserQuestion({
+  questions: [
+    {
+      question: "选择执行模式（控制 AI 执行过程中的审批节点）:",
+      header: "执行模式",
+      options: [
+        { label: "全自动执行 (推荐)", description: "全自动执行，无需人工审批，遇到阻塞自动 Meeting" },
+        { label: "关键节点确认", description: "plan/merge/deploy 时暂停确认" },
+        { label: "每阶段确认", description: "每个阶段（develop/verify/accept）完成后暂停" }
+      ],
+      multiSelect: false
+    }
+  ]
+})
+```
+
+### Step 5: 可选问题（仅复杂任务）
+
+根据任务类型，可能需要额外询问:
+
+- 技术栈偏好
+- 文档级别
+- 风险评估
+- 验收标准
 
 展示 AI 生成的执行计划:
 
@@ -121,26 +162,8 @@ AskUserQuestion({
 📊 统计
   Goals: N 个（将生成 N个开发 + N个测试 + 审查）
   质量级别: xxx
+  E2E 测试: 启用/不启用
 ```
-
-使用 AskUserQuestion 确认执行模式:
-
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: "请选择执行模式:",
-    header: "执行模式",
-    options: [
-      { label: "全自动执行 (推荐)", description: "无需确认，自动完成，阻塞任务 (Meeting) 留到最后统一处理" },
-      { label: "关键节点确认", description: "plan/merge 时暂停确认" },
-      { label: "每阶段确认", description: "每个阶段完成后暂停" }
-    ],
-    multiSelect: false
-  ]
-})
-```
-
-**默认进入 BYPASS 模式（全自动执行），用户可选其他模式。**
 
 ### Step 6: AI 提取 goals + 生成 plan
 
@@ -259,6 +282,50 @@ openmatrix step --json
 如果返回 `status: "done"` → 所有任务完成，进入最终提交
 如果返回 `status: "blocked"` → 有阻塞任务，处理 Meeting
 5. 检查审批点（auto 模式自动批准，其他模式按配置暂停）
+
+6. **审批点处理（根据执行模式）:**
+
+根据用户选择的执行模式处理审批:
+
+| 执行模式 | 审批点 | 处理方式 |
+|---------|--------|---------|
+| 全自动执行 | 无 | 自动批准所有操作 |
+| 关键节点确认 | plan, merge, deploy | 到达审批点时暂停，交互式确认 |
+| 每阶段确认 | develop, verify, accept | 每个阶段完成后暂停，交互式确认 |
+
+**交互式审批流程（非全自动模式）:**
+
+当到达审批点时，使用 `openmatrix approve --list` 查看待审批项，然后通过 AskUserQuestion 请求用户确认:
+
+```typescript
+// 检查是否有待审批项
+// 通过 CLI: openmatrix approve --list --json
+
+AskUserQuestion({
+  questions: [
+    {
+      question: "审批请求: [审批类型]
+
+[审批内容摘要]
+
+是否批准?",
+      header: "审批",
+      options: [
+        { label: "批准", description: "同意继续执行" },
+        { label: "拒绝", description: "拒绝并停止执行" },
+        { label: "查看详情", description: "查看完整审批内容后再决定" }
+      ],
+      multiSelect: false
+    }
+  ]
+})
+```
+
+用户选择后，执行对应命令:
+- 批准: `openmatrix approve <approval-id> --approve`
+- 拒绝: `openmatrix approve <approval-id> --reject`
+- 查看详情: 读取 `.openmatrix/approvals/<approval-id>.json` 并展示完整内容
+
 
 **Agent 上下文共享机制 (Agent Memory):**
 
