@@ -2,6 +2,10 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
+import { SmartQuestionAnalyzer } from '../../orchestrator/smart-question-analyzer.js';
+import { InteractiveQuestionGenerator } from '../../orchestrator/interactive-question-generator.js';
+import { TaskParser } from '../../orchestrator/task-parser.js';
+import { translateAnalyzerInferences } from '../../orchestrator/answer-mapper.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -182,8 +186,8 @@ export const brainstormCommand = new Command('brainstorm')
       }
     }
 
-    // 生成头脑风暴问题
-    const questions: BrainstormQuestion[] = generateBrainstormQuestions(taskContent, taskTitle);
+    // 生成头脑风暴问题 — 使用智能管道
+    const questions: BrainstormQuestion[] = await generateSmartQuestions(taskContent, basePath);
 
     // 检测是否涉及垂直领域
     const domainDetection = detectVerticalDomain(taskContent);
@@ -441,4 +445,52 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
   }
 
   return questions;
+}
+
+/**
+ * 智能问题生成 — 使用 SmartQuestionAnalyzer + InteractiveQuestionGenerator
+ */
+async function generateSmartQuestions(taskContent: string, basePath: string): Promise<BrainstormQuestion[]> {
+  try {
+    // 1. 解析任务为 ParsedTask
+    const parser = new TaskParser();
+    const parsedTask = parser.parse(taskContent);
+
+    // 2. 分析项目上下文 + 推断答案
+    const analyzer = new SmartQuestionAnalyzer(basePath);
+    const analysisResult = await analyzer.analyze(taskContent, parsedTask);
+
+    // 3. 映射推断结果为规范 brainstorm ID
+    const inferenceMap = translateAnalyzerInferences(analysisResult.inferences);
+
+    // 4. 创建问题生成器 + 设置推断
+    const questionGen = new InteractiveQuestionGenerator();
+    questionGen.setInferences(inferenceMap);
+
+    // 5. 生成基础问题 + 上下文问题
+    const session = questionGen.startSession(parsedTask);
+    questionGen.addContextualQuestions(parsedTask, session.questions);
+
+    // 6. 转换为 BrainstormQuestion[] 格式
+    const questions: BrainstormQuestion[] = session.questions
+      .filter(q => !session.skippedQuestionIds?.includes(q.id)) // 跳过高置信度推断的问题
+      .sort((a, b) => (a.priority ?? 5) - (b.priority ?? 5))
+      .map(q => ({
+        id: q.id,
+        question: q.question,
+        header: q.category,
+        options: (q.options || []).map(o => ({
+          label: o.label,
+          description: o.description || ''
+        })),
+        multiSelect: q.type === 'multiple',
+        why: ''
+      }));
+
+    return questions;
+  } catch (error) {
+    // Fallback: 如果智能管道出错，使用静态问题
+    console.error(`⚠️ 智能问题生成失败，使用静态问题: ${error instanceof Error ? error.message : error}`);
+    return generateBrainstormQuestions(taskContent, '');
+  }
 }

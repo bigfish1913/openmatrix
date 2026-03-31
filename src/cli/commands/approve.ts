@@ -8,6 +8,7 @@ export const approveCommand = new Command('approve')
   .argument('[approvalId]', '审批ID')
   .option('-d, --decision <decision>', '决策 (approve/modify/reject)')
   .option('-c, --comment <comment>', '备注说明')
+  .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (approvalId: string | undefined, options) => {
     const basePath = process.cwd();
     const omPath = `${basePath}/.openmatrix`;
@@ -22,25 +23,33 @@ export const approveCommand = new Command('approve')
       const pendingApprovals = await approvalManager.getPendingApprovals();
 
       if (pendingApprovals.length === 0) {
-        console.log('✅ 没有待处理的审批');
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'empty', pending: [] }));
+        } else {
+          console.log('✅ 没有待处理的审批');
+        }
         return;
       }
 
-      console.log('📋 待处理审批:\n');
-      pendingApprovals.forEach((approval, i) => {
-        const typeEmoji = {
-          plan: '📋',
-          merge: '🔀',
-          deploy: '🚀',
-          meeting: '🔴',
-          custom: '📝'
-        };
-        const emoji = typeEmoji[approval.type] || '📝';
-        console.log(`  [${i + 1}] ${emoji} ${approval.id}: ${approval.title}`);
-        console.log(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
-      });
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'pending', pending: pendingApprovals }));
+      } else {
+        console.log('📋 待处理审批:\n');
+        pendingApprovals.forEach((approval, i) => {
+          const typeEmoji = {
+            plan: '📋',
+            merge: '🔀',
+            deploy: '🚀',
+            meeting: '🔴',
+            custom: '📝'
+          };
+          const emoji = typeEmoji[approval.type] || '📝';
+          console.log(`  [${i + 1}] ${emoji} ${approval.id}: ${approval.title}`);
+          console.log(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
+        });
 
-      console.log('\n💡 使用 openmatrix approve <ID> 处理审批');
+        console.log('\n💡 使用 openmatrix approve <ID> 处理审批');
+      }
       return;
     }
 

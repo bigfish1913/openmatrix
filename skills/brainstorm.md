@@ -23,7 +23,7 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
 
    调用 CLI 创建头脑风暴会话:
    ```bash
-   openmatrix brainstorm --json
+   openmatrix brainstorm "$ARGUMENTS" --json
    ```
 
    这会返回:

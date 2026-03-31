@@ -208,6 +208,12 @@ export class SmartQuestionAnalyzer {
     // 5. 推断执行模式
     inferences.push(this.inferExecutionMode(desc, context));
 
+    // 6. 推断任务目标类型
+    inferences.push(this.inferObjective(desc, context));
+
+    // 7. 推断测试覆盖率级别
+    inferences.push(this.inferTestCoverage(desc, context));
+
     return inferences;
   }
 
@@ -440,6 +446,72 @@ export class SmartQuestionAnalyzer {
     }
 
     inference.reason = '无法确定执行模式';
+    return inference;
+  }
+
+  /**
+   * 推断任务目标类型
+   */
+  private inferObjective(desc: string, context: ProjectContext): QuestionInference {
+    const inference: QuestionInference = {
+      questionId: 'objective',
+      confidence: 'low',
+      reason: ''
+    };
+
+    if (/(fix|bug|修复|hotfix|patch)/i.test(desc)) {
+      inference.inferredAnswer = 'bug_fix';
+      inference.confidence = 'medium';
+      inference.reason = '任务描述包含修复关键词';
+    } else if (/(implement|add|新功能|实现|开发|feature|新增)/i.test(desc)) {
+      inference.inferredAnswer = 'new_feature';
+      inference.confidence = 'medium';
+      inference.reason = '任务描述包含新功能关键词';
+    } else if (/(refactor|优化|重构|improve|性能)/i.test(desc)) {
+      inference.inferredAnswer = 'refactor';
+      inference.confidence = 'medium';
+      inference.reason = '任务描述包含重构关键词';
+    } else if (/(test|测试|coverage|覆盖)/i.test(desc)) {
+      inference.inferredAnswer = 'test';
+      inference.confidence = 'medium';
+      inference.reason = '任务描述包含测试关键词';
+    } else {
+      inference.reason = '无法确定任务目标类型';
+    }
+
+    return inference;
+  }
+
+  /**
+   * 推断测试覆盖率级别
+   */
+  private inferTestCoverage(desc: string, context: ProjectContext): QuestionInference {
+    const inference: QuestionInference = {
+      questionId: 'test_coverage',
+      confidence: 'low',
+      reason: ''
+    };
+
+    if (context.hasTests && /(test|测试)/i.test(desc)) {
+      inference.inferredAnswer = 'high';
+      inference.confidence = 'medium';
+      inference.reason = '项目已有测试，且任务涉及测试';
+    } else if (/(implement|add|新功能|实现|feature)/i.test(desc)) {
+      inference.inferredAnswer = 'medium';
+      inference.confidence = 'low';
+      inference.reason = '新功能任务，中等测试覆盖率';
+    } else if (/(fix|bug|修复)/i.test(desc)) {
+      inference.inferredAnswer = 'low';
+      inference.confidence = 'medium';
+      inference.reason = 'Bug 修复，需要回归测试但覆盖率要求不高';
+    } else if (/(prototype|poc|demo|快速|原型)/i.test(desc)) {
+      inference.inferredAnswer = 'none';
+      inference.confidence = 'medium';
+      inference.reason = '原型任务，不需要测试';
+    } else {
+      inference.reason = '无法确定测试覆盖率级别';
+    }
+
     return inference;
   }
 

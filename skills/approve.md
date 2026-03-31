@@ -14,7 +14,7 @@ description: 审批待处理项（包括计划、合并、部署、Meeting）
 <process>
 1. **获取待审批列表**
    ```bash
-   openmatrix approve --list
+   openmatrix approve
    ```
 
 2. **如果没有待审批项**
@@ -152,8 +152,10 @@ description: 审批待处理项（包括计划、合并、部署、Meeting）
 
 5. **执行审批**
    ```bash
-   openmatrix approve <approvalId> -d <approve|reject|modify> [-c "备注"]
+   openmatrix approve <approvalId> -d <approve|reject|modify> [-c "备注"] --json
    ```
+
+   **注意**: approvalId 是位置参数，不要使用 --id。正确格式: `openmatrix approve APPR-001 -d approve --json`
 
 6. **更新状态**
 
@@ -214,18 +216,13 @@ Meeting 审批需要更细致的交互:
 ## CLI 命令
 
 ```bash
-# 列出待审批
-openmatrix approve
+# 列出待审批 (不传 ID)
+openmatrix approve --json
 
-# 处理审批
-openmatrix approve APPR-001 -d approve -c "同意此方案"
-openmatrix approve APPR-001 -d reject -c "需要重新设计"
-openmatrix approve APPR-001 -d modify -c "增加测试覆盖率要求"
-
-# Meeting 专用 (使用 meeting 命令)
-openmatrix meeting APPR-002 --action provide-info --info "数据库连接字符串是..."
-openmatrix meeting APPR-002 --action skip --message "此任务可选"
-openmatrix meeting APPR-002 --action cancel --message "需求变更，停止执行"
+# 处理审批 (ID 是位置参数，不要用 --id)
+openmatrix approve APPR-001 -d approve -c "同意此方案" --json
+openmatrix approve APPR-001 -d reject -c "需要重新设计" --json
+openmatrix approve APPR-001 -d modify -c "增加测试覆盖率要求" --json
 ```
 
 ## 与执行循环的集成

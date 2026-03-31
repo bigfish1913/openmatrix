@@ -1,6 +1,7 @@
 // src/orchestrator/task-planner.ts
 import type { ParsedTask, QualityConfig } from '../types/index.js';
 import type { Task } from '../types/index.js';
+import { translateBrainstormAnswers } from './answer-mapper.js';
 
 export interface TaskBreakdown {
   taskId: string;
@@ -20,7 +21,7 @@ export interface UserAnswers {
   techStack?: string[];
   testCoverage?: string;
   documentationLevel?: string;
-  additionalContext?: Record<string, string>;
+  additionalContext?: Record<string, string | string[]>;
   /** 是否启用 E2E 测试 */
   e2eTests?: boolean;
   /** E2E 测试类型 (web/mobile/gui) */
@@ -318,21 +319,29 @@ ${userContext.documentationLevel}
    * 提取用户上下文
    */
   private extractUserContext(answers: Record<string, string>): UserAnswers {
-    const e2eAnswer = answers['E2E测试'] || answers['e2eTests'] || answers['e2e'];
-    const e2eTypeAnswer = answers['E2E类型'] || answers['e2eType'];
+    // 先翻译 brainstorm 规范键为 planner 期望的键
+    const translated = translateBrainstormAnswers(answers);
+    const merged = { ...answers, ...translated };
+
+    // 辅助函数：提取字符串值（处理 string[] 情况）
+    const str = (v: string | string[] | undefined): string | undefined =>
+      Array.isArray(v) ? v.join(', ') : v;
+
+    const e2eAnswer = str(merged['E2E测试'] || merged['e2eTests'] || merged['e2e']);
+    const e2eTypeAnswer = str(merged['E2E类型'] || merged['e2eType']);
 
     return {
-      objective: answers['目标'] || answers['objective'],
-      techStack: this.parseArrayAnswer(answers['技术栈'] || answers['techStack']),
-      testCoverage: answers['测试'] || answers['testCoverage'],
-      documentationLevel: answers['文档'] || answers['documentationLevel'],
+      objective: str(merged['目标'] || merged['objective']),
+      techStack: this.parseArrayAnswer(str(merged['技术栈'] || merged['techStack']) || ''),
+      testCoverage: str(merged['测试'] || merged['testCoverage']),
+      documentationLevel: str(merged['文档'] || merged['documentationLevel']),
       e2eTests: e2eAnswer === 'true' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是',
       e2eType: (e2eTypeAnswer as 'web' | 'mobile' | 'gui') || 'web',
-      additionalContext: answers
+      additionalContext: merged
     };
   }
 
-  private parseArrayAnswer(answer: string): string[] {
+  private parseArrayAnswer(answer: string | undefined): string[] {
     if (!answer) return [];
     return answer.split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
   }

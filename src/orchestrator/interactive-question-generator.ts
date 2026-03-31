@@ -277,18 +277,18 @@ export class InteractiveQuestionGenerator {
   private generateBaseQuestions(task: ParsedTask): InteractiveQuestion[] {
     const questions: InteractiveQuestion[] = [];
 
-    // 1. 核心目标
+    // 1. 任务目标
     questions.push({
       id: 'objective',
-      question: '这个任务的主要目标是什么？',
+      question: '这个任务的核心目标是什么？想要解决什么问题？',
       type: 'single',
       required: true,
       category: 'objective',
       priority: 1,
       options: [
-        { key: 'new_feature', label: '实现新功能', description: '添加新的功能特性' },
-        { key: 'bug_fix', label: '修复 Bug', description: '修复已知问题' },
-        { key: 'refactor', label: '重构优化', description: '改进代码结构或性能' },
+        { key: 'new_feature', label: '实现新功能', description: '添加新的功能特性，扩展系统能力' },
+        { key: 'bug_fix', label: '修复问题', description: '修复 Bug 或解决已知问题' },
+        { key: 'refactor', label: '重构优化', description: '改进代码结构、性能或可维护性' },
         { key: 'other', label: '其他', description: '其他类型任务' }
       ],
       followUpCondition: {
@@ -306,14 +306,29 @@ export class InteractiveQuestionGenerator {
       }
     });
 
-    // 2. 技术栈
+    // 2. 质量级别
+    questions.push({
+      id: 'quality_level',
+      question: '选择质量门禁级别（决定测试覆盖、Lint、安全扫描等要求）',
+      type: 'single',
+      required: true,
+      category: 'quality',
+      priority: 2,
+      options: [
+        { key: 'strict', label: 'strict', description: 'TDD + 80% 覆盖率 + 严格 Lint + 安全扫描 — 生产级代码' },
+        { key: 'balanced', label: 'balanced (推荐)', description: '60% 覆盖率 + Lint + 安全扫描 — 日常开发' },
+        { key: 'fast', label: 'fast', description: '无质量门禁 — 快速原型/验证' }
+      ]
+    });
+
+    // 3. 技术栈
     questions.push({
       id: 'tech_stack',
       question: '使用什么技术栈？',
       type: 'multiple',
       required: true,
       category: 'technical',
-      priority: 2,
+      priority: 3,
       options: [
         { key: 'typescript', label: 'TypeScript', description: '类型安全的 JavaScript' },
         { key: 'javascript', label: 'JavaScript', description: '标准 JavaScript' },
@@ -332,68 +347,35 @@ export class InteractiveQuestionGenerator {
             type: 'text',
             required: true,
             category: 'technical',
-            priority: 2.5
+            priority: 3.5
           }
         ]
       }
     });
 
-    // 3. 数据存储
+    // 4. 执行模式
     questions.push({
-      id: 'data_storage',
-      question: '需要什么类型的存储？',
+      id: 'execution_mode',
+      question: '选择执行模式（控制 AI 执行过程中的审批节点）',
       type: 'single',
       required: true,
-      category: 'technical',
-      priority: 3,
-      options: [
-        { key: 'postgresql', label: 'PostgreSQL', description: '关系型数据库' },
-        { key: 'mongodb', label: 'MongoDB', description: '文档数据库' },
-        { key: 'sqlite', label: 'SQLite', description: '本地数据库' },
-        { key: 'none', label: '无需存储', description: '不需要数据持久化' }
-      ]
-    });
-
-    // 4. 认证方式
-    questions.push({
-      id: 'auth_method',
-      question: '需要用户认证吗？',
-      type: 'single',
-      required: true,
-      category: 'technical',
+      category: 'quality',
       priority: 4,
       options: [
-        { key: 'jwt', label: 'JWT Token', description: '无状态认证' },
-        { key: 'oauth', label: 'OAuth 2.0', description: '第三方授权' },
-        { key: 'session', label: 'Session Cookie', description: '传统会话' },
-        { key: 'none', label: '无需认证', description: '无用户系统' }
+        { key: 'auto', label: 'auto (推荐)', description: '全自动执行，无需人工审批，遇到阻塞自动 Meeting' },
+        { key: 'confirm-key', label: 'confirm-key', description: '关键节点审批（计划、合并、部署）' },
+        { key: 'confirm-all', label: 'confirm-all', description: '每个阶段都需人工确认' }
       ]
     });
 
-    // 5. API 风格
-    questions.push({
-      id: 'api_style',
-      question: 'API 采用什么风格？',
-      type: 'single',
-      required: true,
-      category: 'technical',
-      priority: 5,
-      options: [
-        { key: 'rest', label: 'RESTful', description: 'REST API' },
-        { key: 'graphql', label: 'GraphQL', description: 'GraphQL API' },
-        { key: 'grpc', label: 'gRPC', description: '高性能 RPC' },
-        { key: 'mixed', label: '混合', description: '多种风格混合' }
-      ]
-    });
-
-    // 6. 测试要求
+    // 5. 测试覆盖率
     questions.push({
       id: 'test_coverage',
       question: '测试覆盖率要求？',
       type: 'single',
       required: true,
       category: 'quality',
-      priority: 6,
+      priority: 5,
       options: [
         { key: 'high', label: '>80% (严格)', description: '完整单元测试和集成测试' },
         { key: 'medium', label: '>60% (标准)', description: '核心功能测试' },
@@ -402,19 +384,65 @@ export class InteractiveQuestionGenerator {
       ]
     });
 
-    // 7. 文档要求
+    // 6. 文档要求
     questions.push({
-      id: 'doc_level',
+      id: 'documentation_level',
       question: '需要什么级别的文档？',
       type: 'single',
       required: true,
       category: 'quality',
-      priority: 7,
+      priority: 6,
       options: [
         { key: 'full', label: '完整文档', description: 'API + 使用指南 + 架构' },
         { key: 'basic', label: '基础文档', description: 'README + API' },
         { key: 'minimal', label: '最小文档', description: '仅 README' },
         { key: 'none', label: '无需文档', description: '不生成文档' }
+      ]
+    });
+
+    // 7. E2E 测试
+    questions.push({
+      id: 'e2e_tests',
+      question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
+      type: 'single',
+      required: false,
+      category: 'quality',
+      priority: 7,
+      options: [
+        { key: 'true', label: '启用 E2E 测试', description: '使用 Playwright/Cypress 等框架进行端到端测试' },
+        { key: 'false', label: '不启用 (推荐)', description: '仅进行单元测试和集成测试，节省时间' }
+      ]
+    });
+
+    // 8. 风险评估
+    questions.push({
+      id: 'risks',
+      question: '这个任务可能面临哪些风险或挑战？',
+      type: 'multiple',
+      required: true,
+      category: 'risk',
+      priority: 8,
+      options: [
+        { key: 'technical', label: '技术风险', description: '技术实现存在不确定性' },
+        { key: 'time', label: '时间风险', description: '需要在短时间内完成' },
+        { key: 'compatibility', label: '兼容性风险', description: '可能影响现有功能' },
+        { key: 'none', label: '无明显风险', description: '任务清晰，风险可控' }
+      ]
+    });
+
+    // 9. 验收标准
+    questions.push({
+      id: 'acceptance',
+      question: '如何判断任务完成？有哪些验收标准？',
+      type: 'multiple',
+      required: true,
+      category: 'scope',
+      priority: 9,
+      options: [
+        { key: 'functional', label: '功能完整', description: '所有功能按预期工作' },
+        { key: 'tested', label: '测试覆盖', description: '有足够的测试覆盖' },
+        { key: 'performance', label: '性能达标', description: '满足性能要求' },
+        { key: 'documented', label: '文档完善', description: '有完整的使用文档' }
       ]
     });
 
