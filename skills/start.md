@@ -63,14 +63,20 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 openmatrix start --init-only
 ```
 
-检查 Git 仓库:
-- 无 `.git` → 询问用户是否初始化
+**检查 Git 仓库（必须执行）:**
+```bash
+# 检查是否有 .git 目录
+ls -la .git 2>/dev/null
+```
+
+- 无 `.git` → 使用 AskUserQuestion 询问用户是否初始化 git 仓库
 - 无远程仓库 → 提示用户添加
 
 智能检测 `.gitignore`，自动补充缺失的忽略项（不询问）。
 
 ### Step 2: 解析任务输入
 
+- `.openmatrix/tasks-input.json` 已存在（来自 `/om:brainstorm`）→ 读取该文件，跳到 Step 4
 - `$ARGUMENTS` 为文件路径 → 读取文件内容
 - `$ARGUMENTS` 为任务描述 → 直接使用
 - 无参数 → AskUserQuestion 询问任务内容

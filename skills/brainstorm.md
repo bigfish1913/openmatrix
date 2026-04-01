@@ -145,7 +145,9 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
    })
    ```
 
-6. **智能检测 .openmatrix 状态后执行**
+   如果用户选择"开始执行"，写入 `tasks-input.json` 后调用 `/om:start`。
+
+6. **写入 tasks-input.json 并调用 /om:start**
 
    **先检测当前状态:**
    ```bash
@@ -153,15 +155,32 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
    ls .openmatrix/state.json 2>/dev/null
    ```
 
-   **根据状态走不同路径:**
+   **如果需要初始化:**
+   ```bash
+   openmatrix start --init-only
+   ```
 
-   | .openmatrix 状态 | 处理方式 |
-   |-----------------|---------|
-   | 不存在 | 全新开始 → init → 写 tasks-input → CLI start |
-   | 存在，`status: completed` | 清理旧数据后重新开始 → 写 tasks-input → CLI start |
-   | 存在，`status: running` | 提示用户先完成或暂停当前任务 |
-   | 存在，`status: paused` | 询问用户：继续上次任务 还是 开始新任务 |
-   | 存在，`status: initialized` | 直接写 tasks-input → CLI start |
+   **将头脑风暴结论转换为 goals 并写入 `.openmatrix/tasks-input.json`:**
+   ```json
+   {
+     "title": "任务标题",
+     "description": "基于头脑风暴的整体描述",
+     "goals": [
+       "目标1: 独立功能模块",
+       "目标2: 独立功能模块",
+       "..."
+     ],
+     "constraints": ["约束"],
+     "deliverables": ["交付物"],
+     "answers": { "问答答案" },
+     "plan": "## 技术方案\n..."
+   }
+   ```
+
+   **注意:** `quality`、`mode`、`e2eTests` 不在此写入，由 `/om:start` 的必选问题决定。
+
+   **然后调用 `/om:start`：**
+   `/om:start` 会读取已存在的 `tasks-input.json`，跳过任务输入解析，直接进入 Step 4 必选问题（质量等级、E2E、执行模式），然后调用 CLI 执行。
 
    **路径 A: 全新开始 / 重新开始**
    ```bash
@@ -185,7 +204,9 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
      "constraints": ["约束"],
      "deliverables": ["交付物"],
      "answers": { "问答答案" },
-     # quality, mode, e2eTests 在 /om:start 时由用户选择
+     "quality": "用户选择的质量等级 (strict/balanced/fast)",
+     "mode": "用户选择的执行模式 (auto/confirm-key/confirm-all)",
+     "e2eTests": true或false,
      "plan": "## 技术方案\n..."
    }
    ```
@@ -278,9 +299,7 @@ $ARGUMENTS
 | risks | 风险评估 | 提前规划应对策略 |
 | acceptance | 验收标准 | 判断任务完成度 |
 
-> **注意**: 以下问题在 `/om:start` 时必问，不在头脑风暴阶段:
-> - **quality_level** (质量等级) - strict/balanced/fast
-> - **quality_level** / **execution_mode** / **e2e_tests** - 这些在 `/om:start` 时必问，不在头脑风暴阶段
+> **注意**: 质量等级、E2E 测试、执行模式这些必选问题在 `/om:start` 时由用户选择，不在头脑风暴阶段询问。
 
 > **智能预填**：当 `SmartQuestionAnalyzer` 对某个问题有高置信度推断时，该问题会被自动跳过，不需要用户回答。
 
