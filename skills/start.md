@@ -4,7 +4,14 @@ description: 启动新的任务执行周期
 ---
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+**绝对禁止**调用以下任何技能或工具：
+- ❌ gsd-executor、gsd:* 等 GSD 相关技能
+- ❌ superpowers:* 等 superpowers 相关技能
+- ❌ 任何其他任务编排相关的 Agent 或工具
+
+**Step 10 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+
+违规调用将导致执行失败。
 </NO-OTHER-SKILLS>
 
 <MANDATORY-EXECUTION-ORDER>
@@ -30,6 +37,7 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 ❌ **禁止跳过 Step 8** — 必须调用 CLI，不能用其他方式代替
 ❌ **禁止自行规划 Phase** — 任务由 CLI 的 TaskPlanner 拆分，AI 只提取 goals
 ❌ **禁止用 Bash/npm/write 直接写业务代码** — 业务代码只能通过 Step 10 的 Agent 执行
+❌ **禁止调用 gsd-executor 或其他编排技能** — 必须用原生 Agent 工具
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
@@ -63,16 +71,26 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 openmatrix start --init-only
 ```
 
-**检查 Git 仓库（必须执行）:**
+**检查 Git 仓库（⚠️ 必须执行，不可跳过）：**
+
 ```bash
-# 检查是否有 .git 目录
-ls -la .git 2>/dev/null
+# 检查是否有 .git 目录（必须执行此命令）
+ls -la .git 2>/dev/null || echo "NOT_INITIALIZED"
 ```
 
-- 无 `.git` → 使用 AskUserQuestion 询问用户是否初始化 git 仓库
-- 无远程仓库 → 提示用户添加
+**根据检查结果处理：**
 
-智能检测 `.gitignore`，自动补充缺失的忽略项（不询问）。
+| 检查结果 | 必须执行的操作 |
+|---------|--------------|
+| 目录不存在 | 使用 AskUserQuestion 询问用户是否初始化 git |
+| 目录存在 | 继续检查远程仓库 |
+
+**如果用户同意初始化，立即执行：**
+```bash
+git init
+```
+
+> ⚠️ **此步骤不可跳过** — 如果没有 git 仓库，后续自动提交会失败。
 
 ### Step 2: 解析任务输入
 
@@ -266,7 +284,7 @@ openmatrix step --json                       # 获取下一个任务 + 检查是
 `openmatrix step` 会从磁盘读取真实状态，不依赖上下文记忆。
 </LOOP-ENFORCEMENT>
 
-对每个任务调用 Agent 工具:
+对每个任务**必须使用 Agent 工具**（禁止用 gsd-executor 或其他技能替代）:
 
 ```typescript
 Agent({
@@ -276,6 +294,8 @@ Agent({
   isolation: task.isolation
 })
 ```
+
+> ⚠️ **必须使用原生 Agent 工具** — 禁止调用 gsd-executor、superpowers 或任何其他编排技能。
 
 每个 Agent 完成后:
 1. **标记完成并更新统计（必须执行）:**

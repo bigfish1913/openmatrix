@@ -13,7 +13,14 @@ description: 全自动执行任务指令 - AI 拆分，无阻塞，bypass permis
 </NOTE>
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+**绝对禁止**调用以下任何技能或工具：
+- ❌ gsd-executor、gsd:* 等 GSD 相关技能
+- ❌ superpowers:* 等 superpowers 相关技能
+- ❌ 任何其他任务编排相关的 Agent 或工具
+
+**Step 6 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+
+违规调用将导致执行失败。
 </NO-OTHER-SKILLS>
 
 <MANDATORY-EXECUTION-ORDER>
@@ -158,7 +165,7 @@ openmatrix step --json                       # 获取下一个任务 + 检查是
 4. 如果返回 `status: "blocked"` → 有阻塞任务需要处理
 </LOOP-ENFORCEMENT>
 
-对 `subagentTasks` 列表中的每个任务，调用 Agent 工具执行:
+对 `subagentTasks` 列表中的每个任务，**必须使用 Agent 工具**（禁止用 gsd-executor 或其他技能替代）:
 
 ```typescript
 Agent({
@@ -168,6 +175,8 @@ Agent({
   isolation: task.isolation
 })
 ```
+
+> ⚠️ **必须使用原生 Agent 工具** — 禁止调用 gsd-executor、superpowers 或任何其他编排技能。
 
 每个 Agent 完成后:
 1. **保存 Agent 上下文** — 将执行结果摘要写入 `.openmatrix/tasks/TASK-XXX/context.md`，格式如下:
