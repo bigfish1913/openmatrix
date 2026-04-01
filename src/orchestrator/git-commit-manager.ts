@@ -218,9 +218,24 @@ export class GitCommitManager {
     }
 
     try {
-      // 检查是否在 Git 仓库中
+      // 检查是否在 Git 仓库中，如果不是则自动初始化
       if (!await this.isGitRepo()) {
-        return { success: false, error: 'Not a git repository' };
+        await execAsync('git init', { cwd: this.repoPath });
+        // 确保 .gitignore 存在并包含 .openmatrix
+        const gitignorePath = path.join(this.repoPath, '.gitignore');
+        let gitignoreContent = '';
+        try {
+          gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+        } catch {
+          // 文件不存在
+        }
+        if (!gitignoreContent.includes('.openmatrix')) {
+          const addition = (gitignoreContent && !gitignoreContent.endsWith('\n') ? '\n' : '') + '.openmatrix/\n';
+          await fs.writeFile(gitignorePath, gitignoreContent + addition, 'utf-8');
+        }
+        // 初始提交
+        await execAsync('git add .gitignore', { cwd: this.repoPath });
+        await execAsync('git commit -m "initial commit" --allow-empty', { cwd: this.repoPath }).catch(() => {});
       }
 
       // 获取未提交的文件
