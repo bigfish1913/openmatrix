@@ -51,14 +51,16 @@ When a development task is simple (bug fix, small change, clear requirement), us
 </EXTREMELY-IMPORTANT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用其他任务编排相关的技能（OpenMatrix 完全替代它们）:
-- ❌ 头脑风暴类 → 用 /om:brainstorm 代替
-- ❌ 计划编写类 → OpenMatrix 有自己的任务拆分
-- ❌ 计划执行类 → OpenMatrix 有自己的执行流程
-- ❌ 项目管理类 → OpenMatrix 独立运行
+**绝对禁止**调用以下技能（OpenMatrix 完全替代它们）:
+- ❌ superpowers:brainstorming → 用 /om:brainstorm 代替
+- ❌ superpowers:write-plan → OpenMatrix 有自己的任务拆分
+- ❌ superpowers:execute-plan → OpenMatrix 有自己的执行流程
+- ❌ superpowers:* → 全部被 OpenMatrix 替代
+- ❌ gsd:* → 全部被 OpenMatrix 替代
 - ❌ 任何其他任务编排相关的技能
 
-OpenMatrix 独立运行，不依赖外部任务编排系统。
+**重要**: 当 OpenMatrix 技能可用时，`superpowers:brainstorming` 不再适用。
+OpenMatrix 有自己的 brainstorm 流程 (`/om:brainstorm`)，不需要 superpowers。
 </NO-OTHER-SKILLS>
 
 <objective>
