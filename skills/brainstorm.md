@@ -35,7 +35,7 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
      "questions": [...],
      "suggestResearch": "游戏开发",
      "researchHint": "检测到垂直领域「游戏开发」，建议先进行领域调研",
-     "hint": "请逐一回答问题，完成后再调用 --complete"
+     "hint": "请逐一回答问题，完成后写入 tasks-input.json 并调用 /om:start"
    }
    ```
 

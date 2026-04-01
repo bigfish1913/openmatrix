@@ -307,11 +307,11 @@ openmatrix step --json
 
 **交互式审批流程（非全自动模式）:**
 
-当到达审批点时，使用 `openmatrix approve --list` 查看待审批项，然后通过 AskUserQuestion 请求用户确认:
+当到达审批点时，使用 `openmatrix approve --json`（不带 ID）查看待审批项，然后通过 AskUserQuestion 请求用户确认:
 
 ```typescript
 // 检查是否有待审批项
-// 通过 CLI: openmatrix approve --list --json
+// 通过 CLI: openmatrix approve --json  (不带 approvalId 时返回列表)
 
 AskUserQuestion({
   questions: [
@@ -334,8 +334,9 @@ AskUserQuestion({
 ```
 
 用户选择后，执行对应命令:
-- 批准: `openmatrix approve <approval-id> --approve`
-- 拒绝: `openmatrix approve <approval-id> --reject`
+- 批准: `openmatrix approve <approval-id> -d approve --json`
+- 拒绝: `openmatrix approve <approval-id> -d reject --json`
+- 修改: `openmatrix approve <approval-id> -d modify -c "修改建议" --json`
 - 查看详情: 读取 `.openmatrix/approvals/<approval-id>.json` 并展示完整内容
 
 
