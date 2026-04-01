@@ -73,7 +73,7 @@ describe('TaskPlanner', () => {
 
       const result = planner.breakdown(parsedTask, {});
 
-      const devTasks = result.filter(t => t.assignedAgent === 'coder');
+      const devTasks = result.filter(t => t.assignedAgent === 'coder' && !t.title.startsWith('系统集成'));
 
       // All dev tasks should only depend on design task (or nothing), not on each other
       for (const devTask of devTasks) {

@@ -297,7 +297,7 @@ openmatrix complete TASK-XXX --success --summary "决策: xxx; 文件: xxx"
 # 提交验证（防止 commit 静默失败）:
 git status --porcelain                        # 检查是否有未提交的文件
 # 如果有未提交文件 → 必须手动提交:
-git add -A && git commit -m "feat: (TASK-XXX) 任务标题"
+git add -A && git commit -m "feat(TASK-XXX): 任务标题"
 
 openmatrix step --json                       # 获取下一个任务 + 检查是否全部完成
 ```
@@ -420,17 +420,15 @@ openmatrix meeting --list
 所有任务完成后，执行最终 Git 提交（**必须使用 HEREDOC 格式**）:
 ```bash
 git add -A && git commit -m "$(cat <<'EOF'
-feat: 完成所有任务
+feat: 完成所有任务 - 任务总标题
 
-- 任务1标题
-- 任务2标题
-- ...
+改动点1
+改动点2
 
 影响范围: 全部模块
-文件改动: 统计变更文件数
+文件改动: src/xxx.ts, src/yyy.ts
 
-Run: run-XXX
-Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
 EOF
 )"
 ```
@@ -438,20 +436,18 @@ EOF
 **Git 提交格式规范（所有提交必须遵守）:**
 
 ```
-<type>: (TASK-XXX) 简短描述
+<type>(TASK-XXX): 简短描述
 
-- 改动点1
-- 改动点2
+改动点1
+改动点2
 
 影响范围: 模块名
 文件改动: 文件1, 文件2
 
-Run: run-XXX
-Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
 ```
 
 **type 映射:** feat(新功能) / fix(修复) / test(测试) / refactor(重构) / docs(文档)
-**禁止使用:** `Co-Authored-By: Claude` 格式，必须使用 `Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>`
 **禁止使用 emoji**，使用纯文本格式
 
 </process>

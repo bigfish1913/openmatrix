@@ -70,6 +70,15 @@ export class TaskPlanner {
     const seenTitles = new Set<string>();
     const userContext = this.extractUserContext(answers);
 
+    // qualityConfig 中的 e2eTests 优先级高于 answers 中的推断
+    if (qualityConfig?.e2eTests) {
+      userContext.e2eTests = true;
+      // 如果 e2eType 未指定，从质量配置推断
+      if (!userContext.e2eType) {
+        userContext.e2eType = 'web';
+      }
+    }
+
     // 确定测试覆盖率
     const coverageTarget = this.getCoverageTarget(qualityConfig, userContext);
 
@@ -160,8 +169,51 @@ ${globalContext}
       breakdowns[breakdowns.length - 2].testTaskId = testTaskId;
     }
 
-    // 2. 代码审查任务 (仅在有开发任务时创建)
+    // 2. 系统集成任务 (将所有模块组装到入口文件)
+    let integrationTaskId: string | undefined;
+    if (devTaskIds.length > 1) {
+      integrationTaskId = this.generateTaskId();
+      breakdowns.push({
+        taskId: integrationTaskId,
+        title: '系统集成: 将所有模块组装到主入口，确保可运行',
+        description: `将前面所有模块连接到主入口文件(main.ts/index.ts)，使应用可以完整运行
+
+${globalContext}
+
+## 集成要求
+- 在主入口文件中实例化所有核心模块
+- 将子系统连接到主循环(Game/App/Main)
+- 确保模块间事件/数据流通
+- 确保应用可以启动并正常运行（无运行时错误）
+
+## 已完成的模块
+${devTaskIds.map(id => `- ${id}: ${breakdowns.find(b => b.taskId === id)?.title || ''}`).join('\n')}
+
+## 输出
+- 更新后的主入口文件
+- 模块连接正确，应用可运行
+- 启动后无运行时错误`,
+        priority: 'P0',
+        dependencies: devTaskIds, // 依赖所有开发任务完成
+        estimatedComplexity: 'high',
+        assignedAgent: 'coder',
+        phase: 'develop',
+        acceptanceCriteria: [
+          '主入口文件已更新',
+          '所有核心模块已实例化并连接',
+          '应用可以正常启动',
+          '无运行时错误',
+          '模块间通信正常'
+        ]
+      });
+    }
+
+    // 3. 代码审查任务 (仅在有开发任务时创建)
     if (devTaskIds.length > 0) {
+      // 审查依赖所有开发任务 + 系统集成任务（如果有）
+      const reviewDeps = integrationTaskId
+        ? [...devTaskIds, integrationTaskId]
+        : [...devTaskIds];
       breakdowns.push({
         taskId: this.generateTaskId(),
         title: '代码审查',
@@ -178,7 +230,7 @@ ${devTaskIds.map(id => `- ${id}`).join('\n')}
 - 性能
 - 最佳实践`,
         priority: 'P1',
-        dependencies: devTaskIds, // 审查依赖所有开发任务完成
+        dependencies: reviewDeps,
         estimatedComplexity: 'medium',
         assignedAgent: 'reviewer',
         phase: 'verify',
@@ -193,6 +245,9 @@ ${devTaskIds.map(id => `- ${id}`).join('\n')}
 
     // 3. 集成测试任务 (如果有多个交付物)
     if (parsedTask.deliverables.length > 1) {
+      const integrationTestDeps = integrationTaskId
+        ? [...devTaskIds, integrationTaskId]
+        : [...devTaskIds];
       breakdowns.push({
         taskId: this.generateTaskId(),
         title: '集成测试',
@@ -205,7 +260,7 @@ ${globalContext}
 - 端到端流程
 - 数据流验证`,
         priority: 'P1',
-        dependencies: devTaskIds,
+        dependencies: integrationTestDeps,
         estimatedComplexity: 'medium',
         assignedAgent: 'tester',
         phase: 'verify',

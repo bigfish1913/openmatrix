@@ -137,16 +137,15 @@ export class GitCommitManager {
    * 生成提交信息
    *
    * 格式规范:
-   * <type>: (TASK-XXX) 简短描述
+   * <type>: 简短描述
    *
-   * - 改动点1
-   * - 改动点2
+   * 改动点1
+   * 改动点2
    *
    * 影响范围: 模块/功能
    * 文件改动: 文件1, 文件2
    *
-   * Run: run-xxx (可选)
-   * Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>
+   * Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
    */
   generateCommitMessage(info: CommitInfo): string {
     const lines: string[] = [];
@@ -156,37 +155,36 @@ export class GitCommitManager {
       tdd: 'test',
       develop: 'feat',
       verify: 'test',
-      accept: 'feat'
+      accept: 'chore'
     };
     const commitType = phaseToType[info.phase] || 'feat';
 
-    // 标题行 - 限制 50 字符
+    // 标题行 - 限制 72 字符
     let title = info.taskTitle;
-    if (title.length > 50) {
-      title = title.slice(0, 47) + '...';
+    if (title.length > 60) {
+      title = title.slice(0, 57) + '...';
     }
 
-    // 格式: feat: (TASK-001) 简短描述
-    lines.push(`${commitType}: (${info.taskId}) ${title}`);
+    // 格式: feat(TASK-001): 简短描述
+    lines.push(`${commitType}(${info.taskId}): ${title}`);
     lines.push('');
 
-    // 修改内容 - 使用文件名作为改动点
-    if (info.changes.length > 0) {
-      for (const change of info.changes.slice(0, 10)) {
-        lines.push(`- ${change}`);
-      }
-      if (info.changes.length > 10) {
-        lines.push(`- ... 及其他 ${info.changes.length - 10} 项修改`);
-      }
-      lines.push('');
-    }
+    // Phase 描述作为改动点
+    const phaseDescriptions: Record<string, string> = {
+      tdd: '编写测试用例',
+      develop: '实现功能代码',
+      verify: '运行测试验证',
+      accept: '验收检查通过'
+    };
+    lines.push(phaseDescriptions[info.phase] || '代码变更');
 
     // 影响范围
     if (info.impactScope.length > 0) {
+      lines.push('');
       lines.push(`影响范围: ${info.impactScope.join('、')}`);
     }
 
-    // 文件改动 - 简化显示
+    // 文件改动
     const changedFiles = info.changes.slice(0, 5).map(f => {
       const parts = f.split('/');
       return parts.length > 2 ? parts.slice(-2).join('/') : f;
@@ -196,15 +194,11 @@ export class GitCommitManager {
       const suffix = info.changes.length > 5 ? ` 等 ${info.changes.length} 个文件` : '';
       lines.push(`文件改动: ${fileSummary}${suffix}`);
     }
+
     lines.push('');
 
-    // Run ID (可选)
-    if (info.runId) {
-      lines.push(`Run: ${info.runId}`);
-    }
-
     // Co-Author
-    lines.push(`Co-Authored-By: OpenMatrix <https://github.com/bigfish1913/openmatrix>`);
+    lines.push(`Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix`);
 
     return lines.join('\n');
   }

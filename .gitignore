@@ -9,3 +9,4 @@ dist/
 
 # Auto-added by OpenMatrix
 .openmatrix/
+.npmrc
