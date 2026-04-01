@@ -20,9 +20,9 @@ description: 启动新的任务执行周期
 ```
 Step 1:  初始化 .openmatrix 目录
 Step 2:  解析任务输入（文件或描述）
-Step 3:  智能分析任务类型
-Step 4:  必选问题（质量等级、E2E、执行模式）← 不可跳过
-Step 5:  可选问题（仅复杂任务）+ 展示执行计划
+Step 3:  智能分析任务类型（开发/非开发）
+Step 4:  必选问题（开发任务:质量+E2E+模式; 非开发:仅模式）← 不可跳过
+Step 5:  可选问题（仅复杂开发任务）+ 展示执行计划
 Step 6:  AI 提取 goals，生成 plan
 Step 7:  写入 .openmatrix/tasks-input.json          ← 必须完成
 Step 8:  调用 openmatrix start --tasks-json          ← 必须完成，不可跳过
@@ -33,7 +33,7 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 **违反以下任一规则将导致任务执行失败：**
 
 ❌ **禁止在 Step 8 之前写任何业务代码** — 所有代码必须在 Step 10 通过 Agent 执行
-❌ **禁止跳过 Step 4 必选问题** — 质量等级、执行模式必须由用户选择
+❌ **禁止跳过 Step 4 必选问题** — 开发任务必须选质量/E2E/模式，非开发任务必须选模式
 ❌ **禁止跳过 Step 8** — 必须调用 CLI，不能用其他方式代替
 ❌ **禁止自行规划 Phase** — 任务由 CLI 的 TaskPlanner 拆分，AI 只提取 goals
 ❌ **禁止用 Bash/npm/write 直接写业务代码** — 业务代码只能通过 Step 10 的 Agent 执行
@@ -41,12 +41,14 @@ Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
-解析任务文档，通过必选问答确定质量等级、E2E测试、执行模式，确认后通过 CLI 拆分任务并执行。
+解析任务文档，通过必选问答确定执行模式（开发任务还需确定质量等级、E2E测试），确认后通过 CLI 拆分任务并执行。
 
-⚠️ **Step 4 必选问题不可跳过** — 必须让用户选择：
+⚠️ **Step 4 必选问题不可跳过** — 开发任务必须选择：
 1. 质量等级 (strict/balanced/fast)
-2. E2E 测试 (当选择 strict/balanced 时必问)
+2. E2E 测试 (当选择 strict/balanced 时)
 3. 执行模式 (全自动/关键节点确认/每阶段确认)
+
+非开发任务（文档、配置等）只需选择执行模式。
 </objective>
 
 <process>
@@ -102,20 +104,23 @@ git init
 | 不存在 | 根据用户输入解析 |
 
 > ⚠️ **注意**: 即使 `tasks-input.json` 已存在，Step 4 必选问题仍然必须执行！
-> 文件中的 `plan` 只供 Agent 参考，`quality`、`mode`、`e2eTests` 必须由用户在 Step 4 选择。
+> - 开发任务：质量等级、E2E、执行模式必须由用户选择
+> - 非开发任务：执行模式必须由用户选择
 - `$ARGUMENTS` 为任务描述 → 直接使用
 - 无参数 → AskUserQuestion 询问任务内容
 
-### Step 3: 智能分析
+### Step 3: 智能分析任务类型
 
-根据任务内容判断任务类型。**这不影响 Step 4 的必选问题** — 不管什么任务类型，Step 4 都必须执行。
+判断是开发任务还是非开发任务，这决定 Step 4 需要问哪些问题。
 
-| 任务类型 | 说明 |
-|---------|------|
-| Bug 修复 / 小改动 | Step 5 可选问题可跳过 |
-| 新功能开发 | Step 5 可能需要额外问题 |
-| 重构 | Step 5 可选问题可跳过 |
-| 测试编写 | Step 5 可选问题可跳过 |
+| 任务类型 | 定义 | Step 4 问题 |
+|---------|------|------------|
+| **开发任务** | 涉及代码编写、测试、Lint、构建等 | 质量等级 + E2E + 执行模式 |
+| **非开发任务** | 纯文档、配置、阅读、分析等 | 仅执行模式 |
+
+**常见任务分类：**
+- 开发任务：新功能、Bug修复、重构、添加测试、性能优化
+- 非开发任务：写README、更新文档、查看代码、分析日志
 
 ---
 
@@ -125,13 +130,20 @@ git init
 **不允许使用任何默认值。必须通过 AskUserQuestion 让用户选择。**
 **如果没有执行 Step 4 就进入 Step 5+，任务执行失败。**
 
----
+### Step 4: 必选问题（不可跳过）
 
-### Step 4: 必选问题（所有任务都必须回答，不可跳过）
+**根据任务类型选择需要询问的问题：**
 
-**⚠️ 以下问题为必选，不可跳过，不可使用默认值：**
+| 任务类型 | 需要询问的问题 |
+|---------|---------------|
+| **开发任务**（新功能、Bug修复、重构） | 4.1 质量等级 + 4.2 E2E + 4.3 执行模式 |
+| **非开发任务**（文档、配置、纯阅读） | 仅 4.3 执行模式 |
 
-#### 4.1 质量等级（必选）
+**⚠️ 以下问题不可跳过，不可使用默认值：**
+
+#### 4.1 质量等级（仅开发任务）
+
+如果是代码开发任务（包含编码、测试、Lint等），必须询问：
 
 ```typescript
 AskUserQuestion({
@@ -150,9 +162,9 @@ AskUserQuestion({
 })
 ```
 
-#### 4.2 E2E 测试（当质量等级为 strict 或 balanced 时必选）
+#### 4.2 E2E 测试（开发任务且选 strict/balanced 时）
 
-如果用户选择了 `strict` 或 `balanced`，继续询问:
+如果开发任务且用户选择了 `strict` 或 `balanced`，继续询问:
 
 ```typescript
 AskUserQuestion({
@@ -172,7 +184,9 @@ AskUserQuestion({
 
 **注意:** 如果用户选择 `fast` 质量等级，跳过 E2E 问题（fast 模式不启用 E2E）。
 
-#### 4.3 执行模式（必选）
+#### 4.3 执行模式（所有任务必选）
+
+**无论开发还是非开发任务，都必须询问：**
 
 ```typescript
 AskUserQuestion({
@@ -239,15 +253,21 @@ AskUserQuestion({
 
 ### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
 
-**必须执行此命令，传递 Step 4 用户选择的参数：**
+**根据任务类型选择正确的 CLI 调用：**
 
+**开发任务**（有质量等级选择）：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <用户选择的质量等级> --mode <用户选择的执行模式> --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode <执行模式> --json
 ```
 
-如果用户在 Step 4.2 选择了"启用 E2E 测试"，加上 `--e2e-tests` 参数：
+如果启用了 E2E 测试，加上 `--e2e-tests`：
 ```bash
 openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --json
+```
+
+**非开发任务**（无质量等级）：
+```bash
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --mode <执行模式> --json
 ```
 
 此命令返回 JSON 包含 `subagentTasks` 列表。
