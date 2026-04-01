@@ -47,6 +47,7 @@ interface StartOptions {
   techStack?: string;
   docs?: string;
   tasksJson?: string;
+  e2eTests?: boolean;
 }
 
 export const startCommand = new Command('start')
@@ -63,6 +64,7 @@ export const startCommand = new Command('start')
   .option('-t, --tech-stack <stack>', '技术栈 (逗号分隔，如 "TypeScript,Vue.js,PostgreSQL")')
   .option('--docs <level>', '文档级别 (full|basic|minimal|none)')
   .option('--tasks-json <json>', 'AI 已拆分的任务 JSON (跳过自动解析)')
+  .option('--e2e-tests', '启用 E2E 测试')
   .action(async (input: string | undefined, options: StartOptions) => {
     const basePath = process.cwd();
     const omPath = path.join(basePath, '.openmatrix');
@@ -193,7 +195,7 @@ async function handleTasksJson(
   const qualityConfig = { ...(QUALITY_PRESETS[qualityLevel.toLowerCase()] || QUALITY_PRESETS.balanced) };
 
   // E2E 测试覆盖（用户在 Skill 问答中选择启用）
-  if (tasksInput.e2eTests) {
+  if (tasksInput.e2eTests || options.e2eTests) {
     qualityConfig.e2eTests = true;
   }
 

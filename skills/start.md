@@ -76,8 +76,15 @@ ls -la .git 2>/dev/null
 
 ### Step 2: 解析任务输入
 
-- `.openmatrix/tasks-input.json` 已存在（来自 `/om:brainstorm`）→ 读取该文件，跳到 Step 4
-- `$ARGUMENTS` 为文件路径 → 读取文件内容
+**检查 `.openmatrix/tasks-input.json` 是否已存在:**
+
+| 情况 | 处理方式 |
+|------|---------|
+| 已存在（来自 `/om:brainstorm`） | 读取文件内容 → **立即执行 Step 4 必选问题**（质量等级、E2E、执行模式） |
+| 不存在 | 根据用户输入解析 |
+
+> ⚠️ **注意**: 即使 `tasks-input.json` 已存在，Step 4 必选问题仍然必须执行！
+> 文件中的 `plan` 只供 Agent 参考，`quality`、`mode`、`e2eTests` 必须由用户在 Step 4 选择。
 - `$ARGUMENTS` 为任务描述 → 直接使用
 - 无参数 → AskUserQuestion 询问任务内容
 
@@ -206,25 +213,23 @@ AskUserQuestion({
   "goals": ["目标1", "目标2", "目标3"],
   "constraints": ["约束1"],
   "deliverables": ["src/xxx.ts"],
-  "answers": { "技术栈": "..." },
-  "quality": "strict|balanced|fast",
-  "mode": "confirm-all|confirm-key|auto",
   "plan": "## 技术方案\n1. ...\n2. ..."
 }
 ```
 
-**E2E 测试:** 如果用户在 Step 4 选择了"启用 E2E"，在 quality 后面加上:
-```
-"e2eTests": true
-```
-这会让 CLI 的 TaskPlanner 在任务拆分时生成额外的 E2E 测试任务。
+> **注意**: `quality`、`mode`、`e2eTests` 不写入文件，由 Step 8 的 CLI 参数传递。
 
 ### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
 
-**必须执行此命令，禁止跳过：**
+**必须执行此命令，传递 Step 4 用户选择的参数：**
 
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <用户选择的质量等级> --mode <用户选择的执行模式> --json
+```
+
+如果用户在 Step 4.2 选择了"启用 E2E 测试"，加上 `--e2e-tests` 参数：
+```bash
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --json
 ```
 
 此命令返回 JSON 包含 `subagentTasks` 列表。
