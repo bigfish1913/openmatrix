@@ -13,6 +13,7 @@ export const completeCommand = new Command('complete')
   .option('--output <text>', '执行结果摘要')
   .option('--summary <text>', 'Agent 执行摘要 (写入 context.md)')
   .option('--error <text>', '错误信息 (失败时)')
+  .option('--json', '输出 JSON 格式')
   .action(async (taskId: string, options) => {
     const basePath = process.cwd();
     const omPath = path.join(basePath, '.openmatrix');
@@ -137,5 +138,12 @@ export const completeCommand = new Command('complete')
         : `${taskId} 失败: ${options.error || 'Unknown error'}`
     };
 
-    console.log(JSON.stringify(result, null, 2));
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`✅ ${result.message}`);
+      if (allDone) {
+        console.log('🎉 所有任务已完成!');
+      }
+    }
   });

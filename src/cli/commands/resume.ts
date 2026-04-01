@@ -8,6 +8,7 @@ export const resumeCommand = new Command('resume')
   .description('恢复中断或暂停的任务')
   .argument('[taskId]', '任务ID')
   .option('--all', '恢复所有可恢复任务')
+  .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (taskId: string | undefined, options) => {
     const basePath = process.cwd();
     const omPath = `${basePath}/.openmatrix`;
