@@ -179,8 +179,16 @@ OpenMatrix 独立运行，不依赖外部任务编排系统。
 
    **注意:** `quality`、`mode`、`e2eTests` 不在此写入，由 `/om:start` 的必选问题决定。
 
-   **然后调用 `/om:start`：**
-   `/om:start` 会读取已存在的 `tasks-input.json`，跳过任务输入解析，直接进入 Step 4 必选问题（质量等级、E2E、执行模式），然后调用 CLI 执行。
+   **⚠️ 最后一步（必须执行，不可跳过）：使用 Skill 工具调用 `/om:start`**
+
+   写入文件后，**必须立即** 使用 Skill 工具调用 om:start：
+
+   ```
+   Skill 工具: skill = "om:start"
+   ```
+
+   这不是可选的 — 如果不调用 `/om:start`，任务不会开始执行。
+   `/om:start` 会检测到已存在的 `tasks-input.json`，然后询问必选问题（质量等级、E2E、执行模式）。
 
    **路径 A: 全新开始 / 重新开始**
    ```bash
