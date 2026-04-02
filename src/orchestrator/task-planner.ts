@@ -86,8 +86,9 @@ export class TaskPlanner {
     const globalContext = this.buildGlobalContext(parsedTask, userContext, plan);
 
     // 0. 设计阶段任务 (根据复杂度判断)
+    // 如果 AI 已提供 plan，跳过设计阶段（plan 中已包含架构设计）
     let designTaskId: string | undefined;
-    if (this.needsDesignPhase(parsedTask)) {
+    if (!plan && this.needsDesignPhase(parsedTask)) {
       designTaskId = this.generateTaskId();
       breakdowns.push({
         taskId: designTaskId,
