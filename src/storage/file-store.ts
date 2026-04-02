@@ -1,9 +1,13 @@
-import { readFile, writeFile, mkdir, readdir, access } from 'fs/promises';
+import { readFile, writeFile, mkdir, readdir, access, appendFile as fsAppendFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { constants } from 'fs';
 
 export class FileStore {
   constructor(private basePath: string) {}
+
+  getBasePath(): string {
+    return this.basePath;
+  }
 
   async ensureDir(path: string): Promise<void> {
     const fullPath = join(this.basePath, path);
@@ -20,6 +24,15 @@ export class FileStore {
     const fullPath = join(this.basePath, path);
     await mkdir(dirname(fullPath), { recursive: true });
     await writeFile(fullPath, content, 'utf-8');
+  }
+
+  /**
+   * 原子追加写入（使用 O_APPEND flag，内核保证追加原子性）
+   */
+  async appendFile(filePath: string, content: string): Promise<void> {
+    const fullPath = join(this.basePath, filePath);
+    await mkdir(dirname(fullPath), { recursive: true });
+    await fsAppendFile(fullPath, content, 'utf-8');
   }
 
   /**

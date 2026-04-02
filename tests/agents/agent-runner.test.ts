@@ -201,8 +201,8 @@ describe('AgentRunner', () => {
       const task = createTestTask();
       const prompt = await agentRunner.buildExecutionPrompt(task);
 
-      expect(prompt).toContain('更新任务状态文件');
       expect(prompt).toContain('执行结果');
+      expect(prompt).toContain('请勿直接修改 task.json');
     });
   });
 

@@ -1,5 +1,7 @@
 import { FileStore } from './file-store.js';
 import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus } from '../types/index.js';
+import { open, unlink } from 'fs/promises';
+import { join } from 'path';
 
 const DEFAULT_CONFIG: AppConfig = {
   timeout: 120,
@@ -12,24 +14,46 @@ const DEFAULT_CONFIG: AppConfig = {
 export class StateManager {
   private store: FileStore;
   private stateCache: GlobalState | null = null;
-  private writeLock: Promise<void> = Promise.resolve();
+  private lockDepth = 0;  // 可重入：同一进程内嵌套调用不阻塞
 
   constructor(basePath: string) {
     this.store = new FileStore(basePath);
   }
 
   /**
-   * 串行化异步写操作，防止并发 read-modify-write 竞态
+   * 跨进程文件锁 — 防止多个 openmatrix CLI 进程同时读写 state.json
+   *
+   * 使用 O_EXCL | O_CREAT 原子创建锁文件，Windows/Linux/macOS 均支持
+   * 支持可重入：同进程内嵌套调用（如 updateTask → updateTaskStatistics）直接执行
    */
-  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
-    const prev = this.writeLock;
-    let resolve: () => void;
-    this.writeLock = new Promise(r => { resolve = r; });
-    await prev;
+  private async withFileLock<T>(fn: () => Promise<T>): Promise<T> {
+    // 可重入：同一进程内嵌套调用直接执行
+    if (this.lockDepth > 0) {
+      return fn();
+    }
+
+    const lockPath = join(this.store.getBasePath(), '.lock');
+    const maxRetries = 50;
+    const retryDelay = 100;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const fd = await open(lockPath, 'wx');
+        await fd.write(`${process.pid}\n`);
+        await fd.close();
+        break;
+      } catch {
+        if (i === maxRetries - 1) throw new Error('Cannot acquire state lock');
+        await new Promise(r => setTimeout(r, retryDelay));
+      }
+    }
+
+    this.lockDepth++;
     try {
       return await fn();
     } finally {
-      resolve!();
+      this.lockDepth--;
+      await unlink(lockPath).catch(() => {});
     }
   }
 
@@ -86,7 +110,7 @@ export class StateManager {
   }
 
   async updateState(updates: Partial<GlobalState>): Promise<void> {
-    await this.withLock(async () => {
+    await this.withFileLock(async () => {
       const state = await this.getState();
 
       // 确保 statistics 存在（兼容旧版本）
@@ -126,7 +150,7 @@ export class StateManager {
     dependencies: string[];
     assignedAgent: string;
   }): Promise<Task> {
-    return this.withLock(async () => {
+    return this.withFileLock(async () => {
       const taskId = this.generateTaskId();
       const now = new Date().toISOString();
 
@@ -182,7 +206,7 @@ export class StateManager {
   }
 
   async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
-    await this.withLock(async () => {
+    await this.withFileLock(async () => {
       const task = await this.getTask(taskId);
       if (!task) throw new Error(`Task ${taskId} not found`);
 
@@ -265,9 +289,10 @@ export class StateManager {
   }
 
   private async updateTaskStatistics(oldStatus: string, newStatus: string): Promise<void> {
-    // 直接写入状态，不经过 updateState（避免重入锁死锁）
-    const state = await this.getState();
-    const stats = { ...state.statistics } as typeof state.statistics;
+    await this.withFileLock(async () => {
+      // 从文件重新读取最新状态（不用缓存，避免 stale）
+      const state = await this.store.readJson<GlobalState>('state.json') ?? await this.getState();
+      const stats = { ...state.statistics } as typeof state.statistics;
 
     // 扩展统计字段（如果不存在则初始化）
     if (!('scheduled' in stats)) (stats as any).scheduled = 0;
@@ -304,6 +329,7 @@ export class StateManager {
     const newState = { ...state, statistics: stats };
     await this.store.writeJson('state.json', newState);
     this.stateCache = newState;
+    });
   }
 
   private generateRunId(): string {

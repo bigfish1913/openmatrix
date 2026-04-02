@@ -493,6 +493,10 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] `/om:research` AI 驱动领域调研
 - [x] Git 自动提交 (任务完成后自动 commit)
 - [x] Brainstorm/Start 智能状态检测
+- [x] AI 目标类型标注 (智能识别开发/测试/文档任务)
+- [x] 系统集成任务 (多模块自动组装)
+- [x] 智能项目检测 (gitignore 根据技术栈自动写入)
+- [x] Git 父级目录支持 (子目录中正常执行 git 操作)
 - [ ] VSCode 扩展
 - [ ] CI/CD 集成
 

@@ -99,6 +99,31 @@ export class GitCommitManager {
   }
 
   /**
+   * 获取未提交的文件列表（带状态信息）
+   */
+  async getUncommittedFilesWithStatus(): Promise<{ status: 'new' | 'modified' | 'deleted'; path: string }[]> {
+    try {
+      const { stdout } = await execAsync('git status --porcelain', { cwd: this.repoPath });
+      return stdout
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          const statusCode = line.slice(0, 2);
+          const filePath = line.slice(3).trim();
+          let status: 'new' | 'modified' | 'deleted' = 'modified';
+          if (statusCode.includes('?') || statusCode.includes('A')) {
+            status = 'new';
+          } else if (statusCode.includes('D')) {
+            status = 'deleted';
+          }
+          return { status, path: filePath };
+        });
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * 获取已修改的文件差异统计
    */
   async getDiffStats(): Promise<Map<string, { additions: number; deletions: number }>> {
@@ -154,17 +179,22 @@ export class GitCommitManager {
    * 生成提交信息
    *
    * 格式规范:
-   * <type>: 简短描述
+   * feat(TASK-001): 简短描述
    *
-   * 改动点1
-   * 改动点2
+   * 实现内容:
+   * 模块A: 功能描述
+   * 模块B: 功能描述
    *
-   * 影响范围: 模块/功能
-   * 文件改动: 文件1, 文件2
+   * 新增文件:
+   * model/xxx.go
+   * service/xxx.go
+   *
+   * 修改文件:
+   * main.go: 路由注册和handler初始化
    *
    * Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
    */
-  generateCommitMessage(info: CommitInfo): string {
+  generateCommitMessage(info: CommitInfo, filesWithStatus?: { status: 'new' | 'modified' | 'deleted'; path: string }[]): string {
     const lines: string[] = [];
 
     // 类型映射：根据 phase 确定提交类型
@@ -186,7 +216,7 @@ export class GitCommitManager {
     lines.push(`${commitType}(${info.taskId}): ${title}`);
     lines.push('');
 
-    // Phase 描述作为改动点
+    // Phase 描述
     const phaseDescriptions: Record<string, string> = {
       tdd: '编写测试用例',
       develop: '实现功能代码',
@@ -201,15 +231,49 @@ export class GitCommitManager {
       lines.push(`影响范围: ${info.impactScope.join('、')}`);
     }
 
-    // 文件改动
-    const changedFiles = info.changes.slice(0, 5).map(f => {
-      const parts = f.split('/');
-      return parts.length > 2 ? parts.slice(-2).join('/') : f;
-    });
-    if (changedFiles.length > 0) {
-      const fileSummary = changedFiles.join(', ');
-      const suffix = info.changes.length > 5 ? ` 等 ${info.changes.length} 个文件` : '';
-      lines.push(`文件改动: ${fileSummary}${suffix}`);
+    // 按新增/修改分类列出文件
+    if (filesWithStatus && filesWithStatus.length > 0) {
+      const newFiles = filesWithStatus.filter(f => f.status === 'new').map(f => f.path);
+      const modifiedFiles = filesWithStatus.filter(f => f.status === 'modified').map(f => f.path);
+      const deletedFiles = filesWithStatus.filter(f => f.status === 'deleted').map(f => f.path);
+
+      if (newFiles.length > 0) {
+        lines.push('');
+        lines.push('新增文件:');
+        // 按目录分组
+        const grouped = this.groupFilesByDirectory(newFiles);
+        for (const [dir, files] of grouped) {
+          lines.push(`${dir ? dir + '/' : ''}${files.join(', ')}`);
+        }
+      }
+
+      if (modifiedFiles.length > 0) {
+        lines.push('');
+        lines.push('修改文件:');
+        const grouped = this.groupFilesByDirectory(modifiedFiles);
+        for (const [dir, files] of grouped) {
+          lines.push(`${dir ? dir + '/' : ''}${files.join(', ')}`);
+        }
+      }
+
+      if (deletedFiles.length > 0) {
+        lines.push('');
+        lines.push('删除文件:');
+        for (const f of deletedFiles) {
+          lines.push(f);
+        }
+      }
+    } else if (info.changes.length > 0) {
+      // 回退：无状态信息时使用 changes 列表
+      const changedFiles = info.changes.slice(0, 10).map(f => {
+        const parts = f.split('/');
+        return parts.length > 2 ? parts.slice(-2).join('/') : f;
+      });
+      lines.push('');
+      lines.push(`文件改动: ${changedFiles.join(', ')}`);
+      if (info.changes.length > 10) {
+        lines.push(`...等 ${info.changes.length} 个文件`);
+      }
     }
 
     lines.push('');
@@ -218,6 +282,23 @@ export class GitCommitManager {
     lines.push(`Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix`);
 
     return lines.join('\n');
+  }
+
+  /**
+   * 按目录分组文件
+   */
+  private groupFilesByDirectory(files: string[]): Map<string, string[]> {
+    const groups = new Map<string, string[]>();
+    for (const file of files) {
+      const parts = file.split('/');
+      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+      const fileName = parts[parts.length - 1];
+      if (!groups.has(dir)) {
+        groups.set(dir, []);
+      }
+      groups.get(dir)!.push(fileName);
+    }
+    return groups;
   }
 
   /**
@@ -247,6 +328,9 @@ export class GitCommitManager {
       // 分析影响范围
       const impactScope = await this.analyzeImpactScope(files);
 
+      // 获取文件状态信息（新增/修改/删除）
+      const filesWithStatus = await this.getUncommittedFilesWithStatus();
+
       // 更新 commit info
       const fullInfo: CommitInfo = {
         ...info,
@@ -255,7 +339,7 @@ export class GitCommitManager {
       };
 
       // 生成提交信息
-      const commitMessage = this.generateCommitMessage(fullInfo);
+      const commitMessage = this.generateCommitMessage(fullInfo, filesWithStatus);
 
       // 添加文件 - 使用 git add . 而不是 git add -A
       // git add . 只添加当前目录及子目录的文件，不会添加上级目录的文件

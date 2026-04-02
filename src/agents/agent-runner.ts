@@ -175,9 +175,9 @@ ${agentPrompt.instructions}
 
 ## 完成要求
 
-1. 完成任务后，更新任务状态文件: \`.openmatrix/tasks/${task.id}/task.json\`
-2. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
-3. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
+1. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
+   （任务状态由 openmatrix complete 命令管理，请勿直接修改 task.json）
+2. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
 
 注意: 任务完成后，由 Skill 调用 \`openmatrix complete\` 并传入 --summary 参数，
 该摘要会自动追加到全局 \`.openmatrix/context.md\` 供后续 Agent 参考。

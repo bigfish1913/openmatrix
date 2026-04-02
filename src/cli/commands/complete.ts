@@ -88,14 +88,8 @@ export const completeCommand = new Command('complete')
 `;
 
       try {
-        // 追加写入全局 context.md
-        let existingContent = '';
-        try {
-          existingContent = await fs.readFile(contextFile, 'utf-8');
-        } catch {
-          // 文件不存在，创建新文件
-        }
-        await fs.writeFile(contextFile, existingContent + contextEntry, 'utf-8');
+        // 原子追加写入全局 context.md（O_APPEND flag 保证并发安全）
+        await fs.appendFile(contextFile, contextEntry, 'utf-8');
       } catch {
         // 忽略写入错误
       }
