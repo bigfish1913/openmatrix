@@ -114,7 +114,7 @@ ${globalContext}
       });
     }
 
-    // 1. 为每个目标创建开发+测试任务（并行，只依赖设计任务）
+    // 1. 为每个目标创建任务（根据目标类型决定拆分策略）
     const devTaskIds: string[] = [];
 
     for (let i = 0; i < parsedTask.goals.length; i++) {
@@ -126,47 +126,104 @@ ${globalContext}
       }
       seenTitles.add(goal);
 
-      // 创建开发任务 — 所有开发任务并行，仅依赖设计任务
-      const devTaskId = this.generateTaskId();
-      devTaskIds.push(devTaskId);
+      const goalType = this.classifyGoal(goal);
+      const deps = designTaskId ? [designTaskId] : [];
 
-      const acceptanceCriteria = this.generateAcceptanceCriteria(goal, userContext);
+      if (goalType === 'development') {
+        // 开发类目标: 拆分为实现 + 测试 对
+        const devTaskId = this.generateTaskId();
+        devTaskIds.push(devTaskId);
 
-      breakdowns.push({
-        taskId: devTaskId,
-        title: `实现: ${goal}`,
-        description: this.buildTaskDescription(goal, globalContext),
-        priority: this.determinePriority(i),
-        // 并行: 所有开发任务只依赖设计任务（如果有），互不依赖
-        dependencies: designTaskId ? [designTaskId] : [],
-        estimatedComplexity: this.estimateComplexity(goal),
-        assignedAgent: 'coder',
-        phase: 'develop',
-        acceptanceCriteria,
-        testTaskId: undefined // 稍后关联
-      });
+        const acceptanceCriteria = this.generateAcceptanceCriteria(goal, userContext);
 
-      // 为每个开发任务创建配对的测试任务
-      const testTaskId = this.generateTaskId();
-      breakdowns.push({
-        taskId: testTaskId,
-        title: `测试: ${goal}`,
-        description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext),
-        priority: this.determinePriority(i),
-        dependencies: [devTaskId], // 测试依赖对应的开发任务
-        estimatedComplexity: 'medium',
-        assignedAgent: 'tester',
-        phase: 'verify',
-        acceptanceCriteria: [
-          `单元测试覆盖率 >= ${coverageTarget}%`,
-          '边界情况已测试',
-          '异常处理已验证',
-          '所有测试通过'
-        ]
-      });
+        breakdowns.push({
+          taskId: devTaskId,
+          title: `实现: ${goal}`,
+          description: this.buildTaskDescription(goal, globalContext),
+          priority: this.determinePriority(i),
+          dependencies: deps,
+          estimatedComplexity: this.estimateComplexity(goal),
+          assignedAgent: 'coder',
+          phase: 'develop',
+          acceptanceCriteria,
+          testTaskId: undefined
+        });
 
-      // 关联测试任务 ID
-      breakdowns[breakdowns.length - 2].testTaskId = testTaskId;
+        // 配对的测试任务
+        const testTaskId = this.generateTaskId();
+        breakdowns.push({
+          taskId: testTaskId,
+          title: `测试: ${goal}`,
+          description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext),
+          priority: this.determinePriority(i),
+          dependencies: [devTaskId],
+          estimatedComplexity: 'medium',
+          assignedAgent: 'tester',
+          phase: 'verify',
+          acceptanceCriteria: [
+            `单元测试覆盖率 >= ${coverageTarget}%`,
+            '边界情况已测试',
+            '异常处理已验证',
+            '所有测试通过'
+          ]
+        });
+
+        breakdowns[breakdowns.length - 2].testTaskId = testTaskId;
+      } else if (goalType === 'testing') {
+        // 测试类目标: 直接创建单个测试任务
+        const taskId = this.generateTaskId();
+        breakdowns.push({
+          taskId,
+          title: goal,
+          description: `## 测试目标\n${goal}\n\n${globalContext}\n\n## 测试要求\n- 单元测试覆盖率 >= ${coverageTarget}%\n- 测试正常流程\n- 测试边界情况\n- 测试异常处理\n\n## 输出\n- 测试文件\n- 测试报告\n- 覆盖率报告`,
+          priority: this.determinePriority(i),
+          dependencies: deps,
+          estimatedComplexity: 'medium',
+          assignedAgent: 'tester',
+          phase: 'verify',
+          acceptanceCriteria: [
+            `测试覆盖率 >= ${coverageTarget}%`,
+            '边界情况已测试',
+            '所有测试通过',
+            '测试报告已生成'
+          ]
+        });
+      } else if (goalType === 'documentation') {
+        // 文档类目标: 直接创建单个文档任务
+        const taskId = this.generateTaskId();
+        breakdowns.push({
+          taskId,
+          title: goal,
+          description: `## 文档目标\n${goal}\n\n${globalContext}\n\n## 输出要求\n- 文档内容完整\n- 格式清晰\n- 示例代码可运行`,
+          priority: this.determinePriority(i),
+          dependencies: deps,
+          estimatedComplexity: 'low',
+          assignedAgent: 'executor',
+          phase: 'accept',
+          acceptanceCriteria: [
+            '文档内容完整',
+            '格式规范',
+            '示例可运行'
+          ]
+        });
+      } else {
+        // 其他类型（配置、优化等）: 单个任务
+        const taskId = this.generateTaskId();
+        breakdowns.push({
+          taskId,
+          title: goal,
+          description: `## 目标\n${goal}\n\n${globalContext}\n\n## 输出要求\n- 完成目标\n- 验证结果正确`,
+          priority: this.determinePriority(i),
+          dependencies: deps,
+          estimatedComplexity: this.estimateComplexity(goal),
+          assignedAgent: 'coder',
+          phase: 'develop',
+          acceptanceCriteria: [
+            `目标 "${goal}" 已完成`,
+            '结果已验证'
+          ]
+        });
+      }
     }
 
     // 2. 系统集成任务 (将所有模块组装到入口文件)
@@ -630,5 +687,54 @@ ${typeConfig.runCommand}
     if (goal.includes('设计') || goal.includes('研究')) return 'high';
     if (goal.includes('文档') || goal.includes('说明')) return 'low';
     return 'medium';
+  }
+
+  /**
+   * 分类目标类型
+   * - development: 需要编写代码的功能实现 → 拆分为实现+测试对
+   * - testing: 已明确是测试任务 → 单个测试任务
+   * - documentation: 文档编写 → 单个文档任务
+   * - other: 其他类型（配置、优化、部署等） → 单个任务
+   */
+  private classifyGoal(goal: string): 'development' | 'testing' | 'documentation' | 'other' {
+    const g = goal.toLowerCase();
+
+    // 测试类关键词
+    const testKeywords = [
+      '测试', 'test', 'testing', 'tdd', 'e2e', 'e2e测试',
+      '单元测试', '集成测试', '端到端', '覆盖率', 'coverage',
+      'vitest', 'jest', 'mocha', 'playwright', 'cypress',
+    ];
+    if (testKeywords.some(kw => g.includes(kw))) {
+      return 'testing';
+    }
+
+    // 文档类关键词
+    const docKeywords = [
+      '文档', 'document', 'documentation', 'readme', '说明',
+      '指南', 'guide', 'tutorial', 'api文档',
+    ];
+    if (docKeywords.some(kw => g.includes(kw))) {
+      return 'documentation';
+    }
+
+    // 非开发类关键词（配置、部署等）
+    const nonDevKeywords = [
+      '配置', 'config', 'deploy', '部署', 'ci/cd', '发布',
+      'release', '优化', '监控', 'monitor', '日志',
+    ];
+
+    // 如果只包含非开发关键词而不包含开发关键词，归为 other
+    const devKeywords = [
+      '实现', '开发', '编写', '创建', '构建', '添加', '修复',
+      'implement', 'develop', 'build', 'create', 'add', 'fix',
+      '功能', 'feature', '模块', '组件', 'component', '系统',
+    ];
+    if (nonDevKeywords.some(kw => g.includes(kw)) && !devKeywords.some(kw => g.includes(kw))) {
+      return 'other';
+    }
+
+    // 默认为开发类
+    return 'development';
   }
 }
