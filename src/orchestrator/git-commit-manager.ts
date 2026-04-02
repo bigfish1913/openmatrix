@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Task } from '../types/index.js';
+import { ensureOpenmatrixGitignore } from '../utils/gitignore.js';
 
 const execAsync = promisify(exec);
 
@@ -235,18 +236,7 @@ export class GitCommitManager {
       }
 
       // 确保 .gitignore 中包含 .openmatrix（写入到 git 根目录）
-      const gitRoot = await this.getGitRoot();
-      const gitignorePath = path.join(gitRoot, '.gitignore');
-      let gitignoreContent = '';
-      try {
-        gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-      } catch {
-        // 文件不存在
-      }
-      if (!gitignoreContent.includes('.openmatrix')) {
-        const addition = (gitignoreContent && !gitignoreContent.endsWith('\n') ? '\n' : '') + '.openmatrix/\n';
-        await fs.writeFile(gitignorePath, gitignoreContent + addition, 'utf-8');
-      }
+      await ensureOpenmatrixGitignore(this.repoPath);
 
       // 获取未提交的文件
       const files = await this.getUncommittedFiles();
@@ -282,7 +272,7 @@ export class GitCommitManager {
       }
 
       // 使用临时文件传递 commit message（避免 Windows 下多行消息转义问题）
-      const tmpFile = path.join(gitRoot, '.git', 'COMMIT_MSG_TMP');
+      const tmpFile = path.join(await this.getGitRoot(), '.git', 'COMMIT_MSG_TMP');
       await fs.writeFile(tmpFile, commitMessage, 'utf-8');
 
       try {
