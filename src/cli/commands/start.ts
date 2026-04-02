@@ -20,6 +20,8 @@ interface AIParsedInput {
   title: string;
   description?: string;
   goals: string[];
+  /** 每个 goal 的类型标注 (由 AI 在提取时标注)，与 goals 数组一一对应 */
+  goalTypes?: import('../../types/index.js').GoalType[];
   constraints?: string[];
   deliverables?: string[];
   /** 额外上下文（如技术栈、文档要求等） */
@@ -185,6 +187,7 @@ async function handleTasksJson(
     title: tasksInput.title,
     description: tasksInput.description || '',
     goals: tasksInput.goals,
+    goalTypes: tasksInput.goalTypes,
     constraints: tasksInput.constraints || [],
     deliverables: tasksInput.deliverables || [],
     rawContent: ''

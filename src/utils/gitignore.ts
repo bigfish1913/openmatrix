@@ -1,17 +1,35 @@
 // src/utils/gitignore.ts
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+/**
+ * 获取 git 仓库根目录（支持 .git 在父级目录的情况）
+ */
+async function getGitRoot(basePath: string): Promise<string> {
+  try {
+    const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: basePath });
+    return stdout.trim();
+  } catch {
+    return basePath;
+  }
+}
 
 /**
  * 确保指定目录被 git 忽略
- * @param basePath 项目根目录
+ * @param basePath 项目目录（可以是 git 仓库的子目录）
  * @param ignorePattern 要忽略的模式 (默认 .openmatrix/)
  */
 export async function ensureGitignore(
   basePath: string,
   ignorePattern: string = '.openmatrix/'
 ): Promise<void> {
-  const gitignorePath = path.join(basePath, '.gitignore');
+  // 写入到 git 根目录的 .gitignore
+  const gitRoot = await getGitRoot(basePath);
+  const gitignorePath = path.join(gitRoot, '.gitignore');
 
   try {
     const content = await fs.readFile(gitignorePath, 'utf-8');

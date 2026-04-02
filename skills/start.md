@@ -230,9 +230,24 @@ AskUserQuestion({
 
 从任务描述中提取:
 - **goals**: 至少 3-8 个明确功能目标，每个是独立可交付模块
+- **goalTypes**: 为每个 goal 标注类型，影响任务拆分策略:
+  - `development` — 需要编写代码的功能/模块实现 → 拆分为"实现+测试"任务对
+  - `testing` — 明确的测试任务（如"编写 E2E 测试"、"所有模块的单元测试"）→ 单个测试任务
+  - `documentation` — 文档编写（如"编写 API 文档"、"更新 README"）→ 单个文档任务
+  - `other` — 配置、部署、优化等非编码任务 → 单个任务
 - **constraints**: 技术栈、兼容性等约束
 - **deliverables**: 交付物列表
 - **plan**: 技术方案、模块划分、接口设计、关键决策
+
+**goalTypes 标注示例：**
+
+| Goal | Type | 理由 |
+|------|------|------|
+| "项目脚手架: Vite+TS 配置" | development | 需要写代码搭建 |
+| "GameLoop 60fps 游戏循环" | development | 功能实现 |
+| "所有核心模块的单元测试" | testing | 已是测试任务 |
+| "API 文档编写" | documentation | 文档类 |
+| "CI/CD 流水线配置" | other | 配置类 |
 
 ### Step 7: 写入 tasks-input.json
 
@@ -243,6 +258,7 @@ AskUserQuestion({
   "title": "任务标题",
   "description": "整体描述",
   "goals": ["目标1", "目标2", "目标3"],
+  "goalTypes": ["development", "testing", "documentation"],
   "constraints": ["约束1"],
   "deliverables": ["src/xxx.ts"],
   "plan": "## 技术方案\n1. ...\n2. ..."
@@ -250,6 +266,7 @@ AskUserQuestion({
 ```
 
 > **注意**: `quality`、`mode`、`e2eTests` 不写入文件，由 Step 8 的 CLI 参数传递。
+> **goalTypes** 必须与 goals 数组长度一致，一一对应。
 
 ### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
 

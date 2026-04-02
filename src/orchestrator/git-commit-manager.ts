@@ -33,10 +33,26 @@ export interface CommitResult {
  */
 export class GitCommitManager {
   private repoPath: string;
+  private gitRoot: string | null = null;
   private enabled: boolean = true;
 
   constructor(repoPath: string = process.cwd()) {
     this.repoPath = repoPath;
+  }
+
+  /**
+   * 获取 git 仓库根目录（支持 .git 在父级目录的情况）
+   */
+  private async getGitRoot(): Promise<string> {
+    if (this.gitRoot) return this.gitRoot;
+    try {
+      const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: this.repoPath });
+      this.gitRoot = stdout.trim();
+    } catch {
+      // 不是 git 仓库，回退到 repoPath
+      this.gitRoot = this.repoPath;
+    }
+    return this.gitRoot;
   }
 
   /**
@@ -215,21 +231,21 @@ export class GitCommitManager {
       // 检查是否在 Git 仓库中，如果不是则自动初始化
       if (!await this.isGitRepo()) {
         await execAsync('git init', { cwd: this.repoPath });
-        // 确保 .gitignore 存在并包含 .openmatrix
-        const gitignorePath = path.join(this.repoPath, '.gitignore');
-        let gitignoreContent = '';
-        try {
-          gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-        } catch {
-          // 文件不存在
-        }
-        if (!gitignoreContent.includes('.openmatrix')) {
-          const addition = (gitignoreContent && !gitignoreContent.endsWith('\n') ? '\n' : '') + '.openmatrix/\n';
-          await fs.writeFile(gitignorePath, gitignoreContent + addition, 'utf-8');
-        }
-        // 初始提交
-        await execAsync('git add .gitignore', { cwd: this.repoPath });
-        await execAsync('git commit -m "initial commit" --allow-empty', { cwd: this.repoPath }).catch(() => {});
+        this.gitRoot = this.repoPath;  // 刚初始化的仓库，根目录就是 repoPath
+      }
+
+      // 确保 .gitignore 中包含 .openmatrix（写入到 git 根目录）
+      const gitRoot = await this.getGitRoot();
+      const gitignorePath = path.join(gitRoot, '.gitignore');
+      let gitignoreContent = '';
+      try {
+        gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
+      } catch {
+        // 文件不存在
+      }
+      if (!gitignoreContent.includes('.openmatrix')) {
+        const addition = (gitignoreContent && !gitignoreContent.endsWith('\n') ? '\n' : '') + '.openmatrix/\n';
+        await fs.writeFile(gitignorePath, gitignoreContent + addition, 'utf-8');
       }
 
       // 获取未提交的文件
@@ -266,7 +282,7 @@ export class GitCommitManager {
       }
 
       // 使用临时文件传递 commit message（避免 Windows 下多行消息转义问题）
-      const tmpFile = path.join(this.repoPath, '.git', 'COMMIT_MSG_TMP');
+      const tmpFile = path.join(gitRoot, '.git', 'COMMIT_MSG_TMP');
       await fs.writeFile(tmpFile, commitMessage, 'utf-8');
 
       try {

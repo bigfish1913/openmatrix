@@ -126,7 +126,9 @@ ${globalContext}
       }
       seenTitles.add(goal);
 
-      const goalType = this.classifyGoal(goal);
+      // 优先使用 AI 标注的类型，fallback 到关键词检测
+      const goalType: 'development' | 'testing' | 'documentation' | 'other' =
+        parsedTask.goalTypes?.[i] ?? this.classifyGoal(goal);
       const deps = designTaskId ? [designTaskId] : [];
 
       if (goalType === 'development') {

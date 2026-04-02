@@ -282,10 +282,15 @@ export interface ParsedTask {
   title: string;
   description: string;
   goals: string[];
+  /** 每个 goal 的类型标注 (由 AI 在提取时标注)，与 goals 数组一一对应 */
+  goalTypes?: GoalType[];
   constraints: string[];
   deliverables: string[];
   rawContent: string;
 }
+
+/** 目标类型 */
+export type GoalType = 'development' | 'testing' | 'documentation' | 'other';
 
 // ============ Research Types ============
 
