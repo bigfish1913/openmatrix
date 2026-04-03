@@ -319,7 +319,7 @@ export class GitCommitManager {
       // 确保 .gitignore 中包含 .openmatrix（写入到 git 根目录）
       await ensureOpenmatrixGitignore(this.repoPath);
 
-      // 获取未提交的文件
+      // 获取未提交的文件（用于生成 commit message，在 git add 之前获取）
       const files = await this.getUncommittedFiles();
       if (files.length === 0) {
         return { success: false, message: 'No changes to commit' };
@@ -341,10 +341,37 @@ export class GitCommitManager {
       // 生成提交信息
       const commitMessage = this.generateCommitMessage(fullInfo, filesWithStatus);
 
-      // 添加文件 - 使用 git add . 而不是 git add -A
-      // git add . 只添加当前目录及子目录的文件，不会添加上级目录的文件
-      // 同时通过 .gitignore 排除不需要的文件
+      // 暂存所有文件（.gitignore 已更新，.openmatrix/ 等目录会被排除）
       await execAsync('git add .', { cwd: this.repoPath });
+
+      // 安全措施：从暂存区移除所有不应被跟踪的目录和文件
+      // 即使 .gitignore 已更新，也显式 unstage 防止遗漏（特别是任务创建新项目时）
+      const unstagePatterns = [
+        '.openmatrix/',
+        'node_modules/',
+        'dist/',
+        'build/',
+        '.next/',
+        '.nuxt/',
+        '.output/',
+        '.vite/',
+        '.cache/',
+        'coverage/',
+        'target/',
+        '__pycache__/',
+        '.pytest_cache/',
+        '.mypy_cache/',
+        '.gradle/',
+        'vendor/',
+        '.env',
+        '.env.local',
+        '.env.*.local',
+        '*.tsbuildinfo',
+        '*.pyc',
+      ];
+      for (const pattern of unstagePatterns) {
+        await execAsync(`git reset HEAD -- "${pattern}"`, { cwd: this.repoPath }).catch(() => {});
+      }
 
       // 检查是否有文件被暂存（避免空提交）
       const { stdout: staged } = await execAsync('git diff --cached --name-only', { cwd: this.repoPath });
