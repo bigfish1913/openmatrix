@@ -344,33 +344,22 @@ export class GitCommitManager {
       // 暂存所有文件（.gitignore 已更新，.openmatrix/ 等目录会被排除）
       await execAsync('git add .', { cwd: this.repoPath });
 
-      // 安全措施：从暂存区移除所有不应被跟踪的目录和文件
-      // 即使 .gitignore 已更新，也显式 unstage 防止遗漏（特别是任务创建新项目时）
-      const unstagePatterns = [
-        '.openmatrix/',
-        'node_modules/',
-        'dist/',
-        'build/',
-        '.next/',
-        '.nuxt/',
-        '.output/',
-        '.vite/',
-        '.cache/',
-        'coverage/',
-        'target/',
-        '__pycache__/',
-        '.pytest_cache/',
-        '.mypy_cache/',
-        '.gradle/',
-        'vendor/',
-        '.env',
-        '.env.local',
-        '.env.*.local',
-        '*.tsbuildinfo',
-        '*.pyc',
-      ];
-      for (const pattern of unstagePatterns) {
-        await execAsync(`git reset HEAD -- "${pattern}"`, { cwd: this.repoPath }).catch(() => {});
+      // 动态检查：用 git check-ignore 逐个检查暂存文件，移除应被忽略的
+      // 这样无论 .gitignore 怎么更新，都不会误提交构建产物、依赖目录等
+      const { stdout: stagedFiles } = await execAsync('git diff --cached --name-only', { cwd: this.repoPath });
+      const filesToUnstage: string[] = [];
+      for (const file of stagedFiles.split('\n').filter(Boolean)) {
+        try {
+          await execAsync(`git check-ignore -q "${file}"`, { cwd: this.repoPath });
+          // check-ignore 返回 0 → 文件应该被忽略
+          filesToUnstage.push(file);
+        } catch {
+          // check-ignore 返回 1 → 文件不应被忽略，保留暂存
+        }
+      }
+      if (filesToUnstage.length > 0) {
+        const unstageCmd = filesToUnstage.map(f => `"${f}"`).join(' ');
+        await execAsync(`git reset HEAD -- ${unstageCmd}`, { cwd: this.repoPath }).catch(() => {});
       }
 
       // 检查是否有文件被暂存（避免空提交）
