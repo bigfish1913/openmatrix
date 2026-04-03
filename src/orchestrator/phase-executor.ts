@@ -587,6 +587,82 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}
 ⏭️ 无验收标准定义`);
     }
 
+    // Gate 8: 真实运行验证
+    parts.push(`
+
+### 8. 🚀 真实运行验证 (Smoke Test)
+
+**目的**: 确保代码不仅编译通过，还能实际运行。
+
+#### 8a. 导入/模块验证
+\`\`\`bash
+# 检查模块是否可以被正确导入（无运行时依赖缺失）
+node -e "
+try {
+  // 检查主要入口文件是否能被导入
+  const fs = require('fs');
+  const path = require('path');
+  const pkg = require('./package.json');
+
+  // 如果有 main 或 exports 字段，尝试导入
+  const mainFile = pkg.main || pkg.exports?.['.']?.import || pkg.exports?.['.']?.require;
+  if (mainFile && fs.existsSync(mainFile)) {
+    require('./' + mainFile);
+    console.log('✅ Main entry imported successfully');
+  } else if (fs.existsSync('dist/index.js')) {
+    require('./dist/index.js');
+    console.log('✅ dist/index.js imported successfully');
+  } else {
+    console.log('⏭️ No main entry to import-test');
+  }
+} catch(e) {
+  console.error('❌ Import failed:', e.message);
+  process.exit(1);
+}
+"
+\`\`\`
+**失败后果**: ❌ VERIFY_FAILED (运行时依赖缺失或导入错误)
+
+#### 8b. 启动验证（如适用）
+\`\`\`bash
+# 检查是否有 start 脚本，如果有则做短暂启动测试
+if npm run | grep -q "start"; then
+  echo "Found start script, running smoke test..."
+  timeout 10 npm start -- --smoke-test 2>/dev/null || \
+  timeout 10 npm start &
+  START_PID=$!
+  sleep 5
+  # 检查进程是否还在运行（启动没有崩溃）
+  if kill -0 $START_PID 2>/dev/null; then
+    echo "✅ Application started successfully"
+    kill $START_PID 2>/dev/null
+  else
+    wait $START_PID
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "✅ Application ran and exited cleanly"
+    else
+      echo "❌ Application crashed with exit code $EXIT_CODE"
+      exit 1
+    fi
+  fi
+else
+  echo "⏭️ No start script found - skipping startup test"
+fi
+\`\`\`
+**失败后果**: ❌ VERIFY_FAILED (启动崩溃) / ⏭️ Skipped (无 start 脚本)
+
+#### 8c. 功能冒烟测试
+\`\`\`bash
+# 如果有 smoketest 脚本，运行它
+if npm run | grep -q "smoketest\\|smoke-test\\|test:smoke"; then
+  npm run smoketest 2>/dev/null || npm run smoke-test 2>/dev/null || npm run test:smoke
+else
+  echo "⏭️ No smoke test script - skipping"
+fi
+\`\`\`
+**失败后果**: ❌ VERIFY_FAILED / ⏭️ Skipped (无 smoke test 脚本)`);
+
     parts.push(`
 
 ## 📊 质量报告格式
@@ -715,6 +791,7 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 - [ ] 功能演示/验证
 - [ ] 测试报告 (verify-report.md 已生成)
 - [ ] 代码审查通过
+- [ ] **🚀 实际运行验证** (导入测试、启动测试)
 - [ ] 文档已更新 (如需要)
 - [ ] 所有验收标准已满足
 
@@ -727,9 +804,57 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 ### 2. 验证验收标准
 逐项检查验收标准是否满足
 
-### 3. 最终确认
+### 3. 🚀 实际运行验证 (Accept 阶段必须执行)
+
+**目的**: Verify 阶段验证了编译和测试，Accept 阶段验证代码在实际使用中是否可用。
+
+#### 3a. 运行时导入测试
+\`\`\`bash
+# 验证所有核心模块能被正确导入（无运行时错误）
+node -e "
+const modules = [
+  // 根据任务实际产出的模块填入
+  // 示例: './dist/index.js', './dist/core.js'
+];
+let failed = [];
+for (const mod of modules) {
+  try {
+    require(mod);
+    console.log('✅ Import OK:', mod);
+  } catch(e) {
+    console.error('❌ Import FAIL:', mod, e.message);
+    failed.push(mod);
+  }
+}
+if (failed.length > 0) {
+  console.error('Failed imports:', failed.join(', '));
+  process.exit(1);
+}
+console.log('All module imports passed');
+"
+\`\`\`
+
+#### 3b. CLI/入口测试 (如适用)
+\`\`\`bash
+# 如果项目提供 CLI 或 HTTP 服务，做基本调用测试
+# CLI 示例:
+if [ -f "dist/cli/index.js" ]; then
+  node dist/cli/index.js --help && echo "✅ CLI runs" || echo "❌ CLI crashed"
+fi
+
+# HTTP 示例 (如果有 start 脚本):
+# 启动 → 发送测试请求 → 验证响应 → 关闭
+\`\`\`
+
+#### 3c. 结果验证
+- 如果导入/运行成功 → ✅ 继续验收
+- 如果导入/运行失败但测试通过 → ❌ 标记为 ACCEPT_NEEDS_MODIFICATION，指出运行时错误
+- 如果项目无 entry point（纯库/工具）→ ⏭️ 跳过，基于代码审查判断
+
+### 4. 最终确认
 - 确认代码可以合并
 - 确认无遗留问题
+- **确认代码能实际运行**（不是只编译通过）
 
 ## 输出要求
 在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
