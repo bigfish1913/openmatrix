@@ -156,12 +156,12 @@ AskUserQuestion({
 
 ## 步骤 4: 提出 2-3 种方案
 
-理解需求后，提出不同实现方案：
+理解需求后，**先在界面输出方案详情**（不放在 AskUserQuestion 里），再让用户选择。
 
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: `基于需求分析，有以下实现方案：
+**输出方案到界面（普通文本）：**
+
+```
+基于需求分析，有以下实现方案：
 
 **方案 A（推荐）: 组件化架构**
 - 每个模块独立，通过接口通信
@@ -177,18 +177,19 @@ AskUserQuestion({
 - 每个功能独立服务
 - 优点: 高度解耦
 - 缺点: 复杂度高，当前规模不需要
-
-推荐方案 A，因为...`,
-    header: "技术方案",
-    options: [
-      { label: "方案 A (推荐)", description: "组件化架构" },
-      { label: "方案 B", description: "单体架构" },
-      { label: "方案 C", description: "微服务架构" }
-    ],
-    multiSelect: false
-  }]
-})
 ```
+
+**然后用简短的 AskUserQuestion 让用户选择：**
+
+AskUserQuestion: `header: "技术方案"`, `multiSelect: false`
+
+**question:** 推荐方案 A，因为...。选择哪个方案？
+
+| label | description |
+|-------|-------------|
+| 方案 A (推荐) | 组件化架构 |
+| 方案 B | 单体架构 |
+| 方案 C | 微服务架构 |
 
 ## 步骤 5: 分步展示设计
 
@@ -217,64 +218,54 @@ AskUserQuestion({
 4. 错误处理策略
 5. 测试策略
 
-**每个部分都使用 AskUserQuestion 确认：**
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: "架构设计是否合理？",
-    header: "确认",
-    options: [
-      { label: "继续", description: "设计合理，继续下一部分" },
-      { label: "修改", description: "我有调整建议" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+**每个部分先在界面展示设计内容，再用简短 AskUserQuestion 确认：**
+
+AskUserQuestion: `header: "确认"`, `multiSelect: false`
+**question:** 这部分设计是否合理？
+
+| label | description |
+|-------|-------------|
+| 继续 | 设计合理，继续下一部分 |
+| 修改 | 我有调整建议 |
 
 ## 步骤 6: 总结确认
 
-所有设计部分确认后，展示完整总结：
+所有设计部分确认后，**先在界面展示完整总结**，再用简短 AskUserQuestion 确认：
+
+**输出总结到界面（普通文本）：**
 
 ```
-🧠 头脑风暴总结
+头脑风暴总结
 
-📋 任务: 实现客户管理系统
+任务: 实现客户管理系统
 
-🎯 核心目标
+核心目标
    - 客户信息管理（姓名、邮箱、邀请人）
    - 历史合作记录追踪
 
-📐 架构
+架构
    - 组件化设计，每个模块独立可测
 
-🔧 技术方案
-   - 数据库: PostgreSQL
-   - 缓存: Redis
-   - API: RESTful
+技术方案
+   - 数据库: PostgreSQL / 缓存: Redis / API: RESTful
 
-⚠️ 风险
+风险
    - 数据迁移: 需要兼容旧格式
 
-✅ 验收标准
-   - CRUD 接口完整
-   - 测试覆盖率 > 80%
+验收标准
+   - CRUD 接口完整 / 测试覆盖率 > 80%
 ```
 
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: "头脑风暴完成，是否开始执行任务？",
-    header: "下一步",
-    options: [
-      { label: "开始执行 (推荐)", description: "写入 tasks-input.json 并调用 /om:start" },
-      { label: "继续探索", description: "还有问题需要进一步讨论" },
-      { label: "仅生成计划", description: "生成详细计划但不执行" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+**然后让用户选择下一步：**
+
+AskUserQuestion: `header: "下一步"`, `multiSelect: false`
+**question:** 头脑风暴完成，是否开始执行任务？
+
+| label | description |
+|-------|-------------|
+| 开始执行 (推荐) | 写入 tasks-input.json 并调用 /om:start |
+| 继续探索 | 还有问题需要进一步讨论 |
+| 仅生成计划 | 生成详细计划但不执行 |
 
 ## 步骤 7: 输出设计文档
 
@@ -324,19 +315,17 @@ mkdir -p docs/openmatrix
 - 标准 2
 ```
 
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: `设计文档已写入 docs/openmatrix/${filename}\n\n下一步？`,
-    header: "下一步",
-    options: [
-      { label: "开始执行 (推荐)", description: "写入 tasks-input.json 并调用 /om:start" },
-      { label: "修改设计", description: "需要调整设计方案" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+**先在界面告知文档已写入，再让用户选择：**
+
+（输出到界面：设计文档已写入 `docs/openmatrix/YYYY-MM-DD-<topic>-design.md`）
+
+AskUserQuestion: `header: "下一步"`, `multiSelect: false`
+**question:** 设计文档已写入，下一步？
+
+| label | description |
+|-------|-------------|
+| 开始执行 (推荐) | 写入 tasks-input.json 并调用 /om:start |
+| 修改设计 | 需要调整设计方案 |
 
 ## 步骤 8: 写入 tasks-input.json 并调用 /om:start
 

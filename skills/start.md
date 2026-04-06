@@ -376,31 +376,16 @@ openmatrix step --json
 
 **交互式审批流程（非全自动模式）:**
 
-当到达审批点时，使用 `openmatrix approve --json`（不带 ID）查看待审批项，然后通过 AskUserQuestion 请求用户确认:
+当到达审批点时，使用 `openmatrix approve --json`（不带 ID）查看待审批项，**先在界面展示审批内容摘要**，再用简短 AskUserQuestion 请求确认:
 
-```typescript
-// 检查是否有待审批项
-// 通过 CLI: openmatrix approve --json  (不带 approvalId 时返回列表)
+AskUserQuestion: `header: "审批"`, `multiSelect: false`
+**question:** 是否批准此审批请求？（详情已展示在上方）
 
-AskUserQuestion({
-  questions: [
-    {
-      question: "审批请求: [审批类型]
-
-[审批内容摘要]
-
-是否批准?",
-      header: "审批",
-      options: [
-        { label: "批准", description: "同意继续执行" },
-        { label: "拒绝", description: "拒绝并停止执行" },
-        { label: "查看详情", description: "查看完整审批内容后再决定" }
-      ],
-      multiSelect: false
-    }
-  ]
-})
-```
+| label | description |
+|-------|-------------|
+| 批准 | 同意继续执行 |
+| 拒绝 | 拒绝并停止执行 |
+| 查看详情 | 查看完整审批内容后再决定 |
 
 用户选择后，执行对应命令:
 - 批准: `openmatrix approve <approval-id> -d approve --json`
