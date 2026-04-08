@@ -7,6 +7,7 @@ import { ApprovalManager } from './approval-manager.js';
 import { StateMachine } from './state-machine.js';
 import { PhaseExecutor } from './phase-executor.js';
 import { RetryManager } from './retry-manager.js';
+import { AIReviewer } from './ai-reviewer.js';
 import type { Task, GlobalState, Approval } from '../types/index.js';
 
 export interface ExecutorConfig {
@@ -48,6 +49,7 @@ export class OrchestratorExecutor {
   private stateMachine: StateMachine;
   private phaseExecutor: PhaseExecutor;
   private retryManager: RetryManager;
+  private aiReviewer: AIReviewer;
   private config: ExecutorConfig;
   private taskTimers: Map<string, NodeJS.Timeout> = new Map();
 
@@ -77,6 +79,7 @@ export class OrchestratorExecutor {
     this.stateMachine = new StateMachine();
     this.phaseExecutor = new PhaseExecutor(stateManager, approvalManager);
     this.retryManager = new RetryManager();
+    this.aiReviewer = new AIReviewer();
   }
 
   /**
@@ -327,8 +330,10 @@ export class OrchestratorExecutor {
 
   /**
    * 标记任务完成
+   *
+   * 增强：对于 reviewer 任务，自动解析 Review 报告并生成修复任务
    */
-  async completeTask(taskId: string, result: { success: boolean; output?: string; error?: string }): Promise<void> {
+  async completeTask(taskId: string, result: { success: boolean; output?: string; error?: string }): Promise<{ createdFixTasks?: string[] }> {
     const task = await this.stateManager.getTask(taskId);
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
@@ -374,11 +379,59 @@ export class OrchestratorExecutor {
         });
       } else if (currentPhase === 'accept') {
         await this.scheduler.markTaskCompleted(taskId);
+
+        // Review 任务完成：自动解析报告并生成修复任务
+        if (task.assignedAgent === 'reviewer' && result.output) {
+          return await this.processReviewResult(taskId, result.output);
+        }
       }
     } else {
       this.clearTaskTimeout(taskId);
       await this.scheduler.markTaskFailed(taskId, result.error || 'Unknown error');
     }
+
+    return {};
+  }
+
+  /**
+   * 处理 Review 结果：解析报告，如有 critical/major 问题则自动创建修复任务
+   */
+  private async processReviewResult(taskId: string, output: string): Promise<{ createdFixTasks?: string[] }> {
+    const report = this.aiReviewer.parseReviewResult(output);
+    const task = await this.stateManager.getTask(taskId);
+    if (!task) return {};
+
+    // 保存 Review 报告到 artifacts
+    await this.stateManager.savePhaseResult(taskId, 'review', {
+      report,
+      taskId,
+      reviewedAt: report.reviewedAt
+    });
+
+    if (!this.aiReviewer.needsAutoFix(report)) {
+      console.log(`✅ Review 通过: ${taskId} — 无 critical/major 问题`);
+      return {};
+    }
+
+    // 生成修复任务
+    const fixTasks = this.aiReviewer.generateFixTasks(task, report, taskId);
+    const createdIds: string[] = [];
+
+    for (const fixTask of fixTasks) {
+      // 将生成的 taskId 转换为 StateManager 的 ID 格式
+      const created = await this.stateManager.createTask({
+        title: fixTask.title,
+        description: fixTask.description,
+        priority: fixTask.priority,
+        timeout: fixTask.timeout,
+        dependencies: fixTask.dependencies,
+        assignedAgent: fixTask.assignedAgent
+      });
+      createdIds.push(created.id);
+    }
+
+    console.log(`🔧 Review 发现 ${report.issues.length} 个问题，已创建 ${createdIds.length} 个修复任务`);
+    return { createdFixTasks: createdIds };
   }
 
   /**

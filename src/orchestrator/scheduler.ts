@@ -20,7 +20,6 @@ export class Scheduler {
   private stateManager: StateManager;
   private stateMachine: StateMachine;
   private config: SchedulerConfig;
-  private runningTasks: Set<string> = new Set();
 
   constructor(stateManager: StateManager, config?: Partial<SchedulerConfig>) {
     this.stateManager = stateManager;
@@ -33,6 +32,14 @@ export class Scheduler {
   }
 
   /**
+   * 获取当前正在执行的任务数（从持久化状态读取，非内存缓存）
+   */
+  private async getRunningCount(): Promise<number> {
+    const tasks = await this.stateManager.listTasks();
+    return tasks.filter(t => t.status === 'in_progress' || t.status === 'scheduled').length;
+  }
+
+  /**
    * 获取下一个可执行的任务
    */
   async getNextTask(): Promise<Task | null> {
@@ -42,7 +49,12 @@ export class Scheduler {
     await this.handleCircularDependencies(tasks);
 
     // 筛选可执行任务
-    const executable = tasks.filter(task => this.canExecute(task, tasks));
+    const executable: Task[] = [];
+    for (const task of tasks) {
+      if (await this.canExecute(task, tasks)) {
+        executable.push(task);
+      }
+    }
 
     if (executable.length === 0) {
       return null;
@@ -57,14 +69,15 @@ export class Scheduler {
   /**
    * 检查任务是否可执行
    */
-  private canExecute(task: Task, allTasks: Task[]): boolean {
+  private async canExecute(task: Task, allTasks: Task[]): Promise<boolean> {
     // 1. 状态必须是 pending 或 retry_queue
     if (task.status !== 'pending' && task.status !== 'retry_queue') {
       return false;
     }
 
-    // 2. 检查并发限制
-    if (this.runningTasks.size >= this.config.maxConcurrentTasks) {
+    // 2. 检查并发限制（从持久化状态读取）
+    const runningCount = await this.getRunningCount();
+    if (runningCount >= this.config.maxConcurrentTasks) {
       return false;
     }
 
@@ -113,24 +126,41 @@ export class Scheduler {
   }
 
   /**
-   * 标记任务开始执行
+   * 标记任务开始执行（阶段感知，不重置已完成的 phase）
    */
   async markTaskStarted(taskId: string): Promise<void> {
-    this.runningTasks.add(taskId);
-    await this.transitionTask(taskId, 'start', {
-      phases: {
-        develop: { status: 'in_progress', duration: null, startedAt: new Date().toISOString() },
-        verify: { status: 'pending', duration: null },
-        accept: { status: 'pending', duration: null }
+    const task = await this.stateManager.getTask(taskId);
+    if (!task) throw new Error(`Task ${taskId} not found`);
+
+    const now = new Date().toISOString();
+
+    // 根据任务当前状态决定设置哪个 phase 为 in_progress
+    let phases = { ...task.phases };
+
+    if (task.status === 'pending' || task.status === 'retry_queue') {
+      // 首次开始：设置 develop 为 in_progress
+      phases.develop = { status: 'in_progress', duration: null, startedAt: now };
+      if (phases.verify.status === 'pending') {
+        phases.verify = { status: 'pending', duration: null };
       }
-    });
+      if (phases.accept.status === 'pending') {
+        phases.accept = { status: 'pending', duration: null };
+      }
+    } else if (task.status === 'verify') {
+      // develop 已完成，开始 verify 阶段
+      phases.verify = { status: 'in_progress', duration: null, startedAt: now };
+    } else if (task.status === 'accept') {
+      // develop + verify 已完成，开始 accept 阶段
+      phases.accept = { status: 'in_progress', duration: null, startedAt: now };
+    }
+
+    await this.transitionTask(taskId, 'start', { phases });
   }
 
   /**
    * 标记任务完成
    */
   async markTaskCompleted(taskId: string): Promise<void> {
-    this.runningTasks.delete(taskId);
     const task = await this.stateManager.getTask(taskId);
     if (task) {
       await this.transitionTask(taskId, 'accept_done', {
@@ -146,7 +176,6 @@ export class Scheduler {
    * 标记任务失败
    */
   async markTaskFailed(taskId: string, error: string): Promise<void> {
-    this.runningTasks.delete(taskId);
     const task = await this.stateManager.getTask(taskId);
     const retryCount = task?.retryCount || 0;
     await this.transitionTask(taskId, 'fail', {
@@ -166,7 +195,6 @@ export class Scheduler {
    * 标记任务阻塞（需要 Meeting）
    */
   async markTaskBlocked(taskId: string, reason: string): Promise<void> {
-    this.runningTasks.delete(taskId);
     await this.transitionTask(taskId, 'block', {
       error: reason
     });
@@ -182,7 +210,12 @@ export class Scheduler {
     await this.handleCircularDependencies(tasks);
 
     // 筛选可执行任务
-    const executable = tasks.filter(task => this.canExecute(task, tasks));
+    const executable: Task[] = [];
+    for (const task of tasks) {
+      if (await this.canExecute(task, tasks)) {
+        executable.push(task);
+      }
+    }
 
     // 按优先级排序（高优先级优先）
     executable.sort((a, b) => this.getPriorityWeight(b.priority) - this.getPriorityWeight(a.priority));
@@ -255,17 +288,16 @@ export class Scheduler {
   }
 
   /**
-   * 获取调度状态
+   * 获取调度状态（从持久化状态读取）
    */
-  getStatus(): {
+  async getStatus(): Promise<{
     running: number;
     maxConcurrent: number;
-    runningTaskIds: string[];
-  } {
+  }> {
+    const running = await this.getRunningCount();
     return {
-      running: this.runningTasks.size,
-      maxConcurrent: this.config.maxConcurrentTasks,
-      runningTaskIds: Array.from(this.runningTasks)
+      running,
+      maxConcurrent: this.config.maxConcurrentTasks
     };
   }
 }

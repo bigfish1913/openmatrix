@@ -20,7 +20,9 @@
       "Bash(npm i:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(node -e \"const p=require\\('./package.json'\\); p.version=p.version.replace\\(/\\(\\\\d+\\)$/,\\(m,n\\)=>String\\(+n+1\\)\\); require\\('fs'\\).writeFileSync\\('package.json',JSON.stringify\\(p,null,2\\)+'\\\\n'\\); console.log\\(p.version\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); p.version=p.version.replace\\(/\\(\\\\d+\\)$/,\\(m,n\\)=>String\\(+n+1\\)\\); require\\('fs'\\).writeFileSync\\('package.json',JSON.stringify\\(p,null,2\\)+'\\\\n'\\); console.log\\(p.version\\)\")",
+      "Bash(npm install:*)",
+      "Bash(openmatrix --version)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 // src/orchestrator/ai-reviewer.ts
-import type { Task } from '../types/index.js';
+import type { Task, TaskPriority, AgentType } from '../types/index.js';
 
 /**
  * AI Reviewer 验收报告
@@ -27,6 +27,19 @@ export interface ReviewIssue {
   line?: number;
   description: string;
   suggestion?: string;
+}
+
+/**
+ * Review 修复任务配置
+ */
+export interface ReviewFixTask {
+  taskId: string;
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  assignedAgent: AgentType;
+  dependencies: string[];
+  timeout: number;
 }
 
 /**
@@ -361,5 +374,129 @@ ACCEPT_FAILED
 1. [原因]
 \`\`\`
 `;
+  }
+
+  /**
+   * 根据 Review 报告生成修复任务
+   *
+   * 对每个 critical/major 问题生成独立的修复任务，
+   * 这些任务会被加入执行队列并自动执行。
+   *
+   * @param originalTask 被审查的原始任务
+   * @param report Review 报告
+   * @param reviewTaskId 审查任务本身的 ID（用于依赖）
+   * @returns 修复任务列表
+   */
+  generateFixTasks(
+    originalTask: Task,
+    report: ReviewReport,
+    reviewTaskId: string
+  ): ReviewFixTask[] {
+    const fixTasks: ReviewFixTask[] = [];
+    let counter = 0;
+
+    // 只对 critical 和 major 级别的问题生成修复任务
+    const actionableIssues = report.issues.filter(
+      issue => issue.severity === 'critical' || issue.severity === 'major'
+    );
+
+    // 按文件分组，减少上下文切换
+    const issuesByFile = new Map<string, ReviewIssue[]>();
+    for (const issue of actionableIssues) {
+      const fileKey = issue.file || 'general';
+      if (!issuesByFile.has(fileKey)) {
+        issuesByFile.set(fileKey, []);
+      }
+      issuesByFile.get(fileKey)!.push(issue);
+    }
+
+    for (const [file, issues] of issuesByFile) {
+      counter++;
+      const isCritical = issues.some(i => i.severity === 'critical');
+      const severityLabel = isCritical ? '紧急修复' : '修复';
+
+      // 构建修复描述
+      const issueDetails = issues.map((issue, i) =>
+        `${i + 1}. [${issue.severity.toUpperCase()}] ${issue.description}${issue.suggestion ? ` → 建议: ${issue.suggestion}` : ''}`
+      ).join('\n');
+
+      fixTasks.push({
+        taskId: `${originalTask.id}-FIX-${String(counter).padStart(2, '0')}`,
+        title: `${severityLabel}: ${file === 'general' ? '通用问题' : file}`,
+        description: `# 代码修复任务
+
+## 来源
+由 AI Review 自动生成 — 审查任务: ${reviewTaskId}
+
+## 原始任务
+- ID: ${originalTask.id}
+- 标题: ${originalTask.title}
+
+## 需要修复的问题 (${issues.length} 个)
+
+${issueDetails}
+
+## 输出要求
+1. 修复上述所有问题
+2. 确保不引入新的问题
+3. 保持代码风格一致
+4. 完成后输出修复说明
+
+${file !== 'general' ? `\n## 目标文件\n\`${file}\`` : ''}`,
+        priority: isCritical ? 'P0' : 'P1',
+        assignedAgent: 'coder',
+        dependencies: [reviewTaskId],
+        timeout: 120000
+      });
+    }
+
+    // 修复完成后，生成一个重新验证任务
+    if (fixTasks.length > 0) {
+      fixTasks.push({
+        taskId: `${originalTask.id}-REVERIFY`,
+        title: `重新验证: ${originalTask.title}`,
+        description: `# 重新验证任务
+
+## 背景
+原始任务 ${originalTask.id} 经过 Review 后发现 ${actionableIssues.length} 个问题，已创建 ${fixTasks.length} 个修复任务。
+现在需要验证所有修复是否正确应用。
+
+## 验证清单
+- [ ] 所有修复任务已执行
+- [ ] 原 Review 报告中的 critical/major 问题已解决
+- [ ] 修复没有引入新的问题
+- [ ] 代码可以编译/运行
+- [ ] 测试仍然通过
+
+## 输出
+如果验证通过，输出:
+\`\`\`
+REVERIFY_PASSED
+所有 ${actionableIssues.length} 个问题已修复
+\`\`\`
+
+如果验证失败，输出:
+\`\`\`
+REVERIFY_FAILED
+遗留问题:
+1. [问题描述]
+\`\`\``,
+        priority: 'P1',
+        assignedAgent: 'reviewer',
+        dependencies: [reviewTaskId, ...fixTasks.map(f => f.taskId)],
+        timeout: 60000
+      });
+    }
+
+    return fixTasks;
+  }
+
+  /**
+   * 判断 Review 报告是否需要自动修复
+   */
+  needsAutoFix(report: ReviewReport): boolean {
+    return report.issues.some(
+      issue => issue.severity === 'critical' || issue.severity === 'major'
+    );
   }
 }

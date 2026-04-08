@@ -101,13 +101,28 @@ git init
 | 情况 | 处理方式 |
 |------|---------|
 | 已存在（来自 `/om:brainstorm`） | 读取文件内容 → **立即执行 Step 4 必选问题**（质量等级、E2E、执行模式） |
-| 不存在 | 根据用户输入解析 |
+| 不存在，但 `.openmatrix/research/context.json` 存在 | 读取研究上下文 → 提取 goals/constraints/deliverables → **执行 Step 4 必选问题** |
+| 均不存在 | 根据用户输入解析 |
 
 > ⚠️ **注意**: 即使 `tasks-input.json` 已存在，Step 4 必选问题仍然必须执行！
 > - 开发任务：质量等级、E2E、执行模式必须由用户选择
 > - 非开发任务：执行模式必须由用户选择
 - `$ARGUMENTS` 为任务描述 → 直接使用
 - 无参数 → AskUserQuestion 询问任务内容
+
+**检测研究上下文（当 tasks-input.json 不存在时）:**
+
+```bash
+cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
+```
+
+如果检测到研究上下文：
+1. 读取 `.openmatrix/research/context.json`，提取 `topic`、`domain`、`goals`、`constraints`、`deliverables`、`reportPath`
+2. 读取 `RESEARCH.md` 内容作为领域知识
+3. 告知用户："🔬 检测到「${domain}」领域研究结果，将作为任务基础"
+4. 在 Step 6 中，AI 只需**确认/补充** goals，而非从头提取
+5. Step 7 写入 `tasks-input.json` 时，将研究 goals 与 AI 补充的 goals 合并
+6. Step 8 的 CLI 调用必须增加 `--research-context @.openmatrix/research/context.json` 参数
 
 ### Step 3: 智能分析任务类型
 
@@ -203,6 +218,8 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 - **deliverables**: 交付物列表
 - **plan**: 技术方案、模块划分、接口设计、关键决策
 
+**研究上下文集成**: 如果已加载研究领域，AI 应基于 `RESEARCH.md` 中的领域知识确认/补充 goals，而非从零提取。`plan` 字段应包含领域技术栈、架构模式等知识。
+
 **goalTypes 标注示例：**
 
 | Goal | Type | 理由 |
@@ -231,6 +248,7 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 
 > **注意**: `quality`、`mode`、`e2eTests` 不写入文件，由 Step 8 的 CLI 参数传递。
 > **goalTypes** 必须与 goals 数组长度一致，一一对应。
+> **研究上下文集成**: 如果检测到 `.openmatrix/research/context.json`，将研究的 goals/constraints/deliverables 作为基础，与 AI 提取的内容合并（去重后）。
 
 ### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
 
@@ -239,6 +257,11 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 **开发任务**（有质量等级选择）：
 ```bash
 openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode <执行模式> --json
+```
+
+如果存在 `.openmatrix/research/context.json`，增加 `--research-context` 参数：
+```bash
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --research-context @.openmatrix/research/context.json --quality <质量等级> --mode <执行模式> --json
 ```
 
 如果启用了 E2E 测试，加上 `--e2e-tests`：
