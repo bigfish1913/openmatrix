@@ -124,92 +124,50 @@ git init
 
 ---
 
-## ⚠️⚠️⚠️ 以下 Step 4 不可跳过 ⚠️⚠️⚠️
+### Step 4: 必选问题（不可跳过，不可使用默认值，必须通过 AskUserQuestion 让用户选择）
 
-**无论任务类型、复杂度、大小 — Step 4 必须执行。**
-**不允许使用任何默认值。必须通过 AskUserQuestion 让用户选择。**
-**如果没有执行 Step 4 就进入 Step 5+，任务执行失败。**
+根据 `goalTypes` 字段判断需要询问哪些问题：
 
-### Step 4: 必选问题（不可跳过）
+| goalTypes | 需要询问 |
+|-----------|---------|
+| `development` | 4.1 质量等级 → 4.2 E2E → 4.3 执行模式 |
+| `testing` | 仅 4.3 执行模式 |
+| `documentation` / `other` | 仅 4.3 执行模式 |
 
-**根据任务类型选择需要询问的问题：**
+#### 4.1 质量等级（仅 `goalTypes: development`）
 
-| 任务类型 | 需要询问的问题 |
-|---------|---------------|
-| **开发任务**（新功能、Bug修复、重构） | 4.1 质量等级 + 4.2 E2E + 4.3 执行模式 |
-| **测试任务**（纯测试、写测试用例） | 仅 4.3 执行模式 |
-| **非开发任务**（文档、配置、纯阅读） | 仅 4.3 执行模式 |
+AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
-**判断依据：** 查看 Step 6 生成的 `tasks-input.json` 中的 `goalTypes` 字段：
-- `development` → 开发任务 → 问 4.1 + 4.2 + 4.3
-- `testing` → 测试任务 → 仅问 4.3
-- `documentation` / `other` → 非开发任务 → 仅问 4.3
+**question:** 选择质量等级（决定测试覆盖、Lint、安全扫描等要求）
 
-**⚠️ 以下问题不可跳过，不可使用默认值：**
+| label | description |
+|-------|-------------|
+| `strict` | TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码 |
+| `balanced (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
+| `fast` | 无质量门禁 — 快速原型/验证 |
 
-#### 4.1 质量等级（仅开发任务，测试/文档任务跳过）
+#### 4.2 E2E 测试（仅 `development` 且选 strict/balanced，选 `fast` 跳过）
 
-如果是代码开发任务（`goalTypes` 包含 `development`），必须询问：
+AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question: "选择质量等级（决定测试覆盖、Lint、安全扫描等要求）:",
-      header: "质量等级",
-      options: [
-        { label: "strict", description: "TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码" },
-        { label: "balanced (推荐)", description: ">60%覆盖率 + Lint + 安全扫描 — 日常开发" },
-        { label: "fast", description: "无质量门禁 — 快速原型/验证" }
-      ],
-      multiSelect: false
-    }
-  ]
-})
-```
+**question:** 是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）
 
-#### 4.2 E2E 测试（仅开发任务且选 strict/balanced 时）
-
-如果开发任务且用户选择了 `strict` 或 `balanced`，继续询问:
-
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question: "是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）",
-      header: "E2E 测试",
-      options: [
-        { label: "启用 E2E 测试", description: "使用 Playwright/Cypress 等框架进行端到端测试" },
-        { label: "不启用 (推荐)", description: "仅进行单元测试和集成测试，节省时间" }
-      ],
-      multiSelect: false
-    }
-  ]
-})
-```
-
-**注意:** 如果用户选择 `fast` 质量等级，跳过 E2E 问题（fast 模式不启用 E2E）。
+| label | description |
+|-------|-------------|
+| `不启用 (推荐)` | 仅进行单元测试和集成测试，节省时间 |
+| `启用 E2E 测试` | 使用 Playwright/Cypress 等框架进行端到端测试 |
 
 #### 4.3 执行模式（所有任务必选）
 
-**无论开发还是非开发任务，都必须询问：**
+AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question: "选择执行模式（控制 AI 执行过程中的审批节点）:",
-      header: "执行模式",
-      options: [
-        { label: "全自动执行 (推荐)", description: "全自动执行，无需人工审批，遇到阻塞自动 Meeting" },
-        { label: "关键节点确认", description: "plan/merge/deploy 时暂停确认" },
-        { label: "每阶段确认", description: "每个阶段（develop/verify/accept）完成后暂停" }
-      ],
-      multiSelect: false
-    }
-  ]
-})
-```
+**question:** 选择执行模式（控制 AI 执行过程中的审批节点）
+
+| label | description |
+|-------|-------------|
+| `全自动执行 (推荐)` | 全自动执行，无需人工审批，遇到阻塞自动 Meeting |
+| `关键节点确认` | plan/merge/deploy 时暂停确认 |
+| `每阶段确认` | 每个阶段（develop/verify/accept）完成后暂停 |
 
 ### Step 5: 可选问题（仅复杂任务）
 

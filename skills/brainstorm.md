@@ -48,45 +48,28 @@ ls docs/ 2>/dev/null
 
 **如果任务涉及多个独立子系统**（如"构建一个包含聊天、文件存储、计费和分析的平台"），立即提出分解：
 
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: "这个任务涉及多个独立子系统，建议分步执行。先做哪个？",
-    header: "范围",
-    options: [
-      { label: "子系统A", description: "描述..." },
-      { label: "子系统B", description: "描述..." },
-      { label: "全部一起做", description: "不推荐，但可以尝试" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+AskUserQuestion: `header: "范围"`, `multiSelect: false`
+**question:** 这个任务涉及多个独立子系统，建议分步执行。先做哪个？
+
+| label | description |
+|-------|-------------|
+| 子系统A | 描述... |
+| 子系统B | 描述... |
+| 全部一起做 | 不推荐，但可以尝试 |
 
 **2.2 领域检测与 Research 集成**
 
 **如果任务涉及不熟悉的垂直领域**（如游戏开发、支付系统、区块链、AI 应用等），主动建议调用研究：
 
-```typescript
-AskUserQuestion({
-  questions: [{
-    question: `这个任务涉及「${domain}」领域，建议先进行领域调研。\n研究可以帮助我们:\n• 了解行业标准和最佳实践\n• 识别关键技术选型\n• 发现常见陷阱和解决方案`,
-    header: "领域调研",
-    options: [
-      { label: "先调研 (推荐)", description: "调用 /om:research 深入了解领域" },
-      { label: "直接头脑风暴", description: "我对这个领域比较熟悉" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+AskUserQuestion: `header: "领域调研"`, `multiSelect: false`
+**question:** 这个任务涉及新领域，建议先进行领域调研。研究可以帮助了解行业标准、识别关键技术选型、发现常见陷阱。
 
-用户选择「先调研」后：
-```
-Skill 工具: skill = "om:research", args = "任务描述"
-```
+| label | description |
+|-------|-------------|
+| 先调研 (推荐) | 调用 /om:research 深入了解领域 |
+| 直接头脑风暴 | 我对这个领域比较熟悉 |
 
-研究完成后，研究结论会作为头脑风暴的输入上下文，继续后续步骤。
+用户选择「先调研」后，调用 `Skill: skill = "om:research", args = "任务描述"`。研究完成后，研究结论会作为头脑风暴的输入上下文。
 
 ## 步骤 3: 逐一澄清需求
 
@@ -97,55 +80,43 @@ Skill 工具: skill = "om:research", args = "任务描述"
 **问题应聚焦三个方面：**
 
 ### 3.1 目的（Purpose）— 为什么做这个？
-```typescript
-// 好的问题：深入理解动机
-AskUserQuestion({
-  questions: [{
-    question: "这个功能解决的核心痛点是什么？",
-    header: "目的",
-    options: [
-      { label: "提升效率", description: "自动化现有手动流程" },
-      { label: "新增能力", description: "目前完全不具备的功能" },
-      { label: "替代方案", description: "替换现有的第三方服务" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+
+根据任务动态生成选择题，示例：
+
+AskUserQuestion: `header: "目的"`, `multiSelect: false`
+**question:** 这个功能解决的核心痛点是什么？
+
+| label | description |
+|-------|-------------|
+| 提升效率 | 自动化现有手动流程 |
+| 新增能力 | 目前完全不具备的功能 |
+| 替代方案 | 替换现有的第三方服务 |
 
 ### 3.2 约束（Constraints）— 有什么限制？
-```typescript
-// 好的问题：理解边界条件
-AskUserQuestion({
-  questions: [{
-    question: "客户管理的数据需要关联哪些实体？",
-    header: "数据模型",
-    options: [
-      { label: "仅客户信息", description: "独立的客户 CRUD" },
-      { label: "客户 + 邀请人", description: "需要追踪推荐关系" },
-      { label: "客户 + 合作历史", description: "需要记录历史合作者" }
-    ],
-    multiSelect: true
-  }]
-})
-```
+
+根据任务动态生成选择题，示例：
+
+AskUserQuestion: `header: "数据模型"`, `multiSelect: true`
+**question:** 客户管理的数据需要关联哪些实体？
+
+| label | description |
+|-------|-------------|
+| 仅客户信息 | 独立的客户 CRUD |
+| 客户 + 邀请人 | 需要追踪推荐关系 |
+| 客户 + 合作历史 | 需要记录历史合作者 |
 
 ### 3.3 成功标准（Success Criteria）— 怎样算完成？
-```typescript
-// 好的问题：明确验收条件
-AskUserQuestion({
-  questions: [{
-    question: "这个功能的 MVP 最小可用版本包含什么？",
-    header: "MVP",
-    options: [
-      { label: "基础 CRUD", description: "增删改查 + 列表" },
-      { label: "CRUD + 搜索", description: "支持按名称/邮箱搜索" },
-      { label: "完整功能", description: "包含关联、分组、导出等" }
-    ],
-    multiSelect: false
-  }]
-})
-```
+
+根据任务动态生成选择题，示例：
+
+AskUserQuestion: `header: "MVP"`, `multiSelect: false`
+**question:** 这个功能的 MVP 最小可用版本包含什么？
+
+| label | description |
+|-------|-------------|
+| 基础 CRUD | 增删改查 + 列表 |
+| CRUD + 搜索 | 支持按名称/邮箱搜索 |
+| 完整功能 | 包含关联、分组、导出等 |
 
 **提问策略：**
 - **优先选择题** — 比开放式更容易回答
