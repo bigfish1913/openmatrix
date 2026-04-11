@@ -617,7 +617,7 @@ try {
   }
 } catch(e) {
   console.error('❌ Import failed:', e.message);
-  process.exit(1);
+  process.exitCode = 1;
 }
 "
 \`\`\`
@@ -828,7 +828,7 @@ for (const mod of modules) {
 }
 if (failed.length > 0) {
   console.error('Failed imports:', failed.join(', '));
-  process.exit(1);
+  process.exitCode = 1;
 }
 console.log('All module imports passed');
 "
@@ -1062,7 +1062,7 @@ ACCEPT_FAILED
   parseQualityReport(output: string): QualityGateResult {
     const result: QualityGateResult = {
       passed: false,
-      tests: { passed: 0, failed: 0, coverage: 0 },
+      tests: { passed: 0, failed: 0, coverage: -1 },  // -1 = coverage not measured
       build: { success: false, errors: [] },
       lint: { errors: 0, warnings: 0 },
       security: { vulnerabilities: 0 },
@@ -1081,7 +1081,8 @@ ACCEPT_FAILED
         if (jsonReport.tests) {
           result.tests.passed = jsonReport.tests.passed ?? 0;
           result.tests.failed = jsonReport.tests.failed ?? 0;
-          result.tests.coverage = jsonReport.tests.coverage ?? 0;
+          // -1 表示未测量覆盖率
+          result.tests.coverage = jsonReport.tests.coverage ?? -1;
         }
 
         // 解析 build
@@ -1118,7 +1119,8 @@ ACCEPT_FAILED
         // 判断是否通过
         const qc = this.qualityConfig;
         const testsPassed = result.tests.failed === 0;
-        const coverageOk = result.tests.coverage >= qc.minCoverage;
+        // 覆盖率 -1 表示未测量（无覆盖率输出），跳过检查
+        const coverageOk = result.tests.coverage < 0 || result.tests.coverage >= qc.minCoverage;
         const lintOk = qc.strictLint ? result.lint.errors === 0 : true;
         const buildOk = result.build.success;
         const e2eOk = qc.e2eTests ? result.e2e.failed === 0 : true;

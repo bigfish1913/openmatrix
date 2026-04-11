@@ -112,30 +112,33 @@ export class TaskPlanner {
         .map(s => s.trim().replace(/域$/, ''))
         .filter(s => s.length > 0 && s.length < 30);
 
-      // 从 "数据模型" 部分提取表信息
-      const dataModelMatch = planText.match(/数据模型[\s\S]*?(?:表|tables)[\s：:]\s*(.+)/i);
-      const allTables = dataModelMatch
-        ? dataModelMatch[1].split(/[,，、]/).map(s => s.trim()).filter(Boolean)
-        : [];
+      // 从 plan 中的 "数据模型" 部分提取表信息
+      // 通用方式：查找以 "- " 开头的表名/实体名列表，不在模块列表中
+      const moduleNamesSet = new Set(moduleNames.map(n => n.toLowerCase()));
+      const allTables: string[] = [];
+      const tableSections = planText.match(/(?:数据模型|database|tables?|schema|实体|模型)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/gi);
+      if (tableSections) {
+        for (const section of tableSections) {
+          const tableLines = section.split('\n')
+            .map(l => l.replace(/^[-*]\s*/, '').trim())
+            .filter(l => l.length > 0 && l.length < 50);
+          for (const t of tableLines) {
+            // 跳过看起来像模块名的条目
+            const tLower = t.toLowerCase();
+            if (!moduleNamesSet.has(tLower) && !t.includes(':') && !t.includes('—')) {
+              allTables.push(t);
+            }
+          }
+        }
+      }
 
       for (const modName of moduleNames) {
-        // 从数据模型描述中找出属于这个模块的表
-        const modTables = allTables.filter(t => {
-          const tLower = t.toLowerCase();
-          const modLower = modName.toLowerCase();
-          return (
-            (modLower.includes('用户') && (tLower.includes('user') || tLower.includes('profile') || tLower.includes('setting'))) ||
-            (modLower.includes('创建') && (tLower.includes('creation') || tLower.includes('generated') || tLower.includes('template'))) ||
-            (modLower.includes('应用') && (tLower.includes('app') || tLower.includes('version') || tLower.includes('statistic') || tLower.includes('visit'))) ||
-            (modLower.includes('积分') && (tLower.includes('credit') || tLower.includes('transaction'))) ||
-            (modLower.includes('收益') && (tLower.includes('revenue') || tLower.includes('settlement'))) ||
-            (modLower.includes('推荐') && (tLower.includes('behavior') || tLower.includes('recommend'))) ||
-            (modLower.includes('广告') && (tLower.includes('ad'))) ||
-            (modLower.includes('支付') && (tLower.includes('payment') || tLower.includes('withdraw'))) ||
-            (modLower.includes('内容') && (tLower.includes('square') || tLower.includes('content'))) ||
-            (modLower.includes('访问') && (tLower.includes('visit')))
-          );
-        });
+        // 通用方式：从 plan 中查找该模块相关的表（包含模块名的行附近）
+        const modLower = modName.toLowerCase();
+        const modTables = allTables.filter(t =>
+          t.toLowerCase().includes(modLower) ||
+          modLower.includes(t.split(/[_\s]/)[0]?.toLowerCase() || '')
+        );
 
         modules.push({
           name: modName,
@@ -148,7 +151,7 @@ export class TaskPlanner {
       }
 
       // 分析模块间依赖
-      this.analyzeModuleDependencies(modules);
+      this.analyzeModuleDependencies(modules, planText);
     }
 
     // 模式2: 架构设计部分的编号列表 "1. 用户域：描述"
@@ -170,7 +173,7 @@ export class TaskPlanner {
             });
           }
         }
-        this.analyzeModuleDependencies(modules);
+        this.analyzeModuleDependencies(modules, planText);
       }
     }
 
@@ -179,117 +182,80 @@ export class TaskPlanner {
 
   /**
    * 分析模块间依赖关系
-   * 基于通用架构规律推断，不硬编码特定业务领域
+   *
+   * 策略：从 plan 文本中提取 AI 明确写的依赖信息，不做架构猜测。
+   * 如果 plan 中没有指定依赖，模块之间并行执行。
    */
-  private analyzeModuleDependencies(modules: PlanModule[]): void {
-    for (let i = 1; i < modules.length; i++) {
+  private analyzeModuleDependencies(modules: PlanModule[], planText: string): void {
+    for (let i = 0; i < modules.length; i++) {
       const mod = modules[i];
-      if (mod.dependsOn.length > 0) continue; // 已有依赖，跳过
+      if (mod.dependsOn.length > 0) continue; // parsePlan 中已提取的显式依赖，保留
 
-      const name = mod.name.toLowerCase();
-
-      // 通用架构规律：
-      // 数据库/模型/存储 → 基础设施层，无依赖
-      // API/接口/服务 → 依赖数据层（如果存在）
-      // 前端/UI/页面/视图 → 依赖 API 层
-      // 测试 → 依赖被测试模块
-      // 部署/配置/运维 → 依赖应用逻辑
-      // 消息/通知/事件 → 依赖生产者
-
-      const infrastructureKws = ['数据库', '数据库', '模型', '存储', 'infra', 'database', 'model', 'storage'];
-      const apiKws = ['api', '接口', '服务', 'service', 'endpoint', 'controller', 'handler'];
-      const uiKws = ['ui', '前端', '页面', '视图', '组件', 'frontend', 'view', 'component', '页面'];
-      const testKws = ['测试', 'test', 'e2e', 'unit'];
-      const deployKws = ['部署', 'deploy', '配置', 'config', 'ci/cd', '运维'];
-      const msgKws = ['消息', '通知', '事件', '推送', 'message', 'notification', 'event', 'push'];
-
-      const hasKw = (kws: string[]) => kws.some(kw => name.includes(kw));
-
-      // 查找已存在的基础设施模块
-      const infraModules = modules.filter((m, idx) =>
-        idx < i && infrastructureKws.some(kw => m.name.toLowerCase().includes(kw))
-      );
-
-      // 查找已存在的 API 模块
-      const apiModules = modules.filter((m, idx) =>
-        idx < i && apiKws.some(kw => m.name.toLowerCase().includes(kw))
-      );
-
-      if (hasKw(infrastructureKws)) {
-        // 基础设施层：无依赖
-        continue;
-      }
-
-      if (hasKw(apiKws)) {
-        // API 层：依赖基础设施（如果存在）
-        if (infraModules.length > 0) {
-          mod.dependsOn.push(infraModules[0].name);
+      // 从 plan 文本中查找该模块是否提到依赖其他模块
+      // 匹配模式："X 依赖 Y", "X 基于 Y", "X 使用 Y", "after X", "depends on X"
+      const modContext = this.extractModuleContext(planText, mod.name);
+      if (modContext) {
+        for (const other of modules) {
+          if (other.name === mod.name) continue;
+          // 如果上下文中提到其他模块且暗示依赖关系
+          const depPatterns = [
+            new RegExp(`${other.name}.*(?:依赖|基于|需要|使用|after|depends)`, 'i'),
+            new RegExp(`(?:依赖|基于|需要|使用|after|depends).*${other.name}`, 'i'),
+          ];
+          for (const pattern of depPatterns) {
+            if (pattern.test(modContext)) {
+              mod.dependsOn.push(other.name);
+              break;
+            }
+          }
         }
-        continue;
       }
 
-      if (hasKw(uiKws)) {
-        // UI 层：依赖 API 层（如果存在），否则依赖基础设施
-        if (apiModules.length > 0) {
-          mod.dependsOn.push(apiModules[0].name);
-        } else if (infraModules.length > 0) {
-          mod.dependsOn.push(infraModules[0].name);
-        }
-        continue;
-      }
-
-      if (hasKw(testKws)) {
-        // 测试模块：依赖被测试的模块（通常是第一个非测试模块）
-        const targetModule = modules.find(m => !testKws.some(kw => m.name.toLowerCase().includes(kw)));
-        if (targetModule) {
-          mod.dependsOn.push(targetModule.name);
-        }
-        continue;
-      }
-
-      if (hasKw(deployKws)) {
-        // 部署/配置：依赖所有业务模块
-        const allNonInfra = modules.filter((m, idx) =>
-          idx < i && !infrastructureKws.some(kw => m.name.toLowerCase().includes(kw))
-        );
-        if (allNonInfra.length > 0) {
-          // 依赖最后一个非基础设施模块（通常是集成点）
-          mod.dependsOn.push(allNonInfra[allNonInfra.length - 1].name);
-        }
-        continue;
-      }
-
-      if (hasKw(msgKws)) {
-        // 消息/通知：依赖生产者模块
-        // 简单推断：依赖前面的业务模块
-        const businessModules = modules.filter((m, idx) =>
-          idx < i && ![...infrastructureKws, ...msgKws].some(kw => m.name.toLowerCase().includes(kw))
-        );
-        if (businessModules.length > 0) {
-          mod.dependsOn.push(businessModules[businessModules.length - 1].name);
-        }
-        continue;
-      }
-
-      // 默认：如果有多个前面的模块，依赖最近的
-      if (i > 2 && modules[i - 1]) {
-        mod.dependsOn.push(modules[i - 1].name);
-      }
+      // 如果 plan 中模块是按顺序编号的，后面编号的模块依赖前面的
+      // 这只在模块名称是编号格式时适用（如 "1. 基础架构" → "2. 用户模块"）
+      // 不做自动推断，保持模块间独立
     }
   }
 
   /**
-   * 预估模块复杂度
+   * 从 plan 文本中提取某个模块相关的上下文段落
+   */
+  private extractModuleContext(planText: string, moduleName: string): string | null {
+    const lines = planText.split('\n');
+    const startIdx = lines.findIndex(l => l.includes(moduleName));
+    if (startIdx === -1) return null;
+
+    // 从匹配行开始，收集到下一个编号标题或空行为止
+    const contextLines: string[] = [];
+    for (let i = startIdx; i < lines.length && i < startIdx + 20; i++) {
+      const line = lines[i];
+      if (contextLines.length > 0 && line.trim() === '') break;
+      if (contextLines.length > 0 && /^\d+\./.test(line.trim())) break;
+      contextLines.push(line);
+    }
+    return contextLines.join('\n');
+  }
+
+  /**
+   * 预估模块复杂度 — 基于通用架构特征，不依赖具体业务领域
    */
   private estimateModuleComplexity(name: string, tables: string[]): 'low' | 'medium' | 'high' {
-    if (tables.length >= 5 || name.includes('创建') || name.includes('核心')) return 'high';
+    // 表数量是最直接的复杂度指标
+    if (tables.length >= 5) return 'high';
     if (tables.length >= 3) return 'medium';
-    if (tables.length >= 1) return 'medium';
-    // 根据名称推断
-    if (name.includes('用户') || name.includes('应用') || name.includes('创建') || name.includes('AI')) return 'high';
-    if (name.includes('积分') || name.includes('支付') || name.includes('收益')) return 'medium';
-    if (name.includes('内容') || name.includes('访问') || name.includes('推荐') || name.includes('广告')) return 'medium';
-    return 'low';
+
+    // 通用架构关键词
+    const highKws = ['核心', '基础', '架构', '主循环', '引擎', '框架', '平台', '系统', 'orchestrator', 'engine', 'core', 'framework'];
+    const mediumKws = ['管理', '服务', 'api', '接口', '控制器', '处理器', '管理器', 'manager', 'service', 'handler', 'processor', 'controller'];
+    const lowKws = ['工具', '脚本', '配置', '样式', '工具', 'helper', 'util', 'config', 'style', 'theme'];
+
+    const n = name.toLowerCase();
+    if (highKws.some(kw => n.includes(kw))) return 'high';
+    if (lowKws.some(kw => n.includes(kw))) return 'low';
+    if (mediumKws.some(kw => n.includes(kw))) return 'medium';
+
+    // 默认 medium（比默认 low 更保守，避免并行执行冲突）
+    return 'medium';
   }
   breakdown(
     parsedTask: ParsedTask,
@@ -410,15 +376,14 @@ export class TaskPlanner {
       breakdowns.push({
         taskId: integrationTaskId,
         title: '系统集成: 将所有模块组装到主入口，确保可运行',
-        description: `将前面所有模块连接到主入口文件(main.ts/index.ts)，使应用可以完整运行
+        description: `将前面所有模块连接在一起，使应用可以完整运行
 
 ${globalContext}
 
 ## 集成要求
-- 在主入口文件中实例化所有核心模块
-- 将子系统连接到主循环(Game/App/Main)
-- 确保模块间事件/数据流通
-- 确保应用可以启动并正常运行（无运行时错误）
+- 确定项目的主入口文件并实例化所有核心模块
+- 建立模块间通信和数据流
+- 确保应用可以启动并正常运行
 
 ## 已完成的模块
 ${parsedPlan.modules.map(m => `- ${m.name} (${m.tables.length > 0 ? '表: ' + m.tables.join(', ') : '无数据模型'})`).join('\n')}
@@ -426,7 +391,7 @@ ${parsedPlan.modules.map(m => `- ${m.name} (${m.tables.length > 0 ? '表: ' + m.
 ## 输出
 - 更新后的主入口文件
 - 模块连接正确，应用可运行
-- 启动后无运行时错误`,
+- 无运行时错误`,
         priority: 'P0',
         dependencies: [...devTaskIds],
         estimatedComplexity: 'high',
@@ -829,15 +794,15 @@ ${globalContext}
       breakdowns.push({
         taskId: integrationTaskId,
         title: '系统集成: 将所有模块组装到主入口，确保可运行',
-        description: `将前面所有模块连接到主入口文件(main.ts/index.ts)，使应用可以完整运行
+        description: `将前面所有模块连接在一起，使应用可以完整运行
 
 ${globalContext}
 
 ## 集成要求
-- 在主入口文件中实例化所有核心模块
-- 将子系统连接到主循环(Game/App/Main)
-- 确保模块间事件/数据流通
-- 确保应用可以启动并正常运行（无运行时错误）
+- 确定项目的主入口文件（如 main.ts, index.ts, App.tsx 等）
+- 实例化所有核心模块并建立模块间通信
+- 确保数据流和事件流通正确
+- 确保应用可以启动并正常运行
 
 ## 已完成的模块
 ${devTaskIds.map(id => `- ${id}: ${breakdowns.find(b => b.taskId === id)?.title || ''}`).join('\n')}
@@ -845,9 +810,9 @@ ${devTaskIds.map(id => `- ${id}: ${breakdowns.find(b => b.taskId === id)?.title 
 ## 输出
 - 更新后的主入口文件
 - 模块连接正确，应用可运行
-- 启动后无运行时错误`,
+- 无运行时错误`,
         priority: 'P0',
-        dependencies: devTaskIds, // 依赖所有开发任务完成
+        dependencies: devTaskIds,
         estimatedComplexity: 'high',
         assignedAgent: 'coder',
         phase: 'develop',

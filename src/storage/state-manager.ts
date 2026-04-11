@@ -1,6 +1,6 @@
 import { FileStore } from './file-store.js';
 import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus } from '../types/index.js';
-import { open, unlink } from 'fs/promises';
+import { open, unlink, readFile } from 'fs/promises';
 import { join } from 'path';
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -25,6 +25,7 @@ export class StateManager {
    *
    * 使用 O_EXCL | O_CREAT 原子创建锁文件，Windows/Linux/macOS 均支持
    * 支持可重入：同进程内嵌套调用（如 updateTask → updateTaskStatistics）直接执行
+   * 崩溃恢复：如果锁文件存在但持有者 PID 已不存在，则自动清理
    */
   private async withFileLock<T>(fn: () => Promise<T>): Promise<T> {
     // 可重入：同一进程内嵌套调用直接执行
@@ -43,6 +44,11 @@ export class StateManager {
         await fd.close();
         break;
       } catch {
+        // 锁文件已存在，检查是否是残留锁（持有者进程已不存在）
+        if (i === 0) {
+          await this.tryCleanStaleLock(lockPath);
+          continue;
+        }
         if (i === maxRetries - 1) throw new Error('Cannot acquire state lock');
         await new Promise(r => setTimeout(r, retryDelay));
       }
@@ -54,6 +60,27 @@ export class StateManager {
     } finally {
       this.lockDepth--;
       await unlink(lockPath).catch(() => {});
+    }
+  }
+
+  /**
+   * 尝试清理残留锁文件
+   * 如果锁文件持有者 PID 已不在进程表中，则删除锁文件
+   */
+  private async tryCleanStaleLock(lockPath: string): Promise<void> {
+    try {
+      const content = await readFile(lockPath, 'utf-8');
+      const pid = parseInt(content.trim(), 10);
+      if (!isNaN(pid)) {
+        try {
+          process.kill(pid, 0);
+        } catch {
+          // 进程不存在，锁文件是残留的，删除它
+          await unlink(lockPath).catch(() => {});
+        }
+      }
+    } catch {
+      // 读取失败，不处理
     }
   }
 

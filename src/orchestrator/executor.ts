@@ -155,7 +155,7 @@ export class OrchestratorExecutor {
     // 10. 准备 Subagent 任务
     const subagentTasks = await this.agentRunner.prepareSubagentTasks(executableTasks);
 
-    // 8. 更新任务状态为 scheduled 并设置超时
+    // 11. 更新任务状态为 in_progress 并设置超时
     for (const task of executableTasks) {
       await this.scheduler.markTaskStarted(task.id);
       this.setupTaskTimeout(task.id);
@@ -507,15 +507,25 @@ export class OrchestratorExecutor {
    */
   private async processRetries(failedTasks: Task[]): Promise<number> {
     let retried = 0;
+    const maxRetries = this.stateManager.getState().then(s => s.config.maxRetries).catch(() => 3);
 
     for (const task of failedTasks) {
+      const currentRetryCount = task.retryCount || 0;
+      const limit = await maxRetries;
+
+      // 先检查是否还有重试次数，再决定是否加入队列
+      if (currentRetryCount >= limit) {
+        console.log(`⚠️ 任务 ${task.id} 已达到最大重试次数 (${limit})，跳过重试`);
+        continue;
+      }
+
       this.retryManager.addToQueue(task.id, task.error || 'Unknown error');
 
       if (this.retryManager.shouldRetry(task.id)) {
         // 将任务从 failed 转为 retry_queue 再转为 pending
         await this.stateManager.updateTask(task.id, {
           status: 'retry_queue',
-          retryCount: (task.retryCount || 0) + 1
+          retryCount: currentRetryCount + 1
         });
         await this.stateManager.updateTask(task.id, {
           status: 'pending'
