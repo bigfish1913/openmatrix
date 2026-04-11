@@ -94,9 +94,10 @@ export class ApprovalManager {
     await this.stateManager.updateApproval(updatedApproval);
 
     // 如果是 meeting 类型且被批准，解除任务阻塞
+    // 恢复到 pending 让调度器重新调度，而非直接 in_progress
     if (approval.type === 'meeting' && decision.decision === 'approve') {
       await this.stateManager.updateTask(approval.taskId, {
-        status: 'in_progress',
+        status: 'pending',
         error: null
       });
     }

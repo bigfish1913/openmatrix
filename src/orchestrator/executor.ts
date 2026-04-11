@@ -397,7 +397,7 @@ export class OrchestratorExecutor {
    * 处理 Review 结果：解析报告，如有 critical/major 问题则自动创建修复任务
    */
   private async processReviewResult(taskId: string, output: string): Promise<{ createdFixTasks?: string[] }> {
-    const report = this.aiReviewer.parseReviewResult(output);
+    const report = this.aiReviewer.parseReviewResult(taskId, output);
     const task = await this.stateManager.getTask(taskId);
     if (!task) return {};
 
@@ -507,11 +507,16 @@ export class OrchestratorExecutor {
    */
   private async processRetries(failedTasks: Task[]): Promise<number> {
     let retried = 0;
-    const maxRetries = this.stateManager.getState().then(s => s.config.maxRetries).catch(() => 3);
+    let limit: number;
+    try {
+      const state = await this.stateManager.getState();
+      limit = state.config.maxRetries;
+    } catch {
+      limit = 3;
+    }
 
     for (const task of failedTasks) {
       const currentRetryCount = task.retryCount || 0;
-      const limit = await maxRetries;
 
       // 先检查是否还有重试次数，再决定是否加入队列
       if (currentRetryCount >= limit) {

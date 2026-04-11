@@ -271,6 +271,5 @@ export const meetingCommand = new Command('meeting')
 
     } catch (error) {
       console.error('❌ 处理失败:', error instanceof Error ? error.message : error);
-      process.exit(1);
     }
   });

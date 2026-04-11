@@ -54,8 +54,8 @@ export interface UserAnswers {
   additionalContext?: Record<string, string | string[]>;
   /** 是否启用 E2E 测试 */
   e2eTests?: boolean;
-  /** E2E 测试类型 (web/mobile/gui) */
-  e2eType?: 'web' | 'mobile' | 'gui';
+  /** E2E 测试类型 (web/mobile/gui/visual) */
+  e2eType?: 'web' | 'mobile' | 'gui' | 'visual';
   /** 质量级别 */
   qualityLevel?: 'fast' | 'balanced' | 'strict';
 }
@@ -74,7 +74,8 @@ export interface UserAnswers {
  */
 export class TaskPlanner {
   private userAnswers: UserAnswers;
-  private taskCounter = 0;
+  /** 静态计数器，避免多实例生成重复 ID */
+  private static taskCounter = 0;
 
   constructor(userAnswers?: UserAnswers) {
     this.userAnswers = userAnswers || {};
@@ -1006,13 +1007,16 @@ ${userContext.documentationLevel}
     const e2eAnswer = str(merged['E2E测试'] || merged['e2eTests'] || merged['e2e']);
     const e2eTypeAnswer = str(merged['E2E类型'] || merged['e2eType']);
 
+    const isE2EEnabled = e2eAnswer === 'true' || e2eAnswer === 'functional' || e2eAnswer === 'visual' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是';
+    let e2eTypeValue: 'web' | 'mobile' | 'gui' | 'visual' = e2eAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'mobile' ? 'mobile' : e2eTypeAnswer === 'gui' ? 'gui' : 'web';
+
     return {
       objective: str(merged['目标'] || merged['objective']),
       techStack: this.parseArrayAnswer(str(merged['技术栈'] || merged['techStack']) || ''),
       testCoverage: str(merged['测试'] || merged['testCoverage']),
       documentationLevel: str(merged['文档'] || merged['documentationLevel']),
-      e2eTests: e2eAnswer === 'true' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是',
-      e2eType: (e2eTypeAnswer as 'web' | 'mobile' | 'gui') || 'web',
+      e2eTests: isE2EEnabled,
+      e2eType: e2eTypeValue,
       additionalContext: merged
     };
   }
@@ -1114,14 +1118,24 @@ ${devTaskId}
   }
 
   private buildE2ETestDescription(
-    e2eType: 'web' | 'mobile' | 'gui',
+    e2eType: 'web' | 'mobile' | 'gui' | 'visual',
     parsedTask: ParsedTask,
     userContext: UserAnswers
   ): string {
     const typeConfig = this.getE2ETypeConfig(e2eType);
 
+    const visualSection = e2eType === 'visual' ? `
+## 视觉验证要求
+1. **可视化运行**: 使用有头模式 (headed mode) 运行浏览器，可查看页面渲染
+2. **样式检查**: 验证页面布局、颜色、字体、间距等视觉元素
+3. **响应式测试**: 在不同视口下验证页面布局适配
+4. **交互验证**: 确保动画、过渡效果、hover 状态等交互正常
+5. **截图对比**: 关键页面应生成截图，便于人工审核
+` : '';
+
     return `## E2E 测试目标
 执行完整的端到端测试，验证关键用户流程
+${e2eType === 'visual' ? '（需可视化验证，检查页面样式和布局）' : ''}
 
 ## 应用类型
 ${typeConfig.description}
@@ -1145,12 +1159,12 @@ ${typeConfig.environments.map(e => `- ${e}`).join('\n')}
 3. **等待策略**: 使用合理的等待机制，避免硬编码延迟
 4. **数据隔离**: 测试数据独立，不影响其他测试
 5. **清理机制**: 测试后清理创建的数据
-
+${visualSection}
 ## 输出要求
 - E2E 测试文件 (tests/e2e/*.spec.ts)
 - 测试执行报告
 - 截图/录像 (失败时)
-- 测试覆盖率报告 (如有)
+${e2eType === 'visual' ? '- 关键页面截图 (用于视觉审核)\n' : ''}- 测试覆盖率报告 (如有)
 
 ## 运行命令
 \`\`\`bash
@@ -1165,7 +1179,7 @@ ${typeConfig.runCommand}
 - [ ] 无阻塞级别的缺陷`;
   }
 
-  private getE2ETypeConfig(type: 'web' | 'mobile' | 'gui'): {
+  private getE2ETypeConfig(type: 'web' | 'mobile' | 'gui' | 'visual'): {
     description: string;
     frameworks: string[];
     environments: string[];
@@ -1189,12 +1203,18 @@ ${typeConfig.runCommand}
         frameworks: ['Playwright for Electron', 'Spectron (Electron)', 'Robot Framework', 'PyAutoGUI'],
         environments: ['Windows', 'macOS', 'Linux'],
         runCommand: 'npm run test:e2e'
+      },
+      visual: {
+        description: 'Web 应用 (需可视化验证，检查页面样式和布局)',
+        frameworks: ['Playwright (headed mode，推荐)', 'Cypress (headed)', 'Playwright + Percy (视觉回归)', 'Playwright + Chromatic'],
+        environments: ['Chrome (headed)', '不同视口 (desktop/tablet/mobile)', '不同分辨率设备'],
+        runCommand: 'npx playwright test --headed --reporter=html,list'
       }
     };
     return configs[type];
   }
 
-  private generateUserFlows(parsedTask: ParsedTask, type: 'web' | 'mobile' | 'gui'): string {
+  private generateUserFlows(parsedTask: ParsedTask, type: 'web' | 'mobile' | 'gui' | 'visual'): string {
     const flows: string[] = [];
     const goals = parsedTask.goals;
 
@@ -1236,8 +1256,8 @@ ${typeConfig.runCommand}
   }
 
   private generateTaskId(): string {
-    this.taskCounter++;
-    return `TASK-${String(this.taskCounter).padStart(3, '0')}`;
+    TaskPlanner.taskCounter++;
+    return `TASK-${String(TaskPlanner.taskCounter).padStart(3, '0')}`;
   }
 
   private determinePriority(goalIndex: number): 'P0' | 'P1' | 'P2' | 'P3' {

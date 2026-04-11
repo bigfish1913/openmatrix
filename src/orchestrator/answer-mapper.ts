@@ -101,8 +101,8 @@ export function translateAnalyzerInferences(
  */
 export function extractTasksInputFields(
   answers: Record<string, string | string[]>
-): { quality?: string; mode?: string; e2eTests?: boolean } {
-  const result: { quality?: string; mode?: string; e2eTests?: boolean } = {};
+): { quality?: string; mode?: string; e2eTests?: boolean; e2eType?: string } {
+  const result: { quality?: string; mode?: string; e2eTests?: boolean; e2eType?: string } = {};
 
   // quality_level / quality → quality 字段
   const quality = answers['quality_level'] || answers['quality'];
@@ -116,11 +116,14 @@ export function extractTasksInputFields(
     result.mode = mode;
   }
 
-  // e2e_tests → e2eTests 布尔字段
+  // e2e_tests → e2eTests 布尔字段 + e2eType
   const e2e = answers['e2e_tests'] || answers['e2eTests'] || answers['E2E测试'];
   if (e2e !== undefined) {
     const e2eStr = Array.isArray(e2e) ? e2e[0] : e2e;
-    result.e2eTests = e2eStr === 'true' || e2eStr === '启用 E2E 测试' || e2eStr === '是';
+    result.e2eTests = e2eStr === 'functional' || e2eStr === 'visual' || e2eStr === 'true' || e2eStr === '启用 E2E 测试' || e2eStr === '是';
+    if (result.e2eTests && e2eStr === 'visual') {
+      result.e2eType = 'visual';
+    }
   }
 
   return result;

@@ -199,9 +199,10 @@ ${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
 
     // 更新关联任务状态
     if (meeting.type === 'blocking') {
-      // 将任务从 waiting 恢复到 pending
+      // 将阻塞任务恢复到 pending，让调度器重新调度
+      // 阻塞任务可能是 waiting 或 blocked 状态
       const task = await this.stateManager.getTask(meeting.taskId);
-      if (task && task.status === 'waiting') {
+      if (task && (task.status === 'waiting' || task.status === 'blocked')) {
         await this.stateManager.updateTask(meeting.taskId, {
           status: 'pending',
           error: undefined

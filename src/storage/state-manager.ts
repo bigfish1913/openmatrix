@@ -111,19 +111,19 @@ export class StateManager {
       await this.store.writeJson('state.json', initialState);
       this.stateCache = initialState;
     } else {
-      // 合并旧状态的统计字段（兼容旧版本）
+      // 合并旧状态的统计字段（兼容旧版本，statistics 可能不存在）
       existing.statistics = {
-        totalTasks: existing.statistics.totalTasks ?? 0,
-        completed: existing.statistics.completed ?? 0,
-        inProgress: existing.statistics.inProgress ?? 0,
-        failed: existing.statistics.failed ?? 0,
-        pending: existing.statistics.pending ?? 0,
-        scheduled: existing.statistics.scheduled ?? 0,
-        blocked: existing.statistics.blocked ?? 0,
-        waiting: existing.statistics.waiting ?? 0,
-        verify: existing.statistics.verify ?? 0,
-        accept: existing.statistics.accept ?? 0,
-        retry_queue: existing.statistics.retry_queue ?? 0
+        totalTasks: existing.statistics?.totalTasks ?? 0,
+        completed: existing.statistics?.completed ?? 0,
+        inProgress: existing.statistics?.inProgress ?? 0,
+        failed: existing.statistics?.failed ?? 0,
+        pending: existing.statistics?.pending ?? 0,
+        scheduled: existing.statistics?.scheduled ?? 0,
+        blocked: existing.statistics?.blocked ?? 0,
+        waiting: existing.statistics?.waiting ?? 0,
+        verify: existing.statistics?.verify ?? 0,
+        accept: existing.statistics?.accept ?? 0,
+        retry_queue: existing.statistics?.retry_queue ?? 0
       };
       this.stateCache = existing;
     }

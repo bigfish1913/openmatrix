@@ -83,8 +83,8 @@ const TRANSITIONS: StateTransition[] = [
   // failed → retry_queue
   { from: 'failed', to: 'retry_queue', event: 'retry' },
 
-  // retry_queue → pending
-  { from: 'retry_queue', to: 'pending', event: 'retry' },
+  // retry_queue → pending (安全上限 100，由 executor 层控制具体 maxRetries)
+  { from: 'retry_queue', to: 'pending', event: 'retry', condition: (task) => (task.retryCount || 0) < 100 },
 
   // any → pending (cancel and restart)
   { from: 'scheduled', to: 'pending', event: 'cancel' },

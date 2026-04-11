@@ -213,7 +213,7 @@ AI_REVIEW_REJECTED
   /**
    * 解析 AI Review 结果
    */
-  parseReviewResult(output: string): ReviewReport {
+  parseReviewResult(taskId: string, output: string): ReviewReport {
     const lines = output.split('\n');
     const issues: ReviewIssue[] = [];
     const categories: ReviewCategory[] = [];
@@ -300,7 +300,7 @@ AI_REVIEW_REJECTED
     const summary = summaryMatch ? summaryMatch[1].trim() : '';
 
     return {
-      taskId: '',
+      taskId,
       overallStatus,
       categories,
       issues,

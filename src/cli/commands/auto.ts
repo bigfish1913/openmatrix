@@ -120,28 +120,45 @@ export const autoCommand = new Command('auto')
       console.log(`   目标: ${parsedTask.goals.join(', ')}`);
     }
 
+    // 获取质量配置（在 breakdown 之前，因为需要传入）
+    const qualityConfig = QUALITY_PRESETS[qualityLevel] as QualityConfig;
+
     // 拆解任务
     if (!options.json) {
       console.log('\n🔧 拆解任务...');
     }
     const planner = new TaskPlanner();
-    const subTasks = planner.breakdown(parsedTask, {});
+    const subTasks = planner.breakdown(parsedTask, {}, qualityConfig);
 
-    // 创建任务到状态管理器
+    // 创建任务到状态管理器，并建立 ID 映射
+    // TaskPlanner 生成的 taskId 和 StateManager 创建的 id 不同，
+    // 需要映射后才能正确设置 dependencies
+    const taskIdMap = new Map<string, string>();
+
     for (const subTask of subTasks) {
-      await stateManager.createTask({
+      const created = await stateManager.createTask({
         title: subTask.title,
         description: subTask.description,
         priority: subTask.priority as TaskPriority,
         timeout: subTask.estimatedComplexity === 'high' ? 300000 :
                  subTask.estimatedComplexity === 'medium' ? 180000 : 120000,
-        dependencies: subTask.dependencies,
+        dependencies: [],
         assignedAgent: subTask.assignedAgent
       });
+      taskIdMap.set(subTask.taskId, created.id);
     }
 
-    // 获取质量配置
-    const qualityConfig = QUALITY_PRESETS[qualityLevel] as QualityConfig;
+    // 映射并更新依赖关系
+    for (const subTask of subTasks) {
+      const actualId = taskIdMap.get(subTask.taskId)!;
+      const resolvedDeps = subTask.dependencies
+        .map(dep => taskIdMap.get(dep))
+        .filter((id): id is string => id !== undefined);
+
+      if (resolvedDeps.length > 0) {
+        await stateManager.updateTask(actualId, { dependencies: resolvedDeps });
+      }
+    }
 
     // auto 模式: 空审批点数组 = bypass permissions
     const approvalPoints: string[] = [];

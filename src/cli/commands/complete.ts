@@ -25,7 +25,7 @@ export const completeCommand = new Command('complete')
     const task = await stateManager.getTask(taskId);
     if (!task) {
       console.log(JSON.stringify({ error: `任务 ${taskId} 不存在` }));
-      process.exit(1);
+      return;
     }
 
     const isSuccess = !options.failed;

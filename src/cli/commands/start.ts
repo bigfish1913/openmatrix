@@ -32,6 +32,8 @@ interface AIParsedInput {
   plan?: string;
   /** 是否启用 E2E 测试 */
   e2eTests?: boolean;
+  /** E2E 测试类型 (functional/visual) */
+  e2eType?: 'functional' | 'visual';
 }
 
 /**
@@ -50,6 +52,7 @@ interface StartOptions {
   docs?: string;
   tasksJson?: string;
   e2eTests?: boolean;
+  e2eType?: string;
   /** 研究上下文 JSON 路径（来自 /om:research 产出的 context.json） */
   researchContext?: string;
 }
@@ -69,6 +72,7 @@ export const startCommand = new Command('start')
   .option('--docs <level>', '文档级别 (full|basic|minimal|none)')
   .option('--tasks-json <json>', 'AI 已拆分的任务 JSON (跳过自动解析)')
   .option('--e2e-tests', '启用 E2E 测试')
+  .option('--e2e-type <type>', 'E2E 测试类型 (web|visual)')
   .option('--research-context <path>', '研究上下文 JSON 路径 (来自 /om:research 的 context.json)')
   .action(async (input: string | undefined, options: StartOptions) => {
     const basePath = process.cwd();
@@ -330,6 +334,14 @@ async function handleTasksJson(
     qualityConfig.e2eTests = true;
   }
 
+  // E2E 类型（通过 answers 传递给 TaskPlanner）
+  const extraAnswers = { ...(resolvedInput.answers || {}) };
+  // tasks-input.json 中的 e2eType 或 CLI 参数
+  const e2eTypeValue = tasksInput.e2eType || options.e2eType;
+  if (e2eTypeValue) {
+    extraAnswers.e2eType = e2eTypeValue;
+  }
+
   if (!options.json) {
     console.log(`\n📋 任务: ${parsedTask.title}`);
     console.log(`   目标: ${parsedTask.goals.join(', ')}`);
@@ -337,9 +349,8 @@ async function handleTasksJson(
   }
 
   // 使用 TaskPlanner 拆分（保持原有拆分逻辑）
-  const answers = resolvedInput.answers || {};
   const planner = new TaskPlanner();
-  const subTasks = planner.breakdown(parsedTask, answers, qualityConfig, resolvedInput.plan);
+  const subTasks = planner.breakdown(parsedTask, extraAnswers, qualityConfig, resolvedInput.plan);
 
   // 创建任务到状态管理器，并建立 ID 映射
   // TaskPlanner 生成的 taskId 和 StateManager 创建的 id 不同，

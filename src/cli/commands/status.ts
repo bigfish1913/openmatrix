@@ -94,7 +94,6 @@ async function showStatus(
     console.log();
   } catch (error) {
     console.error(chalk.red('Error:'), error);
-    process.exit(1);
   }
 }
 

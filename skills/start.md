@@ -165,12 +165,16 @@ AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
 AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
-**question:** 是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）
+**question:** 是否需要端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）
 
 | label | description |
 |-------|-------------|
-| `不启用 (推荐)` | 仅进行单元测试和集成测试，节省时间 |
-| `启用 E2E 测试` | 使用 Playwright/Cypress 等框架进行端到端测试 |
+| `功能测试 (推荐)` | 验证业务流程正确性，无需浏览器可视化，速度快 |
+| `视觉验证` | 需要浏览器可视化验证，可检查页面样式和布局 |
+| `不需要` | 仅进行单元测试和集成测试，节省时间 |
+
+> 功能测试是默认推荐，适用于大多数场景（API/逻辑/数据处理）。
+> 视觉验证适用于前端/移动端项目，需要检查 UI 样式、布局、交互效果。
 
 #### 4.3 执行模式（所有任务必选）
 
@@ -202,7 +206,7 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 📊 统计
   Goals: N 个（将生成 N个开发 + N个测试 + 审查）
   质量级别: xxx
-  E2E 测试: 启用/不启用
+  E2E 测试: 功能测试 / 视觉验证 / 不启用
 ```
 
 ### Step 6: AI 提取 goals + 生成 plan
@@ -242,11 +246,13 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
   "goalTypes": ["development", "testing", "documentation"],
   "constraints": ["约束1"],
   "deliverables": ["src/xxx.ts"],
-  "plan": "## 技术方案\n1. ...\n2. ..."
+  "plan": "## 技术方案\n1. ...\n2. ...",
+  "e2eTests": true,
+  "e2eType": "visual"
 }
 ```
 
-> **注意**: `quality`、`mode`、`e2eTests` 不写入文件，由 Step 8 的 CLI 参数传递。
+> **注意**: `quality`、`mode` 通过 CLI 参数传递。`e2eTests` 和 `e2eType` 可写入 tasks-input.json 或通过 CLI 参数传递。
 > **goalTypes** 必须与 goals 数组长度一致，一一对应。
 > **研究上下文集成**: 如果检测到 `.openmatrix/research/context.json`，将研究的 goals/constraints/deliverables 作为基础，与 AI 提取的内容合并（去重后）。
 
@@ -264,9 +270,14 @@ openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等
 openmatrix start --tasks-json @.openmatrix/tasks-input.json --research-context @.openmatrix/research/context.json --quality <质量等级> --mode <执行模式> --json
 ```
 
-如果启用了 E2E 测试，加上 `--e2e-tests`：
+如果启用了 E2E 测试（功能测试），加上 `--e2e-tests`：
 ```bash
 openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --json
+```
+
+如果选择了视觉验证，加上 `--e2e-tests --e2e-type visual`：
+```bash
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --e2e-type visual --json
 ```
 
 **非开发任务**（无质量等级）：

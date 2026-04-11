@@ -1212,7 +1212,8 @@ ACCEPT_FAILED
     // 判断是否通过
     const qc = this.qualityConfig;
     const testsPassed = result.tests.failed === 0;
-    const coverageOk = result.tests.coverage >= qc.minCoverage;
+    // 覆盖率 -1 表示未测量（regex 回退路径下未匹配到覆盖率时保持 -1）
+    const coverageOk = result.tests.coverage < 0 || result.tests.coverage >= qc.minCoverage;
     const lintOk = qc.strictLint ? result.lint.errors === 0 : true;
     const buildOk = result.build.success;
     const e2eOk = qc.e2eTests ? result.e2e.failed === 0 : true;

@@ -403,14 +403,15 @@ export class InteractiveQuestionGenerator {
     // 7. E2E 测试
     questions.push({
       id: 'e2e_tests',
-      question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
+      question: '是否需要端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
       type: 'single',
       required: false,
       category: 'quality',
       priority: 7,
       options: [
-        { key: 'true', label: '启用 E2E 测试', description: '使用 Playwright/Cypress 等框架进行端到端测试' },
-        { key: 'false', label: '不启用 (推荐)', description: '仅进行单元测试和集成测试，节省时间' }
+        { key: 'functional', label: '功能测试 (推荐)', description: '验证业务流程正确性，无需浏览器可视化，速度快' },
+        { key: 'visual', label: '视觉验证', description: '需要浏览器可视化验证，可检查页面样式和布局' },
+        { key: 'false', label: '不需要', description: '仅进行单元测试和集成测试，节省时间' }
       ]
     });
 
