@@ -7,6 +7,20 @@ export interface LoggerOptions {
   level?: string;
   logDir?: string;
   console?: boolean;
+  runId?: string;
+}
+
+/**
+ * 结构化日志格式
+ */
+export interface StructuredLog {
+  level: 'info' | 'warn' | 'error' | 'debug';
+  runId?: string;
+  taskId?: string;
+  operation: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
 }
 
 /**
@@ -21,13 +35,31 @@ export interface LoggerOptions {
 let defaultLogger: winston.Logger | null = null;
 
 /**
+ * 持久化日志到文件（追加模式）
+ * 用于关键操作的审计追踪
+ */
+export function persistLog(log: StructuredLog, omPath: string): void {
+  try {
+    const logsDir = path.join(omPath, 'logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    const logFile = path.join(logsDir, `${log.runId || 'default'}.log`);
+    fs.appendFileSync(logFile, JSON.stringify(log) + '\n', 'utf-8');
+  } catch {
+    // 持久化失败不应影响主流程
+  }
+}
+
+/**
  * 创建或获取默认 Logger
  */
 export function createLogger(options: LoggerOptions = {}): winston.Logger {
   const {
     level = process.env.OPENMATRIX_LOG_LEVEL || 'info',
     logDir = '.openmatrix/logs',
-    console: enableConsole = true
+    console: enableConsole = true,
+    runId
   } = options;
 
   // 确保日志目录存在
@@ -99,7 +131,7 @@ export function createLogger(options: LoggerOptions = {}): winston.Logger {
   // 创建 logger
   const logger = winston.createLogger({
     level,
-    defaultMeta: { service: 'openmatrix' },
+    defaultMeta: { service: 'openmatrix', runId },
     transports
   });
 
@@ -124,6 +156,23 @@ export function setLogger(logger: winston.Logger): void {
 }
 
 /**
+ * 使用 runId 初始化 logger
+ */
+export function initLoggerWithRunId(runId: string, omPath?: string): void {
+  defaultLogger = createLogger({ runId });
+  if (omPath) {
+    // 记录初始化日志
+    persistLog({
+      level: 'info',
+      runId,
+      operation: 'init',
+      message: 'Logger initialized',
+      timestamp: new Date().toISOString()
+    }, omPath);
+  }
+}
+
+/**
  * 便捷方法: 直接记录日志
  */
 export const logger = {
@@ -131,6 +180,43 @@ export const logger = {
   error: (message: string, meta?: any) => getLogger().error(message, meta),
   warn: (message: string, meta?: any) => getLogger().warn(message, meta),
   debug: (message: string, meta?: any) => getLogger().debug(message, meta),
+
+  // 结构化日志（带持久化）
+  structured: {
+    info: (operation: string, message: string, meta?: Record<string, unknown>, omPath?: string) => {
+      const log: StructuredLog = {
+        level: 'info',
+        operation,
+        message,
+        metadata: meta,
+        timestamp: new Date().toISOString()
+      };
+      getLogger().info(message, { operation, ...meta });
+      if (omPath) persistLog(log, omPath);
+    },
+    error: (operation: string, message: string, meta?: Record<string, unknown>, omPath?: string) => {
+      const log: StructuredLog = {
+        level: 'error',
+        operation,
+        message,
+        metadata: meta,
+        timestamp: new Date().toISOString()
+      };
+      getLogger().error(message, { operation, ...meta });
+      if (omPath) persistLog(log, omPath);
+    },
+    warn: (operation: string, message: string, meta?: Record<string, unknown>, omPath?: string) => {
+      const log: StructuredLog = {
+        level: 'warn',
+        operation,
+        message,
+        metadata: meta,
+        timestamp: new Date().toISOString()
+      };
+      getLogger().warn(message, { operation, ...meta });
+      if (omPath) persistLog(log, omPath);
+    }
+  },
 
   // 任务相关日志
   task: {
@@ -145,6 +231,18 @@ export const logger = {
     },
     retry: (taskId: string, attempt: number) => {
       getLogger().warn(`Task retry: ${taskId}`, { taskId, attempt });
+    },
+    timeout: (taskId: string, timeout: number, phase?: string, omPath?: string) => {
+      const log: StructuredLog = {
+        level: 'error',
+        taskId,
+        operation: 'taskTimeout',
+        message: `Task timed out after ${timeout}s`,
+        metadata: { timeout, phase },
+        timestamp: new Date().toISOString()
+      };
+      getLogger().error(`Task timed out: ${taskId}`, { taskId, timeout, phase });
+      if (omPath) persistLog(log, omPath);
     }
   },
 
@@ -165,6 +263,27 @@ export const logger = {
     },
     decision: (approvalId: string, decision: string) => {
       getLogger().info(`Approval decision: ${approvalId}`, { approvalId, decision });
+    }
+  },
+
+  // 任务编排日志
+  orchestration: {
+    breakdown: (moduleCount: number, moduleNames: string[], omPath?: string) => {
+      const log: StructuredLog = {
+        level: 'info',
+        operation: 'breakdown',
+        message: `Parsed ${moduleCount} modules from plan`,
+        metadata: { moduleNames },
+        timestamp: new Date().toISOString()
+      };
+      getLogger().info(`Breakdown: ${moduleCount} modules`, { moduleNames });
+      if (omPath) persistLog(log, omPath);
+    },
+    schedule: (taskId: string, dependencies: string[]) => {
+      getLogger().info(`Task scheduled: ${taskId}`, { taskId, dependencies });
+    },
+    dependencyResolved: (taskId: string) => {
+      getLogger().debug(`Dependencies resolved: ${taskId}`, { taskId });
     }
   }
 };

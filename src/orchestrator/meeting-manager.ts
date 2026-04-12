@@ -1,36 +1,9 @@
 // src/orchestrator/meeting-manager.ts
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
-import type { Task, Approval } from '../types/index.js';
+import type { Task, Approval, Meeting, MeetingStatus, MeetingType } from '../types/index.js';
 
-/**
- * Meeting 状态
- */
-export type MeetingStatus = 'pending' | 'in_progress' | 'resolved' | 'cancelled';
-
-/**
- * Meeting 类型
- */
-export type MeetingType = 'blocking' | 'decision' | 'review' | 'planning';
-
-/**
- * Meeting 记录
- */
-export interface Meeting {
-  id: string;
-  type: MeetingType;
-  status: MeetingStatus;
-  taskId: string;
-  title: string;
-  description: string;
-  blockingReason?: string;
-  impactScope: string[];
-  participants: string[];
-  resolution?: string;
-  createdAt: string;
-  startedAt?: string;
-  resolvedAt?: string;
-}
+// Meeting 类型已在 types/index.ts 中定义，这里不再重复定义
 
 /**
  * MeetingManager - Meeting 管理器

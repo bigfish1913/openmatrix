@@ -21,14 +21,34 @@ export class Scheduler {
   private stateMachine: StateMachine;
   private config: SchedulerConfig;
 
+  // 循环依赖检测缓存（避免重复计算）
+  private cycleCache: Map<string, string[]> = new Map();
+  private lastCycleCheck = 0;
+  private cycleCheckTTL = 30000; // 30 秒缓存
+  private cycleCacheKey = ''; // 任务列表哈希
+
+  /** 默认任务超时（毫秒） */
+  private static readonly DEFAULT_TASK_TIMEOUT = 600000; // 10 分钟
+
   constructor(stateManager: StateManager, config?: Partial<SchedulerConfig>) {
     this.stateManager = stateManager;
     this.stateMachine = new StateMachine();
     this.config = {
       maxConcurrentTasks: 3,
-      taskTimeout: 600000, // 10 分钟
+      taskTimeout: Scheduler.DEFAULT_TASK_TIMEOUT,
       ...config
     };
+  }
+
+  /**
+   * 计算任务列表的简单哈希（用于缓存键）
+   */
+  private computeTasksHash(tasks: Task[]): string {
+    // 使用任务 ID + 状态 + 依赖的组合作为哈希
+    return tasks
+      .map(t => `${t.id}:${t.status}:${(t.dependencies || []).join(',')}`)
+      .sort()
+      .join('|');
   }
 
   /**
@@ -270,10 +290,32 @@ export class Scheduler {
 
   /**
    * 检测循环依赖并将相关任务标记为 blocked
+   * 使用缓存避免重复计算
    */
   private async handleCircularDependencies(tasks: Task[]): Promise<void> {
+    const now = Date.now();
+    const hash = this.computeTasksHash(tasks);
+
+    // 检查缓存是否有效
+    if (hash === this.cycleCacheKey && now - this.lastCycleCheck < this.cycleCheckTTL) {
+      // 使用缓存结果，跳过重新检测
+      return;
+    }
+
+    // 缓存失效或任务列表变化，重新检测
     const cycles = this.detectCircularDependencies(tasks);
 
+    // 更新缓存
+    this.cycleCache.clear();
+    for (const cycle of cycles) {
+      for (const taskId of cycle) {
+        this.cycleCache.set(taskId, cycle);
+      }
+    }
+    this.cycleCacheKey = hash;
+    this.lastCycleCheck = now;
+
+    // 标记阻塞任务
     for (const cycle of cycles) {
       for (const taskId of cycle) {
         const task = tasks.find(t => t.id === taskId);
@@ -285,6 +327,22 @@ export class Scheduler {
         }
       }
     }
+  }
+
+  /**
+   * 获取任务的循环依赖缓存（用于调试）
+   */
+  getCycleCache(): Map<string, string[]> {
+    return this.cycleCache;
+  }
+
+  /**
+   * 清除循环依赖缓存
+   */
+  clearCycleCache(): void {
+    this.cycleCache.clear();
+    this.lastCycleCheck = 0;
+    this.cycleCacheKey = '';
   }
 
   /**

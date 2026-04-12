@@ -1,6 +1,8 @@
 import { readFile, writeFile, mkdir, readdir, access, appendFile as fsAppendFile } from 'fs/promises';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { constants } from 'fs';
+import { logError } from '../utils/error-handler.js';
 
 export class FileStore {
   constructor(private basePath: string) {}
@@ -86,7 +88,8 @@ export class FileStore {
       return files
         .filter((f) => f.isFile())
         .map((f) => f.name);
-    } catch {
+    } catch (error) {
+      logError(error, { operation: 'listFiles', file: fullPath });
       return [];
     }
   }
@@ -98,8 +101,45 @@ export class FileStore {
       return files
         .filter((f) => f.isDirectory())
         .map((f) => f.name);
-    } catch {
+    } catch (error) {
+      logError(error, { operation: 'listDirs', file: fullPath });
       return [];
     }
+  }
+
+  // ============ 同步方法（用于构造器等场景）============
+
+  /**
+   * 同步写入 JSON 文件
+   */
+  writeJsonSync<T>(path: string, data: T): void {
+    const fullPath = join(this.basePath, path);
+    mkdirSync(dirname(fullPath), { recursive: true });
+    writeFileSync(fullPath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  /**
+   * 同步读取 JSON 文件
+   * @returns 文件内容，如果文件不存在则返回 null
+   */
+  readJsonSync<T>(path: string): T | null {
+    const fullPath = join(this.basePath, path);
+    try {
+      const content = readFileSync(fullPath, 'utf-8');
+      return JSON.parse(content);
+    } catch (error: any) {
+      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 同步检查文件是否存在
+   */
+  existsSync(path: string): boolean {
+    const fullPath = join(this.basePath, path);
+    return existsSync(fullPath);
   }
 }

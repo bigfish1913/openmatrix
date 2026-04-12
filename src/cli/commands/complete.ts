@@ -4,6 +4,7 @@ import { StateManager } from '../../storage/state-manager.js';
 import { GitCommitManager } from '../../orchestrator/git-commit-manager.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { logError } from '../../utils/error-handler.js';
 
 export const completeCommand = new Command('complete')
   .description('标记任务完成并更新全局统计')
@@ -90,8 +91,9 @@ export const completeCommand = new Command('complete')
       try {
         // 原子追加写入全局 context.md（O_APPEND flag 保证并发安全）
         await fs.appendFile(contextFile, contextEntry, 'utf-8');
-      } catch {
-        // 忽略写入错误
+      } catch (error) {
+        // 记录错误但不影响主流程
+        logError(error, { operation: 'appendContextMd', file: contextFile, taskId });
       }
     }
 

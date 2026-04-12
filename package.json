@@ -17,6 +17,8 @@
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/install-skills.js"
   },
   "keywords": [
@@ -47,6 +49,9 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
     "vitest": "^1.6.0"
   },
   "engines": {

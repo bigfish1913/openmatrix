@@ -132,7 +132,10 @@ export interface GlobalState {
 }
 
 export interface AppConfig {
+  /** 单个任务超时时间（秒） */
   timeout: number;
+  /** 任务执行超时时间（毫秒） */
+  taskTimeout?: number;
   maxRetries: number;
   approvalPoints: ('plan' | 'merge' | 'deploy')[];
   maxConcurrentAgents: number;
@@ -274,6 +277,28 @@ export interface Approval {
 export interface ApprovalOption {
   key: string;
   label: string;
+}
+
+// ============ Meeting Types ============
+
+export type MeetingStatus = 'pending' | 'in_progress' | 'resolved' | 'cancelled';
+
+export type MeetingType = 'blocking' | 'decision' | 'review' | 'planning';
+
+export interface Meeting {
+  id: string;
+  type: MeetingType;
+  status: MeetingStatus;
+  taskId: string;
+  title: string;
+  description: string;
+  blockingReason?: string;
+  impactScope: string[];
+  participants: string[];
+  resolution?: string;
+  createdAt: string;
+  startedAt?: string;
+  resolvedAt?: string;
 }
 
 // ============ Task Parser Types ============

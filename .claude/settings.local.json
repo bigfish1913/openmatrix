@@ -26,7 +26,8 @@
       "Bash(rm -rf node_modules/.vite)",
       "Bash(npx vitest:*)",
       "Bash(mkdir -p /tmp/openmatrix-test)",
-      "Bash(echo '{\"initialized\": true}')"
+      "Bash(echo '{\"initialized\": true}')",
+      "Bash(git reset:*)"
     ]
   }
 }

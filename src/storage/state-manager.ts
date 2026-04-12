@@ -1,10 +1,11 @@
 import { FileStore } from './file-store.js';
-import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus } from '../types/index.js';
+import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus, Meeting, MeetingStatus } from '../types/index.js';
 import { open, unlink, readFile } from 'fs/promises';
 import { join } from 'path';
 
 const DEFAULT_CONFIG: AppConfig = {
   timeout: 120,
+  taskTimeout: 600000, // 10 分钟（毫秒）
   maxRetries: 3,
   approvalPoints: ['plan', 'merge'],
   maxConcurrentAgents: 3,
@@ -178,6 +179,10 @@ export class StateManager {
     assignedAgent: string;
   }): Promise<Task> {
     return this.withFileLock(async () => {
+      // 先从磁盘读取最新状态，避免使用过期缓存
+      const latestState = await this.store.readJson<GlobalState>('state.json') ?? await this.getState();
+      this.stateCache = latestState;
+
       const taskId = this.generateTaskId();
       const now = new Date().toISOString();
 
@@ -207,13 +212,12 @@ export class StateManager {
       await this.store.ensureDir(`tasks/${taskId}/artifacts`);
 
       // Update statistics
-      const state = await this.getState();
       const newState = {
-        ...state,
+        ...latestState,
         statistics: {
-          ...state.statistics,
-          totalTasks: state.statistics.totalTasks + 1,
-          pending: state.statistics.pending + 1
+          ...latestState.statistics,
+          totalTasks: latestState.statistics.totalTasks + 1,
+          pending: latestState.statistics.pending + 1
         }
       };
       await this.store.writeJson('state.json', newState);
@@ -415,20 +419,20 @@ export class StateManager {
 
   // ============ Meeting Methods ============
 
-  async saveMeeting(meeting: any): Promise<void> {
+  async saveMeeting(meeting: Meeting): Promise<void> {
     await this.store.writeJson(`meetings/${meeting.id}.json`, meeting);
   }
 
-  async getMeeting(meetingId: string): Promise<any | null> {
-    return await this.store.readJson(`meetings/${meetingId}.json`);
+  async getMeeting(meetingId: string): Promise<Meeting | null> {
+    return await this.store.readJson<Meeting>(`meetings/${meetingId}.json`);
   }
 
-  async getMeetingsByStatus(status: string): Promise<any[]> {
+  async getMeetingsByStatus(status: MeetingStatus): Promise<Meeting[]> {
     const files = await this.store.listFiles('meetings');
-    const meetings: any[] = [];
+    const meetings: Meeting[] = [];
 
     for (const file of files) {
-      const meeting = await this.store.readJson<{ id: string; status: string; createdAt: string }>(`meetings/${file}`);
+      const meeting = await this.store.readJson<Meeting>(`meetings/${file}`);
       if (meeting && meeting.status === status) {
         meetings.push(meeting);
       }

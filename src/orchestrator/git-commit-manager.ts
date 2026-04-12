@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Task } from '../types/index.js';
 import { ensureOpenmatrixGitignore } from '../utils/gitignore.js';
+import { logError } from '../utils/error-handler.js';
 
 const execAsync = promisify(exec);
 
@@ -49,8 +50,9 @@ export class GitCommitManager {
     try {
       const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: this.repoPath });
       this.gitRoot = stdout.trim();
-    } catch {
+    } catch (error) {
       // 不是 git 仓库，回退到 repoPath
+      logError(error, { operation: 'getGitRoot', file: this.repoPath });
       this.gitRoot = this.repoPath;
     }
     return this.gitRoot;
@@ -70,7 +72,8 @@ export class GitCommitManager {
     try {
       await execAsync('git rev-parse --is-inside-work-tree', { cwd: this.repoPath });
       return true;
-    } catch {
+    } catch (error) {
+      logError(error, { operation: 'isGitRepo', file: this.repoPath });
       return false;
     }
   }
@@ -93,7 +96,8 @@ export class GitCommitManager {
         .split('\n')
         .filter(line => line.trim())
         .map(line => line.slice(3).trim());
-    } catch {
+    } catch (error) {
+      logError(error, { operation: 'getUncommittedFiles', file: this.repoPath });
       return [];
     }
   }
@@ -118,7 +122,8 @@ export class GitCommitManager {
           }
           return { status, path: filePath };
         });
-    } catch {
+    } catch (error) {
+      logError(error, { operation: 'getUncommittedFilesWithStatus', file: this.repoPath });
       return [];
     }
   }
@@ -144,8 +149,9 @@ export class GitCommitManager {
           });
         }
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      // ignore diff stats errors
+      logError(error, { operation: 'getDiffStats', file: this.repoPath });
     }
 
     return stats;
@@ -359,7 +365,11 @@ export class GitCommitManager {
       }
       if (filesToUnstage.length > 0) {
         const unstageCmd = filesToUnstage.map(f => `"${f}"`).join(' ');
-        await execAsync(`git reset HEAD -- ${unstageCmd}`, { cwd: this.repoPath }).catch(() => {});
+        try {
+          await execAsync(`git reset HEAD -- ${unstageCmd}`, { cwd: this.repoPath });
+        } catch (error) {
+          logError(error, { operation: 'gitResetFiles', file: this.repoPath, metadata: { files: filesToUnstage } });
+        }
       }
 
       // 检查是否有文件被暂存（避免空提交）
@@ -392,7 +402,11 @@ export class GitCommitManager {
         };
       } finally {
         // 清理临时文件
-        await fs.unlink(tmpFile).catch(() => {});
+        try {
+          await fs.unlink(tmpFile);
+        } catch (error) {
+          logError(error, { operation: 'cleanupCommitMsgTmp', file: tmpFile });
+        }
       }
 
     } catch (error) {

@@ -9,6 +9,7 @@ import { PhaseExecutor } from './phase-executor.js';
 import { RetryManager } from './retry-manager.js';
 import { AIReviewer } from './ai-reviewer.js';
 import type { Task, GlobalState, Approval } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 
 export interface ExecutorConfig {
   maxConcurrent: number;
@@ -60,11 +61,23 @@ export class OrchestratorExecutor {
   ) {
     this.stateManager = stateManager;
     this.approvalManager = approvalManager;
+
+    // 从 state.config 读取 taskTimeout，如果未定义则使用默认值
+    const stateConfig = stateManager.getState().then(s => s.config).catch(() => null);
+    const defaultTaskTimeout = 600000; // 10 分钟（毫秒）
+
     this.config = {
       maxConcurrent: 3,
-      taskTimeout: 600000, // 10 分钟
+      taskTimeout: defaultTaskTimeout,
       ...config
     };
+
+    // 异步获取配置并更新 taskTimeout
+    stateConfig.then(cfg => {
+      if (cfg?.taskTimeout) {
+        this.config.taskTimeout = cfg.taskTimeout;
+      }
+    });
 
     this.scheduler = new Scheduler(stateManager, {
       maxConcurrentTasks: this.config.maxConcurrent,
@@ -481,9 +494,11 @@ export class OrchestratorExecutor {
    */
   private setupTaskTimeout(taskId: string): void {
     const timer = setTimeout(async () => {
-      console.error(`⏰ 任务超时: ${taskId} (${this.config.taskTimeout / 1000}s)`);
+      const timeoutSeconds = this.config.taskTimeout / 1000;
+      console.error(`⏰ 任务超时: ${taskId} (${timeoutSeconds}s)`);
+      logger.task.timeout(taskId, timeoutSeconds);
       this.taskTimers.delete(taskId);
-      await this.scheduler.markTaskFailed(taskId, `Task timed out after ${this.config.taskTimeout / 1000}s`);
+      await this.scheduler.markTaskFailed(taskId, `Task timed out after ${timeoutSeconds}s`);
     }, this.config.taskTimeout);
     this.taskTimers.set(taskId, timer);
   }
