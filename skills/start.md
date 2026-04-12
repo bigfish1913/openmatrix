@@ -224,6 +224,38 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 
 **研究上下文集成**: 如果已加载研究领域，AI 应基于 `RESEARCH.md` 中的领域知识确认/补充 goals，而非从零提取。`plan` 字段应包含领域技术栈、架构模式等知识。
 
+**plan 字段格式要求（供系统解析模块）:**
+
+plan 中必须包含以下结构之一，系统将据此拆分为模块级任务：
+
+**中文格式（推荐）:**
+```
+## 架构设计
+1. 用户域：用户注册登录模块
+2. 订单域：订单处理模块
+3. 商品域：商品管理模块
+```
+
+或简洁格式：
+```
+3领域模块: 用户、订单、商品
+```
+
+**英文格式:**
+```
+## Modules
+- User module: authentication and profile
+- Order module: order processing
+- Product module: catalog management
+```
+
+或：
+```
+3 modules: User, Order, Product
+```
+
+> **重要**: 如果 plan 不包含可解析的模块结构，系统将从 goals 中推断模块（仅 `development` 类型 goal），或 fallback 到按 goal 拆分。包含模块结构可获得更精细的依赖分析和并行执行优化。
+
 **goalTypes 标注示例：**
 
 | Goal | Type | 理由 |

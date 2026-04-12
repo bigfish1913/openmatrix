@@ -33,6 +33,18 @@ export interface ParsedPlan {
   raw: string;
 }
 
+/** 从 plan 中提取的结构化信息（用于 fallback 时注入任务描述） */
+export interface PlanMetadata {
+  /** 技术栈 */
+  techStack: string[];
+  /** 接口/API 定义 */
+  interfaces: string[];
+  /** 数据模型/表 */
+  dataModels: string[];
+  /** 关键决策 */
+  keyDecisions: string[];
+}
+
 export interface TaskBreakdown {
   taskId: string;
   title: string;
@@ -178,7 +190,184 @@ export class TaskPlanner {
       }
     }
 
+    // 模式3: 英文格式 "N modules: A, B, C" 或 "N components: A, B, C"
+    if (modules.length === 0) {
+      const enModuleMatch = planText.match(/(\d+)\s*(?:modules?|components?|domains?|features?)\s*[:：]\s*(.+)/i);
+      if (enModuleMatch) {
+        const moduleNames = enModuleMatch[2]
+          .split(/[,，、]/)
+          .map(s => s.trim())
+          .filter(s => s.length > 0 && s.length < 30);
+
+        for (const modName of moduleNames) {
+          modules.push({
+            name: modName,
+            description: `${modName} module`,
+            tables: [],
+            type: 'domain',
+            dependsOn: [],
+            complexity: this.estimateModuleComplexity(modName, [])
+          });
+        }
+        this.analyzeModuleDependencies(modules, planText);
+      }
+    }
+
+    // 模式4: Markdown 标题下的列表 "## Modules\n- A\n- B" 或 "## Architecture\n1. A\n2. B"
+    if (modules.length === 0) {
+      const mdPatterns = [
+        /##\s*(?:模块|Modules?|架构|Architecture|领域|Domains?|功能|Features?)[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
+        /##\s*(?:实现|Implementation|开发|Development)[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
+      ];
+
+      for (const pattern of mdPatterns) {
+        const mdMatch = planText.match(pattern);
+        if (mdMatch) {
+          const lines = mdMatch[1].split('\n').filter(l => l.trim());
+          for (const line of lines) {
+            // 匹配 "- Name" 或 "1. Name" 或 "1. Name: Description"
+            const itemMatch = line.match(/[-*\d]+\.\s*(.+?)(?:[：:\s](.*))?/);
+            if (itemMatch) {
+              const name = itemMatch[1].trim();
+              const desc = itemMatch[2]?.trim() || `${name} module`;
+              if (name.length > 0 && name.length < 30 && !modules.some(m => m.name === name)) {
+                modules.push({
+                  name,
+                  description: desc,
+                  tables: [],
+                  type: 'domain',
+                  dependsOn: [],
+                  complexity: this.estimateModuleComplexity(name, [])
+                });
+              }
+            }
+          }
+        }
+        if (modules.length > 0) {
+          this.analyzeModuleDependencies(modules, planText);
+          break;
+        }
+      }
+    }
+
     return { modules, techStack, raw: planText };
+  }
+
+  /**
+   * 从 plan 中提取结构化信息（用于 fallback 时注入任务描述）
+   * 即使无法解析模块，也能保留关键技术信息
+   */
+  extractPlanMetadata(plan: string): PlanMetadata {
+    const techStack: string[] = [];
+    const interfaces: string[] = [];
+    const dataModels: string[] = [];
+    const keyDecisions: string[] = [];
+
+    // 1. 提取技术栈
+    const techMatch = plan.match(/(?:技术栈|Technology|Tech Stack)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i);
+    if (techMatch) {
+      techMatch[1].split('\n').forEach(line => {
+        const trimmed = line.replace(/^[-*]\s*/, '').trim();
+        if (trimmed && trimmed.length < 50) techStack.push(trimmed);
+      });
+    }
+
+    // 2. 提取接口/API
+    const interfacePatterns = [
+      /(?:接口|API|Endpoints?|接口定义)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
+      /(?:##\s*(?:接口|API|Endpoints?))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
+    ];
+    for (const pattern of interfacePatterns) {
+      const match = plan.match(pattern);
+      if (match) {
+        match[1].split('\n').forEach(line => {
+          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
+          if (trimmed && trimmed.length < 80 && !interfaces.includes(trimmed)) {
+            interfaces.push(trimmed);
+          }
+        });
+        if (interfaces.length > 0) break;
+      }
+    }
+
+    // 3. 提取数据模型/表
+    const dataPatterns = [
+      /(?:数据模型|Database|Tables?|Schema|实体|模型)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
+      /(?:##\s*(?:数据模型|Database|实体))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
+    ];
+    for (const pattern of dataPatterns) {
+      const match = plan.match(pattern);
+      if (match) {
+        match[1].split('\n').forEach(line => {
+          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
+          if (trimmed && trimmed.length < 50 && !dataModels.includes(trimmed)) {
+            dataModels.push(trimmed);
+          }
+        });
+        if (dataModels.length > 0) break;
+      }
+    }
+
+    // 4. 提取关键决策
+    const decisionPatterns = [
+      /(?:关键决策|Key Decisions|重要决策|决策点)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
+      /(?:##\s*(?:关键决策|Key Decisions|决策))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
+    ];
+    for (const pattern of decisionPatterns) {
+      const match = plan.match(pattern);
+      if (match) {
+        match[1].split('\n').forEach(line => {
+          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
+          if (trimmed && trimmed.length < 100 && !keyDecisions.includes(trimmed)) {
+            keyDecisions.push(trimmed);
+          }
+        });
+        if (keyDecisions.length > 0) break;
+      }
+    }
+
+    return { techStack, interfaces, dataModels, keyDecisions };
+  }
+
+  /**
+   * 从 goals 推断模块结构（当 plan 无法解析模块时使用）
+   */
+  inferModulesFromGoals(parsedTask: ParsedTask): PlanModule[] {
+    const modules: PlanModule[] = [];
+
+    if (!parsedTask.goalTypes || parsedTask.goals.length < 3) {
+      return modules;
+    }
+
+    for (let i = 0; i < parsedTask.goals.length; i++) {
+      const goal = parsedTask.goals[i];
+      const goalType = parsedTask.goalTypes[i];
+
+      // 只将 development 类型的 goal 作为模块
+      if (goalType === 'development') {
+        modules.push({
+          name: goal.replace(/^(实现|开发|完成|Develop|Implement)\s*:?\s*/i, '').trim(),
+          description: goal,
+          tables: [],
+          type: 'domain',
+          dependsOn: [],
+          complexity: this.estimateComplexity(goal)
+        });
+      }
+    }
+
+    // 添加基础依赖：第一个模块无依赖，后续模块依赖前一模块
+    for (let i = 1; i < modules.length; i++) {
+      // 默认并行，除非 goal 描述中明确提到依赖
+      if (parsedTask.goals[i].toLowerCase().includes('基于') ||
+          parsedTask.goals[i].toLowerCase().includes('依赖') ||
+          parsedTask.goals[i].toLowerCase().includes('需要') ||
+          parsedTask.goals[i].toLowerCase().includes('after')) {
+        modules[i].dependsOn.push(modules[i - 1].name);
+      }
+    }
+
+    return modules;
   }
 
   /**
@@ -264,16 +453,28 @@ export class TaskPlanner {
     qualityConfig?: QualityConfig,
     plan?: string
   ): TaskBreakdown[] {
-    // 如果提供了 plan 且解析出模块信息，使用细粒度的模块级拆分
+    // 如果提供了 plan，尝试解析模块
     if (plan) {
       const parsed = this.parsePlan(plan);
       if (parsed.modules.length > 0) {
         return this.breakdownByModules(parsedTask, answers, qualityConfig, parsed, plan);
       }
+
+      // plan 无法解析模块时，尝试从 goals 推断
+      const inferredModules = this.inferModulesFromGoals(parsedTask);
+      if (inferredModules.length > 0) {
+        const inferredPlan: ParsedPlan = {
+          modules: inferredModules,
+          techStack: parsed.techStack,
+          raw: plan
+        };
+        return this.breakdownByModules(parsedTask, answers, qualityConfig, inferredPlan, plan);
+      }
     }
 
-    // fallback: 按目标拆分的传统方式
-    return this.breakdownByGoals(parsedTask, answers, qualityConfig, plan);
+    // fallback: 按目标拆分，但保留 plan metadata
+    const planMetadata = plan ? this.extractPlanMetadata(plan) : undefined;
+    return this.breakdownByGoals(parsedTask, answers, qualityConfig, plan, planMetadata);
   }
 
   /**
@@ -623,7 +824,8 @@ ${userContext.documentationLevel}
     parsedTask: ParsedTask,
     answers: Record<string, string>,
     qualityConfig: QualityConfig | undefined,
-    plan: string | undefined
+    plan: string | undefined,
+    planMetadata?: PlanMetadata
   ): TaskBreakdown[] {
     const breakdowns: TaskBreakdown[] = [];
     const seenTitles = new Set<string>();
@@ -701,7 +903,7 @@ ${globalContext}
         breakdowns.push({
           taskId: devTaskId,
           title: `实现: ${goal}`,
-          description: this.buildTaskDescription(goal, globalContext),
+          description: this.buildTaskDescription(goal, globalContext, planMetadata),
           priority: this.determinePriority(i),
           dependencies: deps,
           estimatedComplexity: this.estimateComplexity(goal),
@@ -1078,13 +1280,31 @@ ${userContext.documentationLevel}
 
   private buildTaskDescription(
     goal: string,
-    globalContext: string
+    globalContext: string,
+    planMetadata?: PlanMetadata
   ): string {
-    return `## 当前子任务目标\n${goal}\n\n${globalContext}\n\n## 输出要求
+    let desc = `## 当前子任务目标\n${goal}\n\n${globalContext}`;
+
+    // 注入 plan 提取的关键信息
+    if (planMetadata && planMetadata.interfaces.length > 0) {
+      desc += `\n\n## 相关接口/API\n${planMetadata.interfaces.slice(0, 10).map(i => `- ${i}`).join('\n')}`;
+    }
+
+    if (planMetadata && planMetadata.dataModels.length > 0) {
+      desc += `\n\n## 相关数据模型\n${planMetadata.dataModels.slice(0, 10).map(d => `- ${d}`).join('\n')}`;
+    }
+
+    if (planMetadata && planMetadata.keyDecisions.length > 0) {
+      desc += `\n\n## 关键决策参考\n${planMetadata.keyDecisions.slice(0, 5).map(d => `- ${d}`).join('\n')}`;
+    }
+
+    desc += `\n\n## 输出要求
 - 完成功能实现
 - 代码可编译
 - 遵循项目规范
 - 添加必要注释`;
+
+    return desc;
   }
 
   private buildTestDescription(
