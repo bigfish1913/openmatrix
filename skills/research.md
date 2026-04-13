@@ -1,10 +1,12 @@
 ---
 name: om:research
-description: 领域调研和问题探索 - 为后续任务提供知识基础
+description: "Use when conducting domain research before implementing vertical-domain tasks. Triggers on: 领域调研, research, game development, payment system, blockchain, AI application, 行业标准, tech stack exploration, domain analysis, unfamiliar vertical, need to understand the domain before building."
 ---
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+
+**相关技能**: `/om:brainstorm` (需求探索) | `/om:start` (任务执行)
 </NO-OTHER-SKILLS>
 
 <objective>

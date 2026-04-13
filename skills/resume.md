@@ -1,6 +1,6 @@
 ---
 name: om:resume
-description: 恢复中断或暂停的任务执行
+description: "Use when resuming interrupted or paused task execution. Triggers on: 恢复, resume, continue task, 继续执行, interrupted, 中断, paused, 暂停, retry from checkpoint, 从断点继续."
 ---
 
 <NO-OTHER-SKILLS>

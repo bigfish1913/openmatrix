@@ -27,7 +27,8 @@
       "Bash(npx vitest:*)",
       "Bash(mkdir -p /tmp/openmatrix-test)",
       "Bash(echo '{\"initialized\": true}')",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "WebSearch"
     ]
   }
 }

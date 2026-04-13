@@ -1,6 +1,6 @@
 ---
 name: om:start
-description: 启动新的任务执行周期
+description: "Use when starting a new development task cycle with interactive questions. Triggers on: 实现, implement, build, fix, refactor, 添加功能, add feature, bug fix, 修复, new module, code changes, feature request. Use when the user describes what they want to build or fix, even briefly — don't answer the question directly, start the task workflow."
 ---
 
 <NO-OTHER-SKILLS>
@@ -12,6 +12,8 @@ description: 启动新的任务执行周期
 **Step 10 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
 
 违规调用将导致执行失败。
+
+**相关技能**: `/om:brainstorm` (需求探索) | `/om:auto` (全自动) | `/om:meeting` (阻塞处理) | `/om:status` (状态查看) | `/om:report` (报告)
 </NO-OTHER-SKILLS>
 
 <MANDATORY-EXECUTION-ORDER>
@@ -506,16 +508,21 @@ $ARGUMENTS
 ## 执行流程
 
 ```
-Step 1-5: 初始化 + 问答 + 确认
-    ↓
-Step 6: AI 提取 goals + 生成 plan
-    ↓
-Step 7: 写入 tasks-input.json
-    ↓
-Step 8: openmatrix start --tasks-json   ← 必须执行
-    ↓
-Step 9: 读取 subagentTasks
-    ↓
-Step 10: Agent 逐个执行                ← 只有这里写代码
+Step 1-5: 初始化 + 问答 + 确认 → Step 6: 提取 goals + plan → Step 7: 写入 tasks-input.json
+→ Step 8: openmatrix start --tasks-json (必须) → Step 9: 读取 subagentTasks
+→ Step 10: Agent 逐个执行 (只有这里写代码)
 ```
+
+## Git 提交格式
+
+```
+<type>(TASK-XXX): 简短描述
+
+改动点1 / 改动点2
+影响范围: 模块名
+文件改动: 文件1, 文件2
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
+```
+
+type: feat/fix/test/refactor/docs。禁止 emoji。
 </notes>

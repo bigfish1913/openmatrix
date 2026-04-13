@@ -1,6 +1,6 @@
 ---
 name: om:retry
-description: 重试失败的任务
+description: "Use when retrying failed tasks after execution errors, test failures, or timeouts. Triggers on: 重试, retry, failed task, 失败任务, rerun, 重新执行, test failure, timeout, 超时, error recovery."
 ---
 
 <NO-OTHER-SKILLS>

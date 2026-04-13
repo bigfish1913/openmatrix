@@ -1,6 +1,6 @@
 ---
 name: om:status
-description: 查看当前任务执行状态
+description: "Use when checking task execution progress, run status, completion statistics, or pending approvals. Triggers on: 进度, progress, status, 状态, 完成情况, statistics, how many tasks, run status, 还剩多少, task overview."
 ---
 
 <NO-OTHER-SKILLS>

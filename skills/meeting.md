@@ -1,10 +1,12 @@
 ---
 name: om:meeting
-description: 查看和处理所有待确认的 Meeting（阻塞问题和决策点）
+description: "Use when handling blocked tasks, technical decisions, or workflow interruptions during OpenMatrix execution. Triggers on: 阻塞, blocked, 决策, decision needed, 技术选型, database connection failed, API key missing, merge conflict, dependency issue, task cannot proceed. Use when the user reports something is stuck, waiting for info, or needs to make a choice that blocks execution."
 ---
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+
+**相关技能**: `/om:start` (任务执行) | `/om:approve` (审批处理) | `/om:status` (状态查看)
 </NO-OTHER-SKILLS>
 
 <objective>
@@ -251,40 +253,23 @@ $ARGUMENTS
 </examples>
 
 <notes>
-## Meeting 类型
+## Meeting 类型与操作
 
-| 类型 | 图标 | 说明 |
-|------|------|------|
-| 阻塞 | 🔴 | 任务执行遇到阻塞，需要信息或决策 |
-| 决策 | 🤔 | 技术选型或设计方案决策 |
-
-## 操作类型
-
-| 操作 | 说明 | 后续 |
-|------|------|------|
-| provide-info | 提供解决信息 | 任务恢复执行 |
-| skip | 跳过任务 | 标记可选，下游继续 |
-| retry | 重试任务 | 重新执行当前任务 |
-| modify | 修改方案 | 更新任务后重试 |
-| decide | 做出决策 | 记录决策并继续 |
-| cancel | 取消任务 | 停止相关下游任务 |
+| 类型 | 图标 | 操作 | 后续 |
+|------|------|------|------|
+| 阻塞 | 🔴 | provide-info/skip/retry/modify | 提供信息后恢复执行 |
+| 决策 | 🤔 | decide/cancel | 记录决策并继续 |
 
 ## CLI 命令
 
 ```bash
-# 列出所有 Meeting
-openmatrix meeting --list
-
-# 处理指定 Meeting
-openmatrix meeting APPR-001 --action provide-info --info "..."
-openmatrix meeting APPR-001 --action skip --message "..."
-openmatrix meeting APPR-001 --action retry
-openmatrix meeting APPR-001 --action modify --new-plan "..."
-openmatrix meeting APPR-001 --action decide --reason "选择方案A，因为..."
-openmatrix meeting APPR-001 --action cancel --message "取消执行"
-
-# 批量操作
-openmatrix meeting --skip-all --message "批量跳过"
+openmatrix meeting --list                              # 列出所有 Meeting
+openmatrix meeting APPR-001 --action provide-info --info "..."  # 提供信息
+openmatrix meeting APPR-001 --action skip --message "..."       # 跳过
+openmatrix meeting APPR-001 --action retry                      # 重试
+openmatrix meeting APPR-001 --action modify --new-plan "..."    # 修改方案
+openmatrix meeting APPR-001 --action decide --reason "..."      # 决策
+openmatrix meeting --skip-all --message "批量跳过"                # 批量操作
 ```
 
 ## 与执行循环的关系
@@ -321,4 +306,8 @@ openmatrix meeting --skip-all --message "批量跳过"
           ↓
 所有非阻塞任务完成 → 提示 Meeting → /om:meeting → 用户处理 → 完成
 ```
+
+## 与 /om:approve 的区别
+
+`/om:approve` 处理所有审批（plan/merge/deploy/meeting），`/om:meeting` 专注交互式处理阻塞和决策。
 </notes>

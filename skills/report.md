@@ -1,6 +1,6 @@
 ---
 name: om:report
-description: 生成任务执行报告
+description: "Use when generating a task execution report with statistics, task details, approval history, and agent performance. Triggers on: 报告, report, summary, 总结, execution stats, 统计, sprint report, weekly summary, 产出物, deliverables overview."
 ---
 
 <NO-OTHER-SKILLS>

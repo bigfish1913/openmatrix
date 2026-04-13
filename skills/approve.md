@@ -1,6 +1,6 @@
 ---
 name: om:approve
-description: 审批待处理项（包括计划、合并、部署、Meeting）
+description: "Use when handling pending approvals including plan review, merge confirmation, deploy approval, and blocked task decisions during OpenMatrix execution. Triggers on: 审批, approve, 批准, plan review, merge conflict resolution, deploy confirmation, 阻塞处理, technical decision, pending approval, waiting for approval, 待确认."
 ---
 
 <NO-OTHER-SKILLS>

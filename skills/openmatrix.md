@@ -48,6 +48,13 @@ Is the user asking me to PRODUCE code changes?
 **IMPORTANT:** OpenMatrix includes its own brainstorm mode (`/om:brainstorm`).
 When a development task is complex (new feature, multi-module, from-scratch), use `/om:brainstorm`.
 When a development task is simple (bug fix, small change, clear requirement), use `/om:start`.
+
+**Related skills:**
+- `/om:auto` — 全自动执行，无需审批
+- `/om:status` — 查看执行进度
+- `/om:meeting` — 处理阻塞问题
+- `/om:report` — 生成执行报告
+- `/om:resume` / `/om:retry` — 恢复/重试
 </EXTREMELY-IMPORTANT>
 
 <NO-OTHER-SKILLS>
@@ -110,3 +117,13 @@ Detect development task intent and route to OpenMatrix's internal workflow.
 | `从零搭建后台管理` | Build | Complex | → `/om:brainstorm` |
 | `怎么实现登录?` | Ask | - | ❌ Direct answer |
 | `这个函数有什么问题?` | Ask | - | ❌ Direct answer |
+
+## Common Mistakes
+
+| Mistake | Why it's wrong | Fix |
+|---------|---------------|-----|
+| Answering "如何实现 X" directly when user clearly wants to build it | "How to" can be a question OR a build request — check context | If paired with a file or project context → route to OpenMatrix |
+| Deliberating between multiple skills before acting | Wastes tokens, delays execution | First match wins — if it looks like dev work, invoke immediately |
+| Reading files before deciding which skill to use | Files lack conversation context | Decision is based on user intent, not file contents |
+| Using superpowers:brainstorming when om:brainstorm is available | Duplicate workflow, inconsistent state | om:brainstorm integrates with OpenMatrix task lifecycle |
+| Skipping `/om:brainstorm` for complex tasks | Leads to poor planning and rework | Multi-module or unclear requirements → brainstorm first |

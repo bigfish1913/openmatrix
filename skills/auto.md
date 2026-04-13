@@ -1,6 +1,6 @@
 ---
 name: om:auto
-description: 全自动执行任务指令 - AI 拆分，无阻塞，bypass permissions
+description: "Use when the user wants fully automated task execution with zero manual approvals. Triggers on: 全自动, 无人值守, hands-free, non-stop, don't ask me, 直接执行, skip all confirmations, batch refactor, large migration, bulk changes. Use for multi-task execution where the user doesn't want to be interrupted at any approval point (plan/merge/deploy)."
 ---
 
 <NOTE>
@@ -9,7 +9,9 @@ description: 全自动执行任务指令 - AI 拆分，无阻塞，bypass permis
 - **`/om:auto`** 是一个 **Skill 指令**，为 Agent 无障碍执行准备
 - **「全自动执行」**是 `/om:start` 中用户选择的 **执行模式选项**
 
-**关键区别**：`/om/auto` 不创建 Meeting 记录，直接跳过阻塞任务。
+**关键区别**：`/om:auto` 不创建 Meeting 记录，直接跳过阻塞任务。
+
+**相关技能**: `/om:start` (交互式) | `/om:status` (状态查看) | `/om:report` (报告)
 </NOTE>
 
 <NO-OTHER-SKILLS>
@@ -283,16 +285,21 @@ $ARGUMENTS
 ## 执行流程
 
 ```
-Step 1: 初始化 .openmatrix
-    ↓
-Step 2: AI 提取 goals + 生成 plan
-    ↓
-Step 3: 写入 tasks-input.json
-    ↓
-Step 4: openmatrix start --tasks-json   ← 必须执行
-    ↓
-Step 5: 读取 subagentTasks
-    ↓
-Step 6: Agent 逐个执行                  ← 只有这里写代码
+Step 1: 初始化 .openmatrix → Step 2: 提取 goals + plan → Step 3: 写入 tasks-input.json
+→ Step 4: openmatrix start --tasks-json (必须) → Step 5: 读取 subagentTasks
+→ Step 6: Agent 逐个执行 (只有这里写代码)
 ```
+
+## Git 提交格式
+
+```
+<type>(TASK-XXX): 简短描述
+
+改动点1 / 改动点2
+影响范围: 模块名
+文件改动: 文件1, 文件2
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
+```
+
+type: feat/fix/test/refactor/docs。禁止 emoji。
 </notes>

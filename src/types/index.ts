@@ -353,3 +353,64 @@ export interface ResearchSession {
   createdAt: string;
   completedAt?: string;
 }
+
+// ============ Debug Types ============
+
+/** 问题类型 */
+export type ProblemType =
+  | 'task_failure'    // 任务执行失败
+  | 'project_bug'     // 用户项目代码 bug
+  | 'system_bug'      // OpenMatrix 系统自身 bug
+  | 'environment';    // 环境配置问题
+
+/** 诊断报告 */
+export interface DiagnosisReport {
+  id: string;
+  problemType: ProblemType;
+  trigger: 'explicit' | 'auto';
+  description: string;
+  errorInfo?: {
+    message: string;
+    stack?: string;
+    timestamp: string;
+  };
+  relatedTaskId?: string;
+  relatedFiles?: string[];
+  rootCause: string;
+  impactScope: string[];
+  suggestedFix: string;
+  diagnosedAt: string;
+  diagnosisDuration?: number;
+}
+
+/** 调试会话状态 */
+export type DebugStatus =
+  | 'initialized'
+  | 'diagnosing'
+  | 'awaiting_fix'
+  | 'fixing'
+  | 'verifying'
+  | 'completed'
+  | 'cancelled';
+
+/** 调试会话 */
+export interface DebugSession {
+  id: string;
+  status: DebugStatus;
+  report: DiagnosisReport;
+  fixDecision?: 'approve' | 'skip' | 'manual';
+  fixResult?: {
+    success: boolean;
+    operations: string[];
+    modifiedFiles: string[];
+    output: string;
+  };
+  verifyResult?: {
+    passed: boolean;
+    details: string;
+  };
+  retryCount: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
