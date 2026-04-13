@@ -82,8 +82,6 @@ export class AgentRunner {
     const prompt = await this.buildExecutionPrompt(task);
     const needsIsolation = this.needsIsolation(task);
 
-    console.log(`🤖 Preparing ${task.assignedAgent} subagent for task ${task.id}`);
-
     return {
       subagent_type: subagentType,
       description: `${task.assignedAgent}: ${task.title.slice(0, 50)}`,

@@ -28,7 +28,9 @@
       "Bash(mkdir -p /tmp/openmatrix-test)",
       "Bash(echo '{\"initialized\": true}')",
       "Bash(git reset:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(openmatrix check *)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }

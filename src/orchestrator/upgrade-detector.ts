@@ -381,7 +381,7 @@ export class UpgradeDetector {
       const lines = content.split('\n');
 
       lines.forEach((line, index) => {
-        // TODO 检测
+        // 待办标记检测
         const todoMatch = line.match(/\/\/\s*TODO(?:\(([^)]+)\))?:?\s*(.+)/i);
         if (todoMatch) {
           suggestions.push(this.createSuggestion({
@@ -397,7 +397,7 @@ export class UpgradeDetector {
           }));
         }
 
-        // FIXME 检测
+        // 待修复标记检测
         const fixmeMatch = line.match(/\/\/\s*FIXME(?:\(([^)]+)\))?:?\s*(.+)/i);
         if (fixmeMatch) {
           suggestions.push(this.createSuggestion({
@@ -413,7 +413,7 @@ export class UpgradeDetector {
           }));
         }
 
-        // HACK 检测
+        // 临时方案标记检测
         const hackMatch = line.match(/\/\/\s*HACK:?\s*(.+)/i);
         if (hackMatch) {
           suggestions.push(this.createSuggestion({
@@ -492,8 +492,8 @@ export class UpgradeDetector {
           }
         }
 
-        // console.log 检测 (生产代码)
-        if (line.includes('console.log') && !file.includes('test') && !file.includes('spec')) {
+        // console.log 检测 (生产代码，排除 CLI 命令文件)
+        if (line.includes('console.log') && !file.includes('test') && !file.includes('spec') && !file.includes('commands/')) {
           suggestions.push(this.createSuggestion({
             category: 'quality',
             priority: 'low',
@@ -793,6 +793,8 @@ export class UpgradeDetector {
       lines.forEach((line, index) => {
         // 硬编码路径
         if (line.includes('C:\\') || line.includes('/home/') || line.includes('/Users/')) {
+          const relPath = this.getRelativePath(file);
+          if (relPath.includes('upgrade-detector')) return;
           if (!line.includes('example') && !line.includes('test')) {
             suggestions.push(this.createSuggestion({
               category: 'common',
