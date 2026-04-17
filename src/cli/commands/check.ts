@@ -92,15 +92,50 @@ export const checkCommand = new Command('check')
 function displayResult(result: DetectionResult): void {
   const { projectType, projectName, suggestions, summary } = result;
 
+  displayProjectInfo(projectName, projectType, result.timestamp);
+  displaySummary(summary);
+
+  if (suggestions.length === 0) {
+    console.log(chalk.green('✅ 未发现问题，项目状态良好！\n'));
+    return;
+  }
+
+  displaySuggestionsByPriority(suggestions);
+  displayHints();
+}
+
+/**
+ * 显示项目基本信息
+ */
+export function displayProjectInfo(projectName: string, projectType: ProjectType, timestamp: string): void {
   console.log(chalk.bold(`📦 项目: ${projectName}`));
   console.log(`   类型: ${formatProjectType(projectType)}`);
-  console.log(`   扫描时间: ${new Date(result.timestamp).toLocaleString()}\n`);
+  console.log(`   扫描时间: ${new Date(timestamp).toLocaleString()}\n`);
+}
 
-  // 摘要
+/**
+ * 显示检测摘要统计
+ */
+export function displaySummary(summary: DetectionResult['summary']): void {
   console.log(chalk.bold('📊 检测摘要'));
   console.log('━'.repeat(42));
 
-  const categoryLabels: Record<UpgradeCategory, string> = {
+  const categoryLabels = getCategoryLabels();
+  for (const [cat, count] of Object.entries(summary.byCategory) as [UpgradeCategory, number][]) {
+    if (count > 0) {
+      console.log(`   ${categoryLabels[cat]}: ${chalk.yellow(count)}`);
+    }
+  }
+
+  console.log(`\n   总计: ${chalk.bold(summary.total)} 个建议`);
+  console.log(`   可自动修复: ${chalk.green(summary.autoFixable)} 个\n`);
+}
+
+/**
+ * 获取类别标签映射
+ */
+export function getCategoryLabels(): Record<UpgradeCategory, string> {
+  return {
     bug: '🐛 代码缺陷',
     quality: '🔧 代码质量',
     capability: '📦 缺失能力',
@@ -112,63 +147,53 @@ function displayResult(result: DetectionResult): void {
     skill: '⚡ Skill 问题',
     agent: '🧠 Agent 配置'
   };
+}
 
-  for (const [cat, count] of Object.entries(summary.byCategory) as [UpgradeCategory, number][]) {
-    if (count > 0) {
-      console.log(`   ${categoryLabels[cat]}: ${chalk.yellow(count)}`);
-    }
-  }
-
-  console.log(`\n   总计: ${chalk.bold(summary.total)} 个建议`);
-  console.log(`   可自动修复: ${chalk.green(summary.autoFixable)} 个\n`);
-
-  if (suggestions.length === 0) {
-    console.log(chalk.green('✅ 未发现问题，项目状态良好！\n'));
-    return;
-  }
-
-  // 详细建议
+/**
+ * 按优先级分组显示建议
+ */
+export function displaySuggestionsByPriority(suggestions: UpgradeSuggestion[]): void {
   console.log(chalk.bold('📋 改进建议'));
   console.log('━'.repeat(42) + '\n');
 
-  // 按优先级分组
-  const critical = suggestions.filter(s => s.priority === 'critical');
-  const high = suggestions.filter(s => s.priority === 'high');
-  const medium = suggestions.filter(s => s.priority === 'medium');
-  const low = suggestions.filter(s => s.priority === 'low');
+  const groups: Array<{ items: UpgradeSuggestion[]; label: string; color: (text: string) => string; icon: string; maxDisplay?: number }> = [
+    { items: suggestions.filter(s => s.priority === 'critical'), label: '关键问题', color: chalk.red.bold, icon: '🚨' },
+    { items: suggestions.filter(s => s.priority === 'high'), label: '高优先级', color: chalk.yellow.bold, icon: '⚠️' },
+    { items: suggestions.filter(s => s.priority === 'medium'), label: '中优先级', color: chalk.blue.bold, icon: '📋' },
+    { items: suggestions.filter(s => s.priority === 'low'), label: '低优先级', color: chalk.gray.bold, icon: '💡', maxDisplay: 10 },
+  ];
 
-  if (critical.length > 0) {
-    console.log(chalk.red.bold('🚨 关键问题:\n'));
-    for (const s of critical) {
-      displaySuggestion(s);
+  for (const group of groups) {
+    if (group.items.length > 0) {
+      displayPriorityGroup(group.items, group.label, group.color, group.icon, group.maxDisplay);
     }
   }
+}
 
-  if (high.length > 0) {
-    console.log(chalk.yellow.bold('⚠️ 高优先级:\n'));
-    for (const s of high) {
-      displaySuggestion(s);
-    }
+/**
+ * 显示单个优先级组的建议
+ */
+export function displayPriorityGroup(
+  items: UpgradeSuggestion[],
+  label: string,
+  color: (text: string) => string,
+  icon: string,
+  maxDisplay?: number
+): void {
+  const displayItems = maxDisplay ? items.slice(0, maxDisplay) : items;
+  console.log(color(`${icon} ${label}:\n`));
+  for (const s of displayItems) {
+    displaySuggestion(s);
   }
-
-  if (medium.length > 0) {
-    console.log(chalk.blue.bold('📋 中优先级:\n'));
-    for (const s of medium) {
-      displaySuggestion(s);
-    }
+  if (maxDisplay && items.length > maxDisplay) {
+    console.log(chalk.gray(`   ... 还有 ${items.length - maxDisplay} 个低优先级建议\n`));
   }
+}
 
-  if (low.length > 0) {
-    console.log(chalk.gray.bold('💡 低优先级:\n'));
-    for (const s of low.slice(0, 10)) { // 限制显示
-      displaySuggestion(s);
-    }
-    if (low.length > 10) {
-      console.log(chalk.gray(`   ... 还有 ${low.length - 10} 个低优先级建议\n`));
-    }
-  }
-
-  // 提示
+/**
+ * 显示操作提示
+ */
+export function displayHints(): void {
   console.log(chalk.gray('━'.repeat(42)));
   console.log(chalk.gray('💡 提示:'));
   console.log(chalk.gray('   --interactive  交互式选择改进项'));

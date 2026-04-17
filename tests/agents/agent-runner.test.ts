@@ -4,6 +4,7 @@ import { AgentRunner } from '../../src/agents/agent-runner.js';
 import { StateManager } from '../../src/storage/state-manager.js';
 import { ApprovalManager } from '../../src/orchestrator/approval-manager.js';
 import type { Task, AgentType } from '../../src/types/index.js';
+import * as fs from 'fs';
 
 // Mock StateManager
 const mockStateManager = {
@@ -260,6 +261,27 @@ describe('AgentRunner', () => {
       // runTask 现在不会失败，而是返回成功的 SubagentTask 信息
       expect(result.status).toBe('completed');
       expect(result.output).toContain('Subagent task prepared');
+    });
+  });
+
+  describe('logger usage verification', () => {
+    it('should not contain any console.log calls in agent-runner.ts', () => {
+      const sourcePath = require('path').resolve(__dirname, '../../src/agents/agent-runner.ts');
+      const source = fs.readFileSync(sourcePath, 'utf-8');
+      expect(source).not.toMatch(/console\.log/);
+    });
+
+    it('should not import logger in agent-runner.ts', () => {
+      const sourcePath = require('path').resolve(__dirname, '../../src/agents/agent-runner.ts');
+      const source = fs.readFileSync(sourcePath, 'utf-8');
+      expect(source).not.toMatch(/from ['"].*logger['"]/);
+    });
+
+    it('should use logger for output rather than direct console methods', () => {
+      const sourcePath = require('path').resolve(__dirname, '../../src/agents/agent-runner.ts');
+      const source = fs.readFileSync(sourcePath, 'utf-8');
+      // Ensure no console.warn, console.error, console.debug either
+      expect(source).not.toMatch(/console\.(log|warn|error|debug|info)/);
     });
   });
 });

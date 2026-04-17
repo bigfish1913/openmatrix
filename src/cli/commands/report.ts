@@ -108,7 +108,7 @@ export const reportCommand = new Command('report')
     }
   });
 
-interface TaskStats {
+export interface TaskStats {
   total: number;
   completed: number;
   failed: number;
@@ -117,7 +117,7 @@ interface TaskStats {
   blocked: number;
 }
 
-interface EfficiencyData {
+export interface EfficiencyData {
   totalDuration: number;
   agentCalls: number;
   retryCount: number;
@@ -125,14 +125,14 @@ interface EfficiencyData {
   targetParallelism: number;
 }
 
-interface ReportOptions {
+export interface ReportOptions {
   format: string;
   output?: string;
   efficiency?: boolean;
   graph?: boolean;
 }
 
-function generateMarkdownReport(
+export function generateMarkdownReport(
   state: GlobalState,
   tasks: Task[],
   approvals: Approval[],

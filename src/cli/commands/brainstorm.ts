@@ -12,7 +12,7 @@ import * as path from 'path';
 /**
  * CLI 选项接口
  */
-interface BrainstormOptions {
+export interface BrainstormOptions {
   json?: boolean;
   complete?: boolean;
   results?: string;
@@ -36,7 +36,7 @@ interface BrainstormQuestion {
 /**
  * 头脑风暴阶段结果
  */
-interface BrainstormResult {
+export interface BrainstormResult {
   status: 'brainstorming' | 'ready_to_start';
   taskInput: string;
   taskTitle: string;
@@ -64,7 +64,6 @@ export const brainstormCommand = new Command('brainstorm')
     await fs.mkdir(path.join(omPath, 'approvals'), { recursive: true });
     await fs.mkdir(path.join(omPath, 'brainstorm'), { recursive: true });
 
-    // 确保 .openmatrix 被 git 忽略
     await ensureOpenmatrixGitignore(basePath);
 
     const stateManager = new StateManager(omPath);
@@ -74,177 +73,266 @@ export const brainstormCommand = new Command('brainstorm')
 
     // --complete 模式：头脑风暴完成，输出 start 所需信息
     if (options.complete) {
-      try {
-        const sessionData = await fs.readFile(brainstormPath, 'utf-8');
-        const session: BrainstormResult = JSON.parse(sessionData);
-
-        // 更新状态
-        session.status = 'ready_to_start';
-
-        // 如果传入了结果，合并
-        if (options.results) {
-          try {
-            const results = JSON.parse(options.results);
-            session.answers = { ...session.answers, ...results.answers };
-            session.insights = [...session.insights, ...(results.insights || [])];
-            session.designNotes = [...session.designNotes, ...(results.designNotes || [])];
-          } catch {
-            // 忽略解析错误
-          }
-        }
-
-        await fs.writeFile(brainstormPath, JSON.stringify(session, null, 2));
-
-        if (options.json) {
-          console.log(JSON.stringify({
-            status: 'ready_to_start',
-            message: '头脑风暴完成，准备执行任务',
-            taskInput: session.taskInput,
-            taskTitle: session.taskTitle,
-            answers: session.answers,
-            insights: session.insights,
-            designNotes: session.designNotes,
-            hint: '使用 /om:start 开始执行任务'
-          }));
-        } else {
-          console.log('✅ 头脑风暴完成!');
-          console.log(`   任务: ${session.taskTitle}`);
-          console.log('\n📋 收集的洞察:');
-          session.insights.forEach((insight, i) => {
-            console.log(`   ${i + 1}. ${insight}`);
-          });
-          console.log('\n📝 设计要点:');
-          session.designNotes.forEach((note, i) => {
-            console.log(`   ${i + 1}. ${note}`);
-          });
-          console.log('\n🚀 使用 /om:start 开始执行任务');
-        }
-        return;
-      } catch {
-        if (options.json) {
-          console.log(JSON.stringify({
-            status: 'error',
-            message: '没有进行中的头脑风暴会话'
-          }));
-        } else {
-          console.log('❌ 没有进行中的头脑风暴会话');
-          console.log('   使用 openmatrix brainstorm <task> 开始新的头脑风暴');
-        }
-        return;
-      }
+      await handleCompleteMode(brainstormPath, options);
+      return;
     }
 
     // 获取任务内容
-    let taskContent = input;
-    if (!taskContent) {
-      const defaultPath = path.join(basePath, 'TASK.md');
-      try {
-        taskContent = await fs.readFile(defaultPath, 'utf-8');
-        if (!options.json) {
-          console.log(`📄 读取任务文件: ${defaultPath}`);
-        }
-      } catch {
-        if (options.json) {
-          console.log(JSON.stringify({
-            status: 'error',
-            message: '请提供任务文件路径或描述'
-          }));
-        } else {
-          console.log('❌ 请提供任务文件路径或描述');
-          console.log('   用法: openmatrix brainstorm <task.md>');
-          console.log('   或创建 TASK.md 文件');
-        }
-        return;
-      }
-    } else if (taskContent.endsWith('.md')) {
-      try {
-        taskContent = await fs.readFile(taskContent, 'utf-8');
-        if (!options.json) {
-          console.log(`📄 读取任务文件: ${input}`);
-        }
-      } catch {
-        if (options.json) {
-          console.log(JSON.stringify({
-            status: 'error',
-            message: `无法读取文件: ${input}`
-          }));
-        } else {
-          console.log(`❌ 无法读取文件: ${input}`);
-        }
-        return;
-      }
-    }
+    const taskContent = await loadTaskContent(input, basePath, options);
+    if (!taskContent) return;
 
-    // 从任务内容提取标题
-    const lines = taskContent.split('\n');
-    let taskTitle = '未命名任务';
-    for (const line of lines) {
-      const match = line.match(/^#\s+(.+)$/);
-      if (match) {
-        taskTitle = match[1].trim();
-        break;
-      }
-    }
+    // 创建新的头脑风暴会话
+    await createNewSession(taskContent, basePath, brainstormPath, options);
+  });
 
-    // 生成头脑风暴问题 — 使用智能管道
-    const questions: BrainstormQuestion[] = await generateSmartQuestions(taskContent, basePath);
+/**
+ * 处理 --complete 模式：标记头脑风暴完成，输出 start 所需信息
+ */
+export async function handleCompleteMode(brainstormPath: string, options: BrainstormOptions): Promise<void> {
+  try {
+    const sessionData = await fs.readFile(brainstormPath, 'utf-8');
+    const session: BrainstormResult = JSON.parse(sessionData);
+    session.status = 'ready_to_start';
 
-    // 检测是否涉及垂直领域
-    const domainDetection = detectVerticalDomain(taskContent);
-
-    // 创建会话
-    const session: BrainstormResult = {
-      status: 'brainstorming',
-      taskInput: taskContent,
-      taskTitle,
-      questions,
-      answers: {},
-      insights: [],
-      designNotes: [],
-      suggestResearch: domainDetection.isVertical ? domainDetection.domain : undefined
-    };
+    mergeSessionResults(session, options.results);
 
     await fs.writeFile(brainstormPath, JSON.stringify(session, null, 2));
+    outputCompleteResult(session, options.json);
+  } catch {
+    outputSessionNotFound(options.json);
+  }
+}
 
-    if (options.json) {
-      // JSON 输出供 Skill 解析
-      const output: Record<string, unknown> = {
-        status: 'brainstorming',
-        message: '开始头脑风暴',
-        taskTitle,
-        questions: questions.map(q => ({
-          id: q.id,
-          question: q.question,
-          header: q.header,
-          options: q.options,
-          multiSelect: q.multiSelect
-        })),
-        hint: '请逐一回答问题，完成后再调用 --complete'
-      };
+/**
+ * 合并外部传入的结果到已有会话
+ */
+export function mergeSessionResults(session: BrainstormResult, resultsJson?: string): void {
+  if (!resultsJson) return;
+  try {
+    const results = JSON.parse(resultsJson);
+    session.answers = { ...session.answers, ...results.answers };
+    session.insights = [...session.insights, ...(results.insights || [])];
+    session.designNotes = [...session.designNotes, ...(results.designNotes || [])];
+  } catch {
+    // 忽略解析错误
+  }
+}
 
-      // 如果检测到垂直领域，添加建议
-      if (domainDetection.isVertical) {
-        output.suggestResearch = domainDetection.domain;
-        output.researchHint = `检测到垂直领域「${domainDetection.domain}」，建议先进行领域调研`;
-      }
+/**
+ * 输出 complete 模式的结果
+ */
+export function outputCompleteResult(session: BrainstormResult, jsonMode?: boolean): void {
+  if (jsonMode) {
+    console.log(JSON.stringify({
+      status: 'ready_to_start',
+      message: '头脑风暴完成，准备执行任务',
+      taskInput: session.taskInput,
+      taskTitle: session.taskTitle,
+      answers: session.answers,
+      insights: session.insights,
+      designNotes: session.designNotes,
+      hint: '使用 /om:start 开始执行任务'
+    }));
+  } else {
+    console.log('✅ 头脑风暴完成!');
+    console.log(`   任务: ${session.taskTitle}`);
+    console.log('\n📋 收集的洞察:');
+    session.insights.forEach((insight, i) => {
+      console.log(`   ${i + 1}. ${insight}`);
+    });
+    console.log('\n📝 设计要点:');
+    session.designNotes.forEach((note, i) => {
+      console.log(`   ${i + 1}. ${note}`);
+    });
+    console.log('\n🚀 使用 /om:start 开始执行任务');
+  }
+}
 
-      console.log(JSON.stringify(output));
-    } else {
-      console.log('\n🧠 开始头脑风暴...\n');
-      console.log(`📋 任务: ${taskTitle}\n`);
+/**
+ * 输出会话未找到的错误信息
+ */
+export function outputSessionNotFound(jsonMode?: boolean): void {
+  if (jsonMode) {
+    console.log(JSON.stringify({
+      status: 'error',
+      message: '没有进行中的头脑风暴会话'
+    }));
+  } else {
+    console.log('❌ 没有进行中的头脑风暴会话');
+    console.log('   使用 openmatrix brainstorm <task> 开始新的头脑风暴');
+  }
+}
 
-      if (domainDetection.isVertical) {
-        console.log(`🔍 检测到垂直领域: ${domainDetection.domain}`);
-        console.log('   建议使用 /om:research 进行领域调研\n');
-      }
+/**
+ * 从输入参数或文件加载任务内容，返回 null 表示加载失败（已输出错误）
+ */
+export async function loadTaskContent(
+  input: string | undefined,
+  basePath: string,
+  options: BrainstormOptions
+): Promise<string | null> {
+  let taskContent = input;
+  if (!taskContent) {
+    return loadTaskFromDefaultFile(basePath, options.json);
+  } else if (taskContent.endsWith('.md')) {
+    return loadTaskFromSpecifiedFile(taskContent, input!, options.json);
+  }
+  return taskContent;
+}
 
-      console.log('需要探索以下问题:');
-      questions.forEach((q, i) => {
-        console.log(`  ${i + 1}. ${q.question}`);
-      });
-      console.log('\n💡 使用 /om:brainstorm 技能进行交互式问答');
+/**
+ * 从默认 TASK.md 文件加载任务内容
+ */
+export async function loadTaskFromDefaultFile(basePath: string, jsonMode?: boolean): Promise<string | null> {
+  const defaultPath = path.join(basePath, 'TASK.md');
+  try {
+    const content = await fs.readFile(defaultPath, 'utf-8');
+    if (!jsonMode) {
+      console.log(`📄 读取任务文件: ${defaultPath}`);
     }
+    return content;
+  } catch {
+    if (jsonMode) {
+      console.log(JSON.stringify({ status: 'error', message: '请提供任务文件路径或描述' }));
+    } else {
+      console.log('❌ 请提供任务文件路径或描述');
+      console.log('   用法: openmatrix brainstorm <task.md>');
+      console.log('   或创建 TASK.md 文件');
+    }
+    return null;
+  }
+}
+
+/**
+ * 从用户指定的 .md 文件加载任务内容
+ */
+export async function loadTaskFromSpecifiedFile(filePath: string, displayName: string, jsonMode?: boolean): Promise<string | null> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    if (!jsonMode) {
+      console.log(`📄 读取任务文件: ${displayName}`);
+    }
+    return content;
+  } catch {
+    if (jsonMode) {
+      console.log(JSON.stringify({ status: 'error', message: `无法读取文件: ${displayName}` }));
+    } else {
+      console.log(`❌ 无法读取文件: ${displayName}`);
+    }
+    return null;
+  }
+}
+
+/**
+ * 从任务内容中提取标题
+ */
+export function extractTaskTitle(taskContent: string): string {
+  const lines = taskContent.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^#\s+(.+)$/);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+  return '未命名任务';
+}
+
+/**
+ * 创建新的头脑风暴会话并输出
+ */
+export async function createNewSession(
+  taskContent: string,
+  basePath: string,
+  brainstormPath: string,
+  options: BrainstormOptions
+): Promise<void> {
+  const taskTitle = extractTaskTitle(taskContent);
+  const questions = await generateSmartQuestions(taskContent, basePath);
+  const domainDetection = detectVerticalDomain(taskContent);
+
+  const session: BrainstormResult = {
+    status: 'brainstorming',
+    taskInput: taskContent,
+    taskTitle,
+    questions,
+    answers: {},
+    insights: [],
+    designNotes: [],
+    suggestResearch: domainDetection.isVertical ? domainDetection.domain : undefined
+  };
+
+  await fs.writeFile(brainstormPath, JSON.stringify(session, null, 2));
+  outputNewSession(taskTitle, questions, domainDetection, options.json);
+}
+
+/**
+ * 输出新头脑风暴会话的信息
+ */
+export function outputNewSession(
+  taskTitle: string,
+  questions: BrainstormQuestion[],
+  domainDetection: { isVertical: boolean; domain: string },
+  jsonMode?: boolean
+): void {
+  if (jsonMode) {
+    outputNewSessionJson(taskTitle, questions, domainDetection);
+  } else {
+    outputNewSessionText(taskTitle, questions, domainDetection);
+  }
+}
+
+/**
+ * JSON 模式输出新会话信息
+ */
+export function outputNewSessionJson(
+  taskTitle: string,
+  questions: BrainstormQuestion[],
+  domainDetection: { isVertical: boolean; domain: string }
+): void {
+  const output: Record<string, unknown> = {
+    status: 'brainstorming',
+    message: '开始头脑风暴',
+    taskTitle,
+    questions: questions.map(q => ({
+      id: q.id,
+      question: q.question,
+      header: q.header,
+      options: q.options,
+      multiSelect: q.multiSelect
+    })),
+    hint: '请逐一回答问题，完成后再调用 --complete'
+  };
+
+  if (domainDetection.isVertical) {
+    output.suggestResearch = domainDetection.domain;
+    output.researchHint = `检测到垂直领域「${domainDetection.domain}」，建议先进行领域调研`;
+  }
+
+  console.log(JSON.stringify(output));
+}
+
+/**
+ * 文本模式输出新会话信息
+ */
+export function outputNewSessionText(
+  taskTitle: string,
+  questions: BrainstormQuestion[],
+  domainDetection: { isVertical: boolean; domain: string }
+): void {
+  console.log('\n🧠 开始头脑风暴...\n');
+  console.log(`📋 任务: ${taskTitle}\n`);
+
+  if (domainDetection.isVertical) {
+    console.log(`🔍 检测到垂直领域: ${domainDetection.domain}`);
+    console.log('   建议使用 /om:research 进行领域调研\n');
+  }
+
+  console.log('需要探索以下问题:');
+  questions.forEach((q, i) => {
+    console.log(`  ${i + 1}. ${q.question}`);
   });
+  console.log('\n💡 使用 /om:brainstorm 技能进行交互式问答');
+}
 
 /**
  * 检测是否可能需要领域调研
@@ -471,51 +559,54 @@ function createE2ETestsQuestion(): BrainstormQuestion {
  */
 async function generateSmartQuestions(taskContent: string, basePath: string): Promise<BrainstormQuestion[]> {
   try {
-    // 1. 解析任务为 ParsedTask
-    const parser = new TaskParser();
-    const parsedTask = parser.parse(taskContent);
-
-    // 2. 分析项目上下文 + 推断答案
-    const analyzer = new SmartQuestionAnalyzer(basePath);
-    const analysisResult = await analyzer.analyze(taskContent, parsedTask);
-
-    // 3. 映射推断结果为规范 brainstorm ID
-    const inferenceMap = translateAnalyzerInferences(analysisResult.inferences);
-
-    // 4. 创建问题生成器 + 设置推断
-    const questionGen = new InteractiveQuestionGenerator();
-    questionGen.setInferences(inferenceMap);
-
-    // 5. 生成基础问题 + 上下文问题
-    const session = questionGen.startSession(parsedTask);
-    questionGen.addContextualQuestions(parsedTask, session.questions);
-
-    // 6. 转换为 BrainstormQuestion[] 格式
-    const questions: BrainstormQuestion[] = session.questions
-      .filter(q => !session.skippedQuestionIds?.includes(q.id)) // 跳过高置信度推断的问题
-      .sort((a, b) => (a.priority ?? 5) - (b.priority ?? 5))
-      .map(q => ({
-        id: q.id,
-        question: q.question,
-        header: q.category,
-        options: (q.options || []).map(o => ({
-          label: o.label,
-          description: o.description || ''
-        })),
-        multiSelect: q.type === 'multiple',
-        why: ''
-      }));
-
-    // 7. 追加领域分析问题（底层逻辑思考）
-    const domainQuestions = generateDomainAnalysisQuestions(taskContent);
-    questions.push(...domainQuestions);
-
+    const session = await buildSmartQuestionSession(taskContent, basePath);
+    const questions = convertToBrainstormQuestions(session);
+    questions.push(...generateDomainAnalysisQuestions(taskContent));
     return questions;
   } catch (error) {
-    // Fallback: 如果智能管道出错，使用静态问题
     console.error(`⚠️ 智能问题生成失败，使用静态问题: ${error instanceof Error ? error.message : error}`);
     return generateBrainstormQuestions(taskContent, '');
   }
+}
+
+/**
+ * 构建智能问题会话：解析任务 → 分析推断 → 生成问题
+ */
+export async function buildSmartQuestionSession(taskContent: string, basePath: string) {
+  const parser = new TaskParser();
+  const parsedTask = parser.parse(taskContent);
+
+  const analyzer = new SmartQuestionAnalyzer(basePath);
+  const analysisResult = await analyzer.analyze(taskContent, parsedTask);
+
+  const inferenceMap = translateAnalyzerInferences(analysisResult.inferences);
+
+  const questionGen = new InteractiveQuestionGenerator();
+  questionGen.setInferences(inferenceMap);
+
+  const session = questionGen.startSession(parsedTask);
+  questionGen.addContextualQuestions(parsedTask, session.questions);
+  return session;
+}
+
+/**
+ * 将智能会话问题转换为 BrainstormQuestion[] 格式
+ */
+export function convertToBrainstormQuestions(session: { questions: Array<{ id: string; question: string; category: string; options?: Array<{ label: string; description?: string }>; type: string; priority?: number }>; skippedQuestionIds?: string[] }): BrainstormQuestion[] {
+  return session.questions
+    .filter(q => !session.skippedQuestionIds?.includes(q.id))
+    .sort((a, b) => (a.priority ?? 5) - (b.priority ?? 5))
+    .map(q => ({
+      id: q.id,
+      question: q.question,
+      header: q.category,
+      options: (q.options || []).map(o => ({
+        label: o.label,
+        description: o.description || ''
+      })),
+      multiSelect: q.type === 'multiple',
+      why: ''
+    }));
 }
 
 /**
@@ -529,12 +620,19 @@ async function generateSmartQuestions(taskContent: string, basePath: string): Pr
  */
 function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestion[] {
   const questions: BrainstormQuestion[] = [];
-  const content = taskContent.toLowerCase();
 
-  // ===== 问题 1: 领域实体建模 =====
+  questions.push(createDomainEntitiesQuestion(taskContent));
+  questions.push(createDataFlowQuestion());
+  questions.push(createInvariantsQuestion());
+  questions.push(createCoreScenariosQuestion());
+
+  return questions;
+}
+
+function createDomainEntitiesQuestion(taskContent: string): BrainstormQuestion {
   const entityHints = extractEntities(taskContent);
   if (entityHints.length > 0) {
-    questions.push({
+    return {
       id: 'domain_entities',
       question: `从任务描述中识别到以下核心实体，请确认或补充：\n${entityHints.map(e => `  • ${e}`).join('\n')}`,
       header: '领域实体',
@@ -545,25 +643,25 @@ function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestio
       ],
       multiSelect: false,
       why: '明确领域实体是设计数据模型和 API 的基础'
-    });
-  } else {
-    questions.push({
-      id: 'domain_entities',
-      question: '这个系统涉及哪些核心领域实体？它们之间是什么关系？（如 用户-订单-商品）',
-      header: '领域实体',
-      options: [
-        { label: '单一实体', description: '系统围绕一个核心实体（如用户管理）' },
-        { label: '2-3 个实体', description: '少量实体间有简单关系（如用户-文章）' },
-        { label: '多实体复杂关系', description: '多个实体间有多对多等复杂关系' },
-        { label: '我来说明', description: '在"其他"中描述具体实体' }
-      ],
-      multiSelect: false,
-      why: '明确领域实体是设计数据模型和 API 的基础'
-    });
+    };
   }
+  return {
+    id: 'domain_entities',
+    question: '这个系统涉及哪些核心领域实体？它们之间是什么关系？（如 用户-订单-商品）',
+    header: '领域实体',
+    options: [
+      { label: '单一实体', description: '系统围绕一个核心实体（如用户管理）' },
+      { label: '2-3 个实体', description: '少量实体间有简单关系（如用户-文章）' },
+      { label: '多实体复杂关系', description: '多个实体间有多对多等复杂关系' },
+      { label: '我来说明', description: '在"其他"中描述具体实体' }
+    ],
+    multiSelect: false,
+    why: '明确领域实体是设计数据模型和 API 的基础'
+  };
+}
 
-  // ===== 问题 2: 数据流分析 =====
-  questions.push({
+function createDataFlowQuestion(): BrainstormQuestion {
+  return {
     id: 'data_flow',
     question: '数据在系统中如何流转？（从输入到存储到输出）',
     header: '数据流',
@@ -576,10 +674,11 @@ function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestio
     ],
     multiSelect: false,
     why: '数据流决定架构选型（请求驱动 vs 事件驱动 vs 流处理）'
-  });
+  };
+}
 
-  // ===== 问题 3: 不变量/约束 =====
-  questions.push({
+function createInvariantsQuestion(): BrainstormQuestion {
+  return {
     id: 'invariants',
     question: '系统中存在哪些关键不变量或业务约束？（什么条件必须永远成立）',
     header: '不变量',
@@ -591,10 +690,11 @@ function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestio
     ],
     multiSelect: true,
     why: '不变量决定了哪些地方需要加锁、事务、校验和防御性编程'
-  });
+  };
+}
 
-  // ===== 问题 4: 核心场景链路 =====
-  questions.push({
+function createCoreScenariosQuestion(): BrainstormQuestion {
+  return {
     id: 'core_scenarios',
     question: '从用户视角，核心操作链路是什么？（用户会走过的关键路径）',
     header: '场景链路',
@@ -607,9 +707,7 @@ function generateDomainAnalysisQuestions(taskContent: string): BrainstormQuestio
     ],
     multiSelect: true,
     why: '核心场景链路决定了 MVP 的功能范围和优先级排序'
-  });
-
-  return questions;
+  };
 }
 
 /**

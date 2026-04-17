@@ -196,31 +196,30 @@ async function runWatchMode(
 /**
  * 格式化状态显示
  */
-function formatStatus(status: string): string {
-  const colors: Record<string, string> = {
-    initialized: 'gray',
-    running: 'green',
-    paused: 'yellow',
-    completed: 'green',
-    failed: 'red'
+export function formatStatus(status: string): string {
+  const colorMap: Record<string, (text: string) => string> = {
+    initialized: chalk.gray,
+    running: chalk.green,
+    paused: chalk.yellow,
+    completed: chalk.green,
+    failed: chalk.red
   };
-  const color = colors[status] || 'white';
-  return (chalk as any)[color](status);
+  const colorFn = colorMap[status] || chalk.white;
+  return colorFn(status);
 }
 
 /**
  * 获取状态颜色函数
  */
-function getStatusColor(status: string): (text: string) => string {
-  const colors: Record<string, string> = {
-    completed: 'green',
-    in_progress: 'blue',
-    failed: 'red',
-    blocked: 'red',
-    pending: 'gray',
-    verify: 'yellow',
-    accept: 'cyan'
+export function getStatusColor(status: string): (text: string) => string {
+  const colorMap: Record<string, (text: string) => string> = {
+    completed: chalk.green,
+    in_progress: chalk.blue,
+    failed: chalk.red,
+    blocked: chalk.red,
+    pending: chalk.gray,
+    verify: chalk.yellow,
+    accept: chalk.cyan
   };
-  const color = colors[status] || 'white';
-  return (chalk as any)[color];
+  return colorMap[status] || chalk.white;
 }

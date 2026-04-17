@@ -46,9 +46,10 @@ export class FileStore {
     try {
       const content = await readFile(fullPath, 'utf-8');
       return JSON.parse(content);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 只隐藏"文件不存在"错误，其他错误（权限、磁盘等）抛出以便调用者处理
-      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code === 'ENOENT' || nodeError.code === 'EISDIR') {
         return null;
       }
       throw error;
@@ -63,8 +64,9 @@ export class FileStore {
     const fullPath = join(this.basePath, path);
     try {
       return await readFile(fullPath, 'utf-8');
-    } catch (error: any) {
-      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code === 'ENOENT' || nodeError.code === 'EISDIR') {
         return null;
       }
       throw error;
@@ -127,8 +129,9 @@ export class FileStore {
     try {
       const content = readFileSync(fullPath, 'utf-8');
       return JSON.parse(content);
-    } catch (error: any) {
-      if (error.code === 'ENOENT' || error.code === 'EISDIR') {
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code === 'ENOENT' || nodeError.code === 'EISDIR') {
         return null;
       }
       throw error;

@@ -33,9 +33,9 @@ export const approveCommand = new Command('approve')
       }
 
       if (options.json) {
-        console.log(JSON.stringify({ status: 'pending', pending: pendingApprovals }));
+        logger.info(JSON.stringify({ status: 'pending', pending: pendingApprovals }));
       } else {
-        console.log('📋 待处理审批:\n');
+        logger.info('📋 待处理审批:\n');
         pendingApprovals.forEach((approval, i) => {
           const typeEmoji = {
             plan: '📋',
@@ -45,11 +45,11 @@ export const approveCommand = new Command('approve')
             custom: '📝'
           };
           const emoji = typeEmoji[approval.type] || '📝';
-          console.log(`  [${i + 1}] ${emoji} ${approval.id}: ${approval.title}`);
-          console.log(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
+          logger.info(`  [${i + 1}] ${emoji} ${approval.id}: ${approval.title}`);
+          logger.info(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
         });
 
-        console.log('\n💡 使用 openmatrix approve <ID> 处理审批');
+        logger.info('\n💡 使用 openmatrix approve <ID> 处理审批');
       }
       return;
     }
@@ -57,39 +57,39 @@ export const approveCommand = new Command('approve')
     // 获取审批
     const approval = await approvalManager.getApproval(approvalId);
     if (!approval) {
-      console.log(`❌ 审批 ${approvalId} 不存在`);
+      logger.info(`❌ 审批 ${approvalId} 不存在`);
       return;
     }
 
     if (approval.status !== 'pending') {
-      console.log(`❌ 审批 ${approvalId} 已处理`);
-      console.log(`   状态: ${approval.status}`);
-      console.log(`   决策: ${approval.decision}`);
+      logger.info(`❌ 审批 ${approvalId} 已处理`);
+      logger.info(`   状态: ${approval.status}`);
+      logger.info(`   决策: ${approval.decision}`);
       return;
     }
 
     // 如果没有提供决策，显示审批内容
     if (!options.decision) {
-      console.log(`\n📋 审批详情\n`);
-      console.log(`ID: ${approval.id}`);
-      console.log(`类型: ${approval.type}`);
-      console.log(`任务: ${approval.taskId}`);
-      console.log(`\n${approval.content}\n`);
+      logger.info(`\n📋 审批详情\n`);
+      logger.info(`ID: ${approval.id}`);
+      logger.info(`类型: ${approval.type}`);
+      logger.info(`任务: ${approval.taskId}`);
+      logger.info(`\n${approval.content}\n`);
 
-      console.log('选项:');
+      logger.info('选项:');
       approval.options.forEach(opt => {
-        console.log(`  ${opt.key}: ${opt.label}`);
+        logger.info(`  ${opt.key}: ${opt.label}`);
       });
 
-      console.log('\n💡 使用 openmatrix approve <ID> -d <decision>');
+      logger.info('\n💡 使用 openmatrix approve <ID> -d <decision>');
       return;
     }
 
     // 处理决策
     const validDecisions = ['approve', 'modify', 'reject'];
     if (!validDecisions.includes(options.decision)) {
-      console.log(`❌ 无效决策: ${options.decision}`);
-      console.log(`   有效选项: ${validDecisions.join(', ')}`);
+      logger.info(`❌ 无效决策: ${options.decision}`);
+      logger.info(`   有效选项: ${validDecisions.join(', ')}`);
       return;
     }
 
@@ -102,9 +102,9 @@ export const approveCommand = new Command('approve')
     });
 
     const statusEmoji = options.decision === 'approve' ? '✅' : '❌';
-    console.log(`\n${statusEmoji} 审批已处理: ${options.decision}`);
+    logger.info(`\n${statusEmoji} 审批已处理: ${options.decision}`);
 
     if (options.decision === 'approve') {
-      console.log('\n💡 使用 /om:resume 继续执行任务');
+      logger.info('\n💡 使用 /om:resume 继续执行任务');
     }
   });

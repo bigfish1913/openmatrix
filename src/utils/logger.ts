@@ -176,10 +176,10 @@ export function initLoggerWithRunId(runId: string, omPath?: string): void {
  * 便捷方法: 直接记录日志
  */
 export const logger = {
-  info: (message: string, meta?: any) => getLogger().info(message, meta),
-  error: (message: string, meta?: any) => getLogger().error(message, meta),
-  warn: (message: string, meta?: any) => getLogger().warn(message, meta),
-  debug: (message: string, meta?: any) => getLogger().debug(message, meta),
+  info: (message: string, meta?: Record<string, unknown>) => getLogger().info(message, meta),
+  error: (message: string, meta?: Record<string, unknown>) => getLogger().error(message, meta),
+  warn: (message: string, meta?: Record<string, unknown>) => getLogger().warn(message, meta),
+  debug: (message: string, meta?: Record<string, unknown>) => getLogger().debug(message, meta),
 
   // 结构化日志（带持久化）
   structured: {
