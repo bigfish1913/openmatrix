@@ -23,13 +23,17 @@ Step 2:  调用 CLI: openmatrix debug 初始化会话
 Step 3:  第一阶段：根因调查（Explore Agent）
 Step 4:  第二阶段：模式分析（Explore Agent）
 Step 5:  展示诊断报告 + 修复建议
-Step 6:  AskUserQuestion 确认修复策略
-Step 7:  第四阶段：实施修复（Agent）
-Step 8:  验证修复结果
-Step 9:  写入 Debug Report 并展示
+    ⛔ 调查阶段结束，必须等待用户确认
+Step 6:  AskUserQuestion 是否需要修复
+    ↓ 用户确认"需要修复"
+Step 7:  AskUserQuestion 选择修复策略
+Step 8:  实施修复（Agent）
+Step 9:  验证修复结果
+Step 10: 写入 Debug Report 并展示
 ```
 
 **铁律：不做根因调查，不许提修复方案**
+**铁律：调查完成后必须询问用户是否修复，不得自动进入修复流程**
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
@@ -215,21 +219,35 @@ ${第一阶段根因调查的完整输出}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-## Step 6: 确认修复策略
+## Step 6: 确认是否修复
+
+**⛔ 调查阶段结束，必须在此暂停等待用户确认。不得跳过此步骤自动进入修复。**
+
+AskUserQuestion: `header: "是否修复"`, `multiSelect: false`
+**question:** 调查已完成，是否需要修复？
+
+| label | description |
+|-------|-------------|
+| 需要修复 | 选择修复策略并执行 |
+| 仅查看报告 | 不修复，仅输出诊断报告后结束 |
+| 继续深入调查 | 根因不够清晰，继续调查 |
+
+**用户选择 "继续深入调查"** → 回到 Step 3，带着新信息重新调查。
+**用户选择 "仅查看报告"** → 跳到 Step 10，输出诊断报告后结束。
+
+## Step 7: 选择修复策略
+
+**仅在用户选择"需要修复"后执行此步骤。**
 
 AskUserQuestion: `header: "修复策略"`, `multiSelect: false`
-**question:** 诊断完成，选择修复策略？
+**question:** 选择修复策略？
 
 | label | description |
 |-------|-------------|
 | 自动修复 (推荐) | 调用 Agent 执行修复 |
-| 手动修复 | 仅展示建议，用户自行修复 |
-| 跳过 | 不修复，仅记录诊断报告 |
-| 继续深入 | 根因不够清晰，继续调查 |
+| 手动修复 | 仅展示具体修复建议，用户自行修改 |
 
-**用户选择 "继续深入"** → 回到 Step 3，带着新信息重新调查。
-
-## Step 7: 实施修复
+## Step 8: 实施修复
 
 **如果用户选择自动修复：**
 
@@ -273,9 +291,9 @@ ${suggestedFix}
 **Agent 完成后：**
 1. 检查 Git 状态
 2. 提交修复（如果文件有变更）
-3. 进入 Step 8 验证
+3. 进入 Step 9 验证
 
-## Step 8: 验证修复
+## Step 9: 验证修复
 
 **根据问题类型选择验证方式：**
 
@@ -318,9 +336,9 @@ AskUserQuestion: `header: "验证结果"`, `multiSelect: false`
 **如果验证未通过：**
 - 重试计数 +1
 - **< 3 次** → 回到 Step 3（带着新信息重新分析）
-- **>= 3 次** → 输出"已尝试 3 次以上修复，建议暂停并质疑架构"，进入 Step 9
+- **>= 3 次** → 输出"已尝试 3 次以上修复，建议暂停并质疑架构"，进入 Step 10
 
-## Step 9: 写入 Debug Report
+## Step 10: 写入 Debug Report
 
 完成调试会话：
 ```bash
@@ -403,13 +421,21 @@ Step 4: 第二阶段 - 模式分析（只读）
     ↓
 Step 5: 展示诊断报告 + 修复建议
     ↓
-Step 6: AskUserQuestion 确认修复策略
+    ⛔ 调查阶段结束 — 必须等待用户确认
     ↓
-Step 7: 第三/四阶段 - 实施修复
+Step 6: AskUserQuestion 是否需要修复
+    ├─ "仅查看报告" → Step 10 输出报告
+    ├─ "继续深入调查" → 回到 Step 3
+    └─ "需要修复" ↓
+Step 7: AskUserQuestion 选择修复策略
     ↓
-Step 8: 验证修复结果
+Step 8: 实施修复
     ↓
-Step 9: 写入 Debug Report
+Step 9: 验证修复结果
+    ├─ 未通过 (< 3次) → 回到 Step 3
+    ├─ 未通过 (>= 3次) → Step 10
+    └─ 通过 ↓
+Step 10: 写入 Debug Report
 ```
 
 ## 铁律
