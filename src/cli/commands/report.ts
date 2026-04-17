@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ProgressReporter } from '../../utils/progress-reporter.js';
+import type { GlobalState, Task, Approval } from '../../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -107,13 +108,37 @@ export const reportCommand = new Command('report')
     }
   });
 
+interface TaskStats {
+  total: number;
+  completed: number;
+  failed: number;
+  inProgress: number;
+  pending: number;
+  blocked: number;
+}
+
+interface EfficiencyData {
+  totalDuration: number;
+  agentCalls: number;
+  retryCount: number;
+  parallelism: number;
+  targetParallelism: number;
+}
+
+interface ReportOptions {
+  format: string;
+  output?: string;
+  efficiency?: boolean;
+  graph?: boolean;
+}
+
 function generateMarkdownReport(
-  state: any,
-  tasks: any[],
-  approvals: any[],
-  stats: any,
-  efficiency: any,
-  options: any
+  state: GlobalState,
+  tasks: Task[],
+  approvals: Approval[],
+  stats: TaskStats,
+  efficiency: EfficiencyData,
+  options: ReportOptions
 ): string {
   const duration = Math.round(efficiency.totalDuration / 1000 / 60); // 转为分钟
 

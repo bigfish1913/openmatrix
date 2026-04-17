@@ -1,6 +1,7 @@
 // src/cli/commands/analyze.ts
 import { Command } from 'commander';
 import { SmartQuestionAnalyzer, type AnalysisResult } from '../../orchestrator/smart-question-analyzer.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * CLI 选项接口
@@ -18,13 +19,13 @@ export const analyzeCommand = new Command('analyze')
 
     if (!task) {
       if (options.json) {
-        console.log(JSON.stringify({
+        logger.info(JSON.stringify({
           status: 'error',
           message: '请提供任务描述'
         }));
       } else {
-        console.log('❌ 请提供任务描述');
-        console.log('   用法: openmatrix analyze "实现用户登录功能"');
+        logger.info('❌ 请提供任务描述');
+        logger.info('   用法: openmatrix analyze "实现用户登录功能"');
       }
       return;
     }
@@ -35,19 +36,19 @@ export const analyzeCommand = new Command('analyze')
       if (options.json) {
         // 输出 JSON 格式 (供 Skill 解析)
         const output: AnalysisResult = result;
-        console.log(JSON.stringify(output, null, 2));
+        logger.info(JSON.stringify(output, null, 2));
       } else {
         // 输出人类可读格式
-        console.log('\n' + analyzer.generateSummary(result));
+        logger.info('\n' + analyzer.generateSummary(result));
       }
     } catch (error) {
       if (options.json) {
-        console.log(JSON.stringify({
+        logger.info(JSON.stringify({
           status: 'error',
           message: error instanceof Error ? error.message : '分析失败'
         }));
       } else {
-        console.log('❌ 分析失败:', error instanceof Error ? error.message : '未知错误');
+        logger.info('❌ 分析失败: ' + (error instanceof Error ? error.message : '未知错误'));
       }
     }
   });

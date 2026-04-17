@@ -22,13 +22,20 @@ export const statusCommand = new Command('status')
     }
   });
 
+interface StatusOptions {
+  json?: boolean;
+  graph?: boolean;
+  detailed?: boolean;
+  watch?: boolean;
+}
+
 /**
  * 显示当前状态
  */
 async function showStatus(
   manager: StateManager,
   reporter: ProgressReporter,
-  options: any
+  options: StatusOptions
 ): Promise<void> {
   try {
     await manager.initialize();
@@ -103,7 +110,7 @@ async function showStatus(
 async function runWatchMode(
   manager: StateManager,
   reporter: ProgressReporter,
-  options: any
+  options: StatusOptions
 ): Promise<void> {
   await manager.initialize();
 

@@ -98,6 +98,21 @@ export interface DetectorConfig {
 }
 
 /**
+ * 已知的绝对路径前缀模式，用于检测代码中的硬编码路径
+ * 涵盖 Windows 盘符 (C:\, D:\ 等)、Unix 家目录 (/home/, /Users/) 和常见系统路径
+ */
+const HARDCODED_PATH_PATTERNS: readonly RegExp[] = [
+  /[A-Za-z]:\\/,                  // Windows 盘符路径 (C:\, D:\ 等)
+  /\/home\/[a-zA-Z_]/,            // Linux 家目录
+  /\/Users\/[a-zA-Z_]/,           // macOS 家目录
+  /\/var\/[a-zA-Z_]/,             // Linux 系统路径
+  /\/etc\//,                      // Unix 配置路径
+  /\/tmp\//,                      // Unix 临时路径
+  /\/opt\//,                      // Unix 可选软件路径
+  /\\Users\\[a-zA-Z_]/,           // Windows 风格的 macOS 路径引用
+];
+
+/**
  * 默认配置
  */
 export const DEFAULT_DETECTOR_CONFIG: DetectorConfig = {
@@ -414,17 +429,20 @@ export class UpgradeDetector {
         }
 
         // 临时方案标记检测
-        const hackMatch = line.match(/\/\/\s*HACK:?\s*(.+)/i);
+        const hackMatch = line.match(/\/\/\s*HACK(?:\(([^)]+)\))?:?\s*(.+)/i);
         if (hackMatch) {
+          const hackPriority: UpgradePriority = hackMatch[1] === 'critical' ? 'critical'
+            : hackMatch[1] === 'high' ? 'high'
+            : 'medium';
           suggestions.push(this.createSuggestion({
             category: 'bug',
-            priority: 'medium',
-            title: `临时方案: ${hackMatch[1]}`,
-            description: `发现 HACK 标记，表示使用了临时解决方案`,
+            priority: hackPriority,
+            title: `临时方案: ${hackMatch[2]}`,
+            description: `发现 HACK 标记，表示使用了临时解决方案: ${hackMatch[2]}`,
             location: { file: this.getRelativePath(file), line: index + 1 },
-            suggestion: `替换为正式实现`,
+            suggestion: `将临时方案替换为正式实现: ${hackMatch[2]}`,
             autoFixable: false,
-            impact: '技术债务累积',
+            impact: '技术债务累积，可能影响长期可维护性',
             effort: 'medium'
           }));
         }
@@ -792,7 +810,7 @@ export class UpgradeDetector {
       // 检测硬编码字符串
       lines.forEach((line, index) => {
         // 硬编码路径
-        if (line.includes('C:\\') || line.includes('/home/') || line.includes('/Users/')) {
+        if (HARDCODED_PATH_PATTERNS.some(pattern => pattern.test(line))) {
           const relPath = this.getRelativePath(file);
           if (relPath.includes('upgrade-detector')) return;
           if (!line.includes('example') && !line.includes('test')) {

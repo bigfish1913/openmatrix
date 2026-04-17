@@ -289,8 +289,29 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
   const questions: BrainstormQuestion[] = [];
   const content = taskContent.toLowerCase();
 
-  // 问题 1: 核心目标
-  questions.push({
+  questions.push(createCoreObjectiveQuestion());
+  questions.push(createUserValueQuestion());
+
+  if (content.includes('架构') || content.includes('系统') || content.includes('集成') || content.includes('多个')) {
+    questions.push(createComplexityQuestion());
+  }
+
+  if (content.includes('技术') || content.includes('框架') || content.includes('库')) {
+    questions.push(createTechConstraintsQuestion());
+  }
+
+  questions.push(createRisksQuestion());
+  questions.push(createAcceptanceQuestion());
+  questions.push(createPriorityQuestion());
+  questions.push(createQualityQuestion());
+  questions.push(createExecutionModeQuestion());
+  questions.push(createE2ETestsQuestion());
+
+  return questions;
+}
+
+function createCoreObjectiveQuestion(): BrainstormQuestion {
+  return {
     id: 'core_objective',
     question: '这个任务的核心目标是什么？想要解决什么问题？',
     header: '核心目标',
@@ -302,10 +323,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: '明确核心目标有助于选择正确的实现策略和质量标准'
-  });
+  };
+}
 
-  // 问题 2: 用户价值
-  questions.push({
+function createUserValueQuestion(): BrainstormQuestion {
+  return {
     id: 'user_value',
     question: '这个任务为用户带来什么价值？最终用户是谁？',
     header: '用户价值',
@@ -317,44 +339,43 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: '了解目标用户有助于设计合适的接口和交互方式'
-  });
+  };
+}
 
-  // 问题 3: 实现复杂度 - 如果任务内容包含复杂关键词
-  if (content.includes('架构') || content.includes('系统') || content.includes('集成') || content.includes('多个')) {
-    questions.push({
-      id: 'complexity',
-      question: '这个任务的实现复杂度如何？需要哪些关键组件？',
-      header: '复杂度',
-      options: [
-        { label: '简单', description: '单一功能，少量代码修改' },
-        { label: '中等', description: '需要多个组件协作，有依赖关系' },
-        { label: '复杂', description: '涉及架构调整，需要仔细规划' },
-        { label: '非常复杂', description: '大型重构或新系统，需要分阶段实施' }
-      ],
-      multiSelect: false,
-      why: '复杂度评估有助于决定是否需要分阶段实施和额外的设计审查'
-    });
-  }
+function createComplexityQuestion(): BrainstormQuestion {
+  return {
+    id: 'complexity',
+    question: '这个任务的实现复杂度如何？需要哪些关键组件？',
+    header: '复杂度',
+    options: [
+      { label: '简单', description: '单一功能，少量代码修改' },
+      { label: '中等', description: '需要多个组件协作，有依赖关系' },
+      { label: '复杂', description: '涉及架构调整，需要仔细规划' },
+      { label: '非常复杂', description: '大型重构或新系统，需要分阶段实施' }
+    ],
+    multiSelect: false,
+    why: '复杂度评估有助于决定是否需要分阶段实施和额外的设计审查'
+  };
+}
 
-  // 问题 4: 技术约束 - 如果涉及技术选型
-  if (content.includes('技术') || content.includes('框架') || content.includes('库')) {
-    questions.push({
-      id: 'tech_constraints',
-      question: '有哪些技术约束或偏好？需要使用/避免什么技术？',
-      header: '技术约束',
-      options: [
-        { label: '使用现有技术栈', description: '复用项目已有的技术选择' },
-        { label: '引入新技术', description: '需要引入新的库或框架' },
-        { label: '保持技术中立', description: '不引入新依赖，使用原生方案' },
-        { label: '需要技术调研', description: '技术选型不确定，需要先调研' }
-      ],
-      multiSelect: false,
-      why: '技术约束影响实现方案和后续维护成本'
-    });
-  }
+function createTechConstraintsQuestion(): BrainstormQuestion {
+  return {
+    id: 'tech_constraints',
+    question: '有哪些技术约束或偏好？需要使用/避免什么技术？',
+    header: '技术约束',
+    options: [
+      { label: '使用现有技术栈', description: '复用项目已有的技术选择' },
+      { label: '引入新技术', description: '需要引入新的库或框架' },
+      { label: '保持技术中立', description: '不引入新依赖，使用原生方案' },
+      { label: '需要技术调研', description: '技术选型不确定，需要先调研' }
+    ],
+    multiSelect: false,
+    why: '技术约束影响实现方案和后续维护成本'
+  };
+}
 
-  // 问题 5: 风险评估
-  questions.push({
+function createRisksQuestion(): BrainstormQuestion {
+  return {
     id: 'risks',
     question: '这个任务可能面临哪些风险或挑战？',
     header: '风险',
@@ -366,10 +387,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: true,
     why: '识别风险有助于提前规划应对策略'
-  });
+  };
+}
 
-  // 问题 6: 验收标准
-  questions.push({
+function createAcceptanceQuestion(): BrainstormQuestion {
+  return {
     id: 'acceptance',
     question: '如何判断任务完成？有哪些验收标准？',
     header: '验收标准',
@@ -381,10 +403,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: true,
     why: '明确的验收标准有助于判断任务完成度'
-  });
+  };
+}
 
-  // 问题 7: 实现优先级
-  questions.push({
+function createPriorityQuestion(): BrainstormQuestion {
+  return {
     id: 'priority',
     question: '这个任务的优先级如何？是否需要 MVP 版本？',
     header: '优先级',
@@ -396,10 +419,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: '优先级决定资源分配和实施策略'
-  });
+  };
+}
 
-  // 问题 8: 质量级别
-  questions.push({
+function createQualityQuestion(): BrainstormQuestion {
+  return {
     id: 'quality',
     question: '选择质量门禁级别（决定测试覆盖、Lint、安全扫描等要求）',
     header: '质量级别',
@@ -410,10 +434,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: '质量级别影响任务拆分、测试要求和执行时间'
-  });
+  };
+}
 
-  // 问题 9: 执行模式
-  questions.push({
+function createExecutionModeQuestion(): BrainstormQuestion {
+  return {
     id: 'execution_mode',
     question: '选择执行模式（控制 AI 执行过程中的审批节点）',
     header: '执行模式',
@@ -424,11 +449,11 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: '执行模式决定自动化程度和人工干预频率'
-  });
+  };
+}
 
-  // 问题 10: E2E 测试（必填）
-  // E2E 测试是必问问题，由用户在问答中选择是否启用
-  questions.push({
+function createE2ETestsQuestion(): BrainstormQuestion {
+  return {
     id: 'e2e_tests',
     question: '是否启用端到端 (E2E) 测试？（适用于 Web/Mobile/GUI 项目，耗时较长）',
     header: 'E2E 测试',
@@ -438,9 +463,7 @@ function generateBrainstormQuestions(taskContent: string, taskTitle: string): Br
     ],
     multiSelect: false,
     why: 'E2E 测试能验证完整用户流程，但增加执行时间'
-  });
-
-  return questions;
+  };
 }
 
 /**

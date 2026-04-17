@@ -27,9 +27,9 @@ export const installSkillsCommand = new Command('install-skills')
         fs.mkdirSync(commandsDir, { recursive: true });
         console.log('📁 Created directory:', commandsDir);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Cannot create directory:', commandsDir);
-      console.error('   Error:', err.message);
+      console.error('   Error:', err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
 
@@ -66,8 +66,8 @@ export const installSkillsCommand = new Command('install-skills')
         const skillName = path.basename(file, '.md');
         console.log(`  ✅ Installed: /om:${skillName}`);
         installed++;
-      } catch (err: any) {
-        console.log(`  ❌ Failed: ${file} (${err.message})`);
+      } catch (err: unknown) {
+        console.log(`  ❌ Failed: ${file} (${err instanceof Error ? err.message : String(err)})`);
         failed++;
       }
     });
@@ -86,8 +86,8 @@ export const installSkillsCommand = new Command('install-skills')
           console.log(`  ✅ Installed: /om (default entry)`);
           installed++;
         }
-      } catch (err: any) {
-        console.log(`  ❌ Failed: om.md (${err.message})`);
+      } catch (err: unknown) {
+        console.log(`  ❌ Failed: om.md (${err instanceof Error ? err.message : String(err)})`);
         failed++;
       }
     }
@@ -106,8 +106,8 @@ export const installSkillsCommand = new Command('install-skills')
           console.log(`  ✅ Installed: /om:openmatrix (auto-detection)`);
           installed++;
         }
-      } catch (err: any) {
-        console.log(`  ❌ Failed: openmatrix.md (${err.message})`);
+      } catch (err: unknown) {
+        console.log(`  ❌ Failed: openmatrix.md (${err instanceof Error ? err.message : String(err)})`);
         failed++;
       }
     }

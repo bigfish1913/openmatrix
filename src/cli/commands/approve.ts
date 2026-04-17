@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { logger } from '../../utils/logger.js';
 
 export const approveCommand = new Command('approve')
   .description('审批待处理项')
@@ -24,9 +25,9 @@ export const approveCommand = new Command('approve')
 
       if (pendingApprovals.length === 0) {
         if (options.json) {
-          console.log(JSON.stringify({ status: 'empty', pending: [] }));
+          logger.info(JSON.stringify({ status: 'empty', pending: [] }));
         } else {
-          console.log('✅ 没有待处理的审批');
+          logger.info('✅ 没有待处理的审批');
         }
         return;
       }
