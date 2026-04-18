@@ -23,6 +23,7 @@ description: "Use when starting a new development task cycle with interactive qu
 Step 1:  初始化 .openmatrix 目录
 Step 2:  解析任务输入（文件或描述）
 Step 3:  智能分析任务类型（开发/非开发）
+Step 3.5: 提交文档（git add docs/ + 所有 .md 文件, commit）
 Step 4:  必选问题（开发任务:质量+E2E+模式; 非开发:仅模式）← 不可跳过
 Step 5:  可选问题（仅复杂开发任务）+ 展示执行计划
 Step 6:  AI 提取 goals，生成 plan
@@ -138,6 +139,41 @@ cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 **常见任务分类：**
 - 开发任务：新功能、Bug修复、重构、添加测试、性能优化
 - 非开发任务：写README、更新文档、查看代码、分析日志
+
+---
+
+### Step 3.5: 提交文档（必须执行，不可跳过）
+
+在开始任何新任务之前，先提交所有已变更的文档文件，确保文档和代码同步提交。
+
+```bash
+git status --porcelain
+```
+
+检查是否有文档变更（包括 `docs/` 目录、所有 `.md` 文件、`.openmatrix/` 下的文档）：
+
+```bash
+git diff --name-only | grep -E '\.md$|^docs/' 2>/dev/null
+git ls-files --others --exclude-standard | grep -E '\.md$|^docs/' 2>/dev/null
+```
+
+如果有文档变更（未追踪或未提交），执行提交：
+
+```bash
+git add docs/ .openmatrix/*.md CLAUDE.md README.md README_EN.md
+git commit -m "$(cat <<'EOF'
+docs: 更新项目文档
+
+更新内容: ...
+
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
+EOF
+)"
+```
+
+**如果没有文档变更，跳过此步骤继续。**
+
+> ⚠️ **此步骤不可跳过** — 避免"代码提交了但文档没提交"的情况。
 
 ---
 
@@ -508,7 +544,7 @@ $ARGUMENTS
 ## 执行流程
 
 ```
-Step 1-5: 初始化 + 问答 + 确认 → Step 6: 提取 goals + plan → Step 7: 写入 tasks-input.json
+Step 1-3: 初始化 + 解析输入 + 分析类型 → Step 3.5: 提交文档 → Step 4-5: 问答 + 确认 → Step 6: 提取 goals + plan → Step 7: 写入 tasks-input.json
 → Step 8: openmatrix start --tasks-json (必须) → Step 9: 读取 subagentTasks
 → Step 10: Agent 逐个执行 (只有这里写代码)
 ```
