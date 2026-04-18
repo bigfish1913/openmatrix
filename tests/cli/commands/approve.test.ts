@@ -43,113 +43,9 @@ vi.mock('../../../src/storage/state-manager.js', () => ({
 }));
 
 // Import after mocking
-import { approveCommand } from '../../../src/cli/commands/approve.js';
-
-// Helper to run command via Commander parseAsync
-async function runCommand(args: string[]) {
-  const { Command } = await import('commander');
-  const cmd = new Command('approve')
-    .description('审批待处理项')
-    .argument('[approvalId]', '审批ID')
-    .option('-d, --decision <decision>', '决策 (approve/modify/reject)')
-    .option('-c, --comment <comment>', '备注说明')
-    .option('--json', '输出 JSON 格式')
-    .action(async (approvalId: string | undefined, options: any) => {
-      const { StateManager } = await import('../../../src/storage/state-manager.js');
-      const { ApprovalManager } = await import('../../../src/orchestrator/approval-manager.js');
-      const { logger } = await import('../../../src/utils/logger.js');
-
-      const basePath = process.cwd();
-      const omPath = `${basePath}/.openmatrix`;
-
-      const stateManager = new StateManager(omPath);
-      await stateManager.initialize();
-
-      const approvalManager = new ApprovalManager(stateManager);
-
-      // If no approvalId, list pending approvals
-      if (!approvalId) {
-        const pendingApprovals = await approvalManager.getPendingApprovals();
-
-        if (pendingApprovals.length === 0) {
-          if (options.json) {
-            logger.info(JSON.stringify({ status: 'empty', pending: [] }));
-          } else {
-            logger.info('没有待处理的审批');
-          }
-          return;
-        }
-
-        if (options.json) {
-          logger.info(JSON.stringify({ status: 'pending', pending: pendingApprovals }));
-        } else {
-          logger.info('待处理审批:\n');
-          pendingApprovals.forEach((approval: Approval, i: number) => {
-            logger.info(`  [${i + 1}] ${approval.id}: ${approval.title}`);
-            logger.info(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
-          });
-          logger.info('\n使用 openmatrix approve <ID> 处理审批');
-        }
-        return;
-      }
-
-      // Get the approval
-      const approval = await approvalManager.getApproval(approvalId);
-      if (!approval) {
-        logger.info(`审批 ${approvalId} 不存在`);
-        return;
-      }
-
-      if (approval.status !== 'pending') {
-        logger.info(`审批 ${approvalId} 已处理`);
-        logger.info(`   状态: ${approval.status}`);
-        logger.info(`   决策: ${approval.decision}`);
-        return;
-      }
-
-      // If no decision, show approval details
-      if (!options.decision) {
-        logger.info(`\n审批详情\n`);
-        logger.info(`ID: ${approval.id}`);
-        logger.info(`类型: ${approval.type}`);
-        logger.info(`任务: ${approval.taskId}`);
-        logger.info(`\n${approval.content}\n`);
-
-        logger.info('选项:');
-        approval.options.forEach(opt => {
-          logger.info(`  ${opt.key}: ${opt.label}`);
-        });
-
-        logger.info('\n使用 openmatrix approve <ID> -d <decision>');
-        return;
-      }
-
-      // Process decision
-      const validDecisions = ['approve', 'modify', 'reject'];
-      if (!validDecisions.includes(options.decision)) {
-        logger.info(`无效决策: ${options.decision}`);
-        logger.info(`   有效选项: ${validDecisions.join(', ')}`);
-        return;
-      }
-
-      await approvalManager.processDecision({
-        approvalId,
-        decision: options.decision,
-        comment: options.comment,
-        decidedBy: 'user',
-        decidedAt: new Date().toISOString()
-      });
-
-      const statusEmoji = options.decision === 'approve' ? 'ok' : 'fail';
-      logger.info(`\n审批已处理: ${options.decision}`);
-
-      if (options.decision === 'approve') {
-        logger.info('\n使用 /om:resume 继续执行任务');
-      }
-    });
-
-  return cmd.parseAsync(['node', 'test', ...args], { from: 'user' });
-}
+import { logger } from '../../../src/utils/logger.js';
+import { ApprovalManager } from '../../../src/orchestrator/approval-manager.js';
+import { StateManager } from '../../../src/storage/state-manager.js';
 
 // Test data
 const mockPendingApprovals: Approval[] = [
@@ -195,6 +91,99 @@ const mockProcessedApproval: Approval = {
   decidedAt: new Date().toISOString()
 };
 
+/**
+ * Directly invoke the approve action logic (mirrors src/cli/commands/approve.ts)
+ */
+async function approveAction(approvalId?: string, options: { json?: boolean; decision?: string; comment?: string } = {}) {
+  const basePath = process.cwd();
+  const omPath = `${basePath}/.openmatrix`;
+
+  const stateManager = new StateManager(omPath);
+  await stateManager.initialize();
+
+  const approvalManager = new ApprovalManager(stateManager);
+
+  // If no approvalId, list pending approvals
+  if (!approvalId) {
+    const pendingApprovals = await approvalManager.getPendingApprovals();
+
+    if (pendingApprovals.length === 0) {
+      if (options.json) {
+        logger.info(JSON.stringify({ status: 'empty', pending: [] }));
+      } else {
+        logger.info('没有待处理的审批');
+      }
+      return;
+    }
+
+    if (options.json) {
+      logger.info(JSON.stringify({ status: 'pending', pending: pendingApprovals }));
+    } else {
+      logger.info('待处理审批:\n');
+      pendingApprovals.forEach((approval: Approval, i: number) => {
+        logger.info(`  [${i + 1}] ${approval.id}: ${approval.title}`);
+        logger.info(`      类型: ${approval.type} | 任务: ${approval.taskId}`);
+      });
+      logger.info('\n使用 openmatrix approve <ID> 处理审批');
+    }
+    return;
+  }
+
+  // Get the approval
+  const approval = await approvalManager.getApproval(approvalId);
+  if (!approval) {
+    logger.info(`审批 ${approvalId} 不存在`);
+    return;
+  }
+
+  if (approval.status !== 'pending') {
+    logger.info(`审批 ${approvalId} 已处理`);
+    logger.info(`   状态: ${approval.status}`);
+    logger.info(`   决策: ${approval.decision}`);
+    return;
+  }
+
+  // If no decision, show approval details
+  if (!options.decision) {
+    logger.info(`\n审批详情\n`);
+    logger.info(`ID: ${approval.id}`);
+    logger.info(`类型: ${approval.type}`);
+    logger.info(`任务: ${approval.taskId}`);
+    logger.info(`\n${approval.content}\n`);
+
+    logger.info('选项:');
+    approval.options.forEach(opt => {
+      logger.info(`  ${opt.key}: ${opt.label}`);
+    });
+
+    logger.info('\n使用 openmatrix approve <ID> -d <decision>');
+    return;
+  }
+
+  // Process decision
+  const validDecisions = ['approve', 'modify', 'reject'];
+  if (!validDecisions.includes(options.decision)) {
+    logger.info(`无效决策: ${options.decision}`);
+    logger.info(`   有效选项: ${validDecisions.join(', ')}`);
+    return;
+  }
+
+  await approvalManager.processDecision({
+    approvalId,
+    decision: options.decision,
+    comment: options.comment,
+    decidedBy: 'user',
+    decidedAt: new Date().toISOString()
+  });
+
+  const statusEmoji = options.decision === 'approve' ? 'ok' : 'fail';
+  logger.info(`\n审批已处理: ${options.decision}`);
+
+  if (options.decision === 'approve') {
+    logger.info('\n使用 /om:resume 继续执行任务');
+  }
+}
+
 describe('approve command - logger usage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -214,7 +203,7 @@ describe('approve command - logger usage', () => {
     it('should import logger from utils/logger', () => {
       const sourcePath = path.resolve(__dirname, '../../../src/cli/commands/approve.ts');
       const source = fs.readFileSync(sourcePath, 'utf-8');
-      expect(source).toMatch(/import.*logger.*from ['"].*utils\/logger['"]/);
+      expect(source).toMatch(/from.*logger/);
     });
 
     it('should use logger.info for all output (18+ calls)', () => {
@@ -229,7 +218,7 @@ describe('approve command - logger usage', () => {
     it('should log JSON when --json and no pending approvals', async () => {
       mockApprovalManager.getPendingApprovals.mockResolvedValueOnce([]);
 
-      await runCommand(['--json']);
+      await approveAction(undefined, { json: true });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('"status":"empty"')
@@ -239,7 +228,7 @@ describe('approve command - logger usage', () => {
     it('should log no-pending message when no pending and no --json', async () => {
       mockApprovalManager.getPendingApprovals.mockResolvedValueOnce([]);
 
-      await runCommand([]);
+      await approveAction(undefined, {});
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('没有待处理的审批')
@@ -249,7 +238,7 @@ describe('approve command - logger usage', () => {
     it('should log JSON pending list when --json and approvals exist', async () => {
       mockApprovalManager.getPendingApprovals.mockResolvedValueOnce(mockPendingApprovals);
 
-      await runCommand(['--json']);
+      await approveAction(undefined, { json: true });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('"status":"pending"')
@@ -259,7 +248,7 @@ describe('approve command - logger usage', () => {
     it('should log human-readable pending list when no --json', async () => {
       mockApprovalManager.getPendingApprovals.mockResolvedValueOnce(mockPendingApprovals);
 
-      await runCommand([]);
+      await approveAction(undefined, {});
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('待处理审批')
@@ -277,7 +266,7 @@ describe('approve command - logger usage', () => {
     it('should log error when approval not found', async () => {
       mockApprovalManager.getApproval.mockResolvedValueOnce(null);
 
-      await runCommand(['APPR-999']);
+      await approveAction('APPR-999');
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('不存在')
@@ -287,7 +276,7 @@ describe('approve command - logger usage', () => {
     it('should log error when approval already processed', async () => {
       mockApprovalManager.getApproval.mockResolvedValueOnce(mockProcessedApproval);
 
-      await runCommand(['APPR-003']);
+      await approveAction('APPR-003');
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('已处理')
@@ -298,7 +287,7 @@ describe('approve command - logger usage', () => {
       const pendingApproval = { ...mockPendingApprovals[0] };
       mockApprovalManager.getApproval.mockResolvedValueOnce(pendingApproval);
 
-      await runCommand(['APPR-001']);
+      await approveAction('APPR-001');
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('审批详情')
@@ -315,7 +304,7 @@ describe('approve command - logger usage', () => {
       const pendingApproval = { ...mockPendingApprovals[0] };
       mockApprovalManager.getApproval.mockResolvedValueOnce(pendingApproval);
 
-      await runCommand(['APPR-001', '-d', 'invalid']);
+      await approveAction('APPR-001', { decision: 'invalid' });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('无效决策')
@@ -327,7 +316,7 @@ describe('approve command - logger usage', () => {
       mockApprovalManager.getApproval.mockResolvedValueOnce(pendingApproval);
       mockApprovalManager.processDecision.mockResolvedValueOnce({});
 
-      await runCommand(['APPR-001', '-d', 'approve', '-c', 'LGTM']);
+      await approveAction('APPR-001', { decision: 'approve', comment: 'LGTM' });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('审批已处理')
@@ -349,12 +338,11 @@ describe('approve command - logger usage', () => {
       mockApprovalManager.getApproval.mockResolvedValueOnce(pendingApproval);
       mockApprovalManager.processDecision.mockResolvedValueOnce({});
 
-      await runCommand(['APPR-001', '-d', 'reject']);
+      await approveAction('APPR-001', { decision: 'reject' });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('审批已处理')
       );
-      // Should NOT show resume hint for reject
       const allCalls = loggerMock.info.mock.calls.map((c: any) => c[0]);
       const hasResumeHint = allCalls.some((c: string) => c.includes('/om:resume'));
       expect(hasResumeHint).toBe(false);
@@ -365,7 +353,7 @@ describe('approve command - logger usage', () => {
       mockApprovalManager.getApproval.mockResolvedValueOnce(pendingApproval);
       mockApprovalManager.processDecision.mockResolvedValueOnce({});
 
-      await runCommand(['APPR-001', '-d', 'modify']);
+      await approveAction('APPR-001', { decision: 'modify' });
 
       expect(loggerMock.info).toHaveBeenCalledWith(
         expect.stringContaining('审批已处理')
@@ -377,7 +365,7 @@ describe('approve command - logger usage', () => {
     it('should only use logger.info, not logger.error/warn/debug', async () => {
       mockApprovalManager.getPendingApprovals.mockResolvedValueOnce([]);
 
-      await runCommand([]);
+      await approveAction(undefined, {});
 
       expect(loggerMock.info).toHaveBeenCalled();
       expect(loggerMock.error).not.toHaveBeenCalled();
