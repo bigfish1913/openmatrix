@@ -1,6 +1,6 @@
 ---
 name: openmatrix
-description: "Use when starting any conversation where user wants development work done. Establishes how to detect development tasks and route to OpenMatrix workflow. Examples: 'implement X', 'build a game', 'fix bug', 'refactor module', 'add feature'."
+description: "Use when starting any conversation where user wants development work done. Establishes how to detect development tasks and route to OpenMatrix workflow (feature/start/brainstorm). Examples: 'implement X', 'build a game', 'fix bug', 'refactor module', 'add feature', '小需求', '小功能'."
 priority: critical
 always_load: true
 ---
@@ -50,6 +50,7 @@ When a development task is complex (new feature, multi-module, from-scratch), us
 When a development task is simple (bug fix, small change, clear requirement), use `/om:start`.
 
 **Related skills:**
+- `/om:feature` — 轻量级小需求，无任务文件
 - `/om:auto` — 全自动执行，无需审批
 - `/om:status` — 查看执行进度
 - `/om:meeting` — 处理阻塞问题
@@ -89,6 +90,11 @@ Detect development task intent and route to OpenMatrix's internal workflow.
 
 2. **Complexity Assessment**
 
+   **Small → `/om:feature`** (lightweight, no task files):
+   - Description ≤ 100 chars
+   - Single feature point
+   - Keywords: 小需求、小功能、小改动、minor、quick、快速
+
    **Complex → `/om:brainstorm`** (explore requirements first):
    - New feature (from scratch)
    - Multi-module changes (architecture involved)
@@ -108,8 +114,10 @@ Detect development task intent and route to OpenMatrix's internal workflow.
 <examples>
 | User Input | Intent | Complexity | Action |
 |------------|--------|------------|--------|
+| `给列表页添加搜索按钮` | Build | Small | → `/om:feature` |
+| `小改动：调整按钮颜色` | Change | Small | → `/om:feature` |
 | `实现这个游戏` (with @file) | Build | Complex | → `/om:brainstorm` |
-| `实现用户登录功能` | Build | Complex | → `/om:brainstorm` |
+| `实现用户登录功能` | Build | Standard | → `/om:start` |
 | `修复登录页面的样式问题` | Fix | Simple | → `/om:start` |
 | `改一下这个变量名` | Change | Simple | → `/om:start` |
 | `添加一个测试用例` | Build | Simple | → `/om:start` |
