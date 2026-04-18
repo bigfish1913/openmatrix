@@ -1,4 +1,4 @@
-# 设计方案: om:newfeature - 轻量级小需求指令
+# 设计方案: om:feature - 轻量级小需求指令
 
 日期: 2026-04-18
 
@@ -32,7 +32,7 @@
 ```
 用户输入 → /om skill → AI 评估复杂度 → 路由决策
 
-小需求 (→ /om:newfeature)
+小需求 (→ /om:feature)
 • 任务描述 ≤ 100 字
 • 单一功能点（无多个独立子系统）
 • 不涉及架构设计/技术选型
@@ -53,14 +53,14 @@
 
 ```
 skills/
-├── newfeature.md       # 新增 skill 文件
-├── om.md               # 修改：增加路由逻辑和 newfeature 判断
+├── feature.md         # 新增 skill 文件
+├── om.md               # 修改：增加路由逻辑和 feature 判断
 └── openmatrix.md       # 修改：同步更新路由描述
 ```
 
 ## 流程设计
 
-### /om:newfeature 流程
+### /om:feature 流程
 
 ```
 Step 1: 解析任务输入
@@ -167,16 +167,16 @@ Co-Authored-By: OpenMatrix
 
 | 指令 | 适用场景 | 任务文件 | 问答 |
 |-----|---------|:-------:|:----:|
-| `/om:newfeature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E |
+| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E |
 | `/om:start` | 标准任务 | ✅ | 质量+E2E+模式 |
 | `/om:brainstorm` | 复杂任务（架构/选型） | ✅ | 设计问答 |
 | `/om:auto` | 全自动执行 | ✅ | 无问答 |
 
 ## 验收标准
 
-1. `/om:newfeature` skill 文件创建完成
+1. `/om:feature` skill 文件创建完成
 2. `/om` 主入口路由逻辑增加 AI 复杂度判断
-3. 小需求正确路由到 `/om:newfeature`
+3. 小需求正确路由到 `/om:feature`
 4. 任务拆分为 2-5 个小块，用 TodoWrite 管理
 5. 按质量等级执行验证
 6. 每个小任务完成后分步 Git 提交
@@ -194,7 +194,7 @@ Co-Authored-By: OpenMatrix
 - 描述简短（≤100字）
 - 单一功能点
 - 不涉及架构
-- → 路由到 `/om:newfeature`
+- → 路由到 `/om:feature`
 
 **拆分：**
 ```

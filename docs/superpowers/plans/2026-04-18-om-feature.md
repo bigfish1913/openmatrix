@@ -1,10 +1,10 @@
-# om:newfeature Implementation Plan
+# om:feature Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a lightweight feature request workflow (`/om:newfeature`) that splits small tasks into 2-5 chunks without creating task files, with quality gates and stepwise git commits.
+**Goal:** Add a lightweight feature request workflow (`/om:feature`) that splits small tasks into 2-5 chunks without creating task files, with quality gates and stepwise git commits.
 
-**Architecture:** Pure skill-layer implementation. AI evaluates task complexity and routes to `/om:newfeature` for small requests. TodoWrite manages in-memory task state. Agent executes each chunk with verification per quality level.
+**Architecture:** Pure skill-layer implementation. AI evaluates task complexity and routes to `/om:feature` for small requests. TodoWrite manages in-memory task state. Agent executes each chunk with verification per quality level.
 
 **Tech Stack:** Markdown skills, TodoWrite tool, Agent tool, Bash for verification/git
 
@@ -14,17 +14,17 @@
 
 ```
 skills/
-├── newfeature.md       # NEW: lightweight feature skill
+├── feature.md          # NEW: lightweight feature skill
 ├── om.md               # MODIFY: add routing logic (lines 33-56)
-└── openmatrix.md       # MODIFY: add newfeature routing (lines 92-101)
+└── openmatrix.md       # MODIFY: add feature routing (lines 92-101)
 ```
 
 ---
 
-### Task 1: Create skills/newfeature.md
+### Task 1: Create skills/feature.md
 
 **Files:**
-- Create: `skills/newfeature.md`
+- Create: `skills/feature.md`
 
 - [ ] **Step 1: Write skill file with frontmatter and core structure**
 
@@ -330,9 +330,9 @@ type: feat/fix/test/refactor/docs
 - [ ] **Step 6: Commit new skill file**
 
 ```bash
-git add skills/newfeature.md
+git add skills/feature.md
 git commit -m "$(cat <<'EOF'
-feat(skills): add /om:newfeature skill for lightweight feature requests
+feat(skills): add /om:feature skill for lightweight feature requests
 
 New skill provides:
 - 2-5 task chunk splitting (TodoWrite managed)
@@ -431,12 +431,12 @@ description: "Default entry point for all development tasks. Routes to /om:newfe
 ```bash
 git add skills/om.md
 git commit -m "$(cat <<'EOF'
-feat(skills): add complexity routing to /om for /om:newfeature
+feat(skills): add complexity routing to /om for /om:feature
 
 - Add AI complexity assessment (<3s)
-- Route small requests to /om:newfeature
+- Route small requests to /om:feature
 - Update examples with routing cases
-- Add newfeature to available commands list
+- Add feature to available commands list
 
 Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
 EOF
@@ -521,11 +521,11 @@ description: "Use when starting any conversation where user wants development wo
 ```bash
 git add skills/openmatrix.md
 git commit -m "$(cat <<'EOF'
-feat(skills): sync openmatrix.md routing with om:newfeature
+feat(skills): sync openmatrix.md routing with om:feature
 
-- Add small complexity category → /om:newfeature
+- Add small complexity category → /om:feature
 - Update examples table with routing cases
-- Add newfeature to related skills list
+- Add feature to related skills list
 
 Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
 EOF
@@ -593,10 +593,10 @@ git status
 
 git add docs/superpowers/plans/2026-04-18-om-newfeature.md
 git commit -m "$(cat <<'EOF'
-docs: add implementation plan for om:newfeature
+docs: add implementation plan for om:feature
 
 Plan covers:
-- Task 1: Create skills/newfeature.md
+- Task 1: Create skills/feature.md
 - Task 2: Modify skills/om.md routing
 - Task 3: Modify skills/openmatrix.md routing
 - Task 4: Manual verification
