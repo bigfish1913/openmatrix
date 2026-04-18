@@ -68,9 +68,11 @@ Step 1: 解析任务输入
         • 分析任务边界（单一功能点确认）
 
 Step 2: AI 拆分为 2-5 个小任务块
+        • skill 内部 prompt 指导 AI 分析任务边界
         • 拆分粒度：每个小块 ≤ 30 分钟工作量
         • 拆分原则：按逻辑边界（数据 → API → UI）
         • 输出格式：任务名称 + 简要描述 + 预估文件列表
+        • 无 CLI 调用，纯 skill 层实现
 
 Step 3: 用 TodoWrite 管理任务状态
         • 任务状态：pending → in_progress → completed
