@@ -1,6 +1,6 @@
 ---
 name: om:feature
-description: "Use for small feature requests needing quick iteration without full task file management. Triggers on: 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段. AI evaluates complexity and routes automatically from /om entry point."
+description: "Use for small feature requests needing quick iteration without full task file management. Triggers on: 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段, 轻量. AI evaluates complexity and routes automatically from /om entry point."
 priority: high
 ---
 

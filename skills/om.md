@@ -1,6 +1,6 @@
 ---
 name: om
-description: "Default entry point for all development tasks. Routes to /om:feature (small), /om:start (standard), or /om:brainstorm (complex) automatically. Triggers on: implement, build, fix, create, refactor, 修复, 实现, 开发, 添加功能, new feature, 小需求, 小功能. Use for ANY task that produces code changes — don't answer directly, route to OpenMatrix workflow."
+description: "Default entry point for all development tasks. Routes to /om:feature (small), /om:start (standard), or /om:brainstorm (complex) automatically. Triggers on: implement, build, fix, create, refactor, 修复, 实现, 开发, 添加功能, new feature, 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段, 轻量. Use for ANY task that produces code changes — don't answer directly, route to OpenMatrix workflow."
 priority: critical
 always_load: true
 ---
