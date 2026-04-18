@@ -173,7 +173,7 @@ openmatrix step --json                       # 获取下一个任务 + 检查是
 Agent({
   subagent_type: task.subagent_type,
   description: task.description,
-  prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议",
+  prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议\n\n🚫 **禁止执行 git commit** — 所有提交统一通过 openmatrix complete 执行，确保使用正确的任务标题。",
   isolation: task.isolation,
   run_in_background: true
 })
@@ -182,6 +182,8 @@ Agent({
 > ⚠️ **必须使用原生 Agent 工具** — 禁止调用 gsd-executor、superpowers 或任何其他编排技能。
 >
 > **上下文节省**: 使用 `run_in_background: true` 后台执行，Agent 完成后仅返回简短摘要，大幅节省主会话上下文。
+>
+> 🚫 **Agent 内部禁止 git commit** — 所有提交必须通过 `openmatrix complete` 执行，否则会产生无意义提交。
 
 每个 Agent 完成后:
 1. **保存 Agent 上下文** — 将执行结果摘要写入 `.openmatrix/tasks/TASK-XXX/context.md`，格式如下:

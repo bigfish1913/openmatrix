@@ -316,6 +316,12 @@ ${task.acceptanceCriteria?.map((c, i) => `${i + 1}. ${c}`).join('\n') || '根据
 ## 验证
 运行 \`npm test\` 确认测试失败 (这是正确的!)
 
+## ⚠️ Git 提交规范
+
+**禁止执行 \`git commit\`**
+
+所有代码提交必须通过 \`openmatrix complete\` 命令统一执行。测试文件创建完成后，只需返回结果摘要，**不要执行 git commit**。
+
 ## 输出格式
 \`\`\`
 TDD_TESTS_CREATED
@@ -456,6 +462,17 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 - [ ] 代码风格一致
 - [ ] 验收标准全部满足
 ${isTDDMode ? '- [ ] 所有测试通过 (GREEN)' : ''}
+
+## ⚠️ Git 提交规范
+
+**禁止执行 \`git commit\`**
+
+所有代码提交必须通过 \`openmatrix complete\` 命令统一执行，该命令会：
+1. 使用正确的任务标题 (当前任务: ${task.title})
+2. 自动生成规范的提交信息
+3. 避免产生重复或无意义的提交
+
+如果代码变更已完成，只需返回结果摘要，**不要执行 git commit**。
 `);
     return parts.join('\n');
   }
@@ -742,6 +759,7 @@ Fix Required:
 - **不要伪造通过结果**
 - 如果项目没有某个脚本，标记为 "⏭️ Skipped" 而非 "❌ Failed"
 - 所有检查结果必须基于实际命令输出
+- **禁止执行 \`git commit\`** — 所有提交统一通过 \`openmatrix complete\` 执行
 
 ## 🔧 配置检查 (可选但推荐)
 检查以下常见配置问题:
@@ -880,6 +898,9 @@ ACCEPT_FAILED
 失败原因:
 1. [原因]
 \`\`\`
+
+## ⚠️ Git 提交规范
+**禁止执行 \`git commit\`** — 所有提交统一通过 \`openmatrix complete\` 执行，确保使用正确的任务标题。
 `);
     return parts.join('\n');
   }
