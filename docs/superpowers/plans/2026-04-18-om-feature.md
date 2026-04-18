@@ -30,7 +30,7 @@ skills/
 
 ```markdown
 ---
-name: om:newfeature
+name: om:feature
 description: "Use for small feature requests needing quick iteration without full task file management. Triggers on: 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段. AI evaluates complexity and routes automatically from /om entry point."
 priority: high
 ---
@@ -222,7 +222,7 @@ Append to the `<process>` section:
 ```bash
 git add -A
 git commit -m "$(cat <<'EOF'
-feat(newfeature): ${originalTask} - ${currentChunk}
+feat(feature): ${originalTask} - ${currentChunk}
 
 改动详情：
 - ${changesSummary}
@@ -281,9 +281,9 @@ $ARGUMENTS
 </arguments>
 
 <examples>
-/om:newfeature 给用户列表页添加搜索功能
-/om:newfeature 添加一个导出按钮
-/om:newfeature docs/small-task.md
+/om:feature 给用户列表页添加搜索功能
+/om:feature 添加一个导出按钮
+/om:feature docs/small-task.md
 </examples>
 
 <notes>
@@ -291,7 +291,7 @@ $ARGUMENTS
 
 | 指令 | 适用场景 | 任务文件 | 问答 | 验证 |
 |-----|---------|:-------:|:----:|:----:|
-| `/om:newfeature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 |
+| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 |
 | `/om:start` | 标准任务 | ✅ | 质量+E2E+模式 | 按等级 |
 | `/om:brainstorm` | 复杂任务 | ✅ | 设计问答 | 按等级 |
 | `/om:auto` | 全自动执行 | ✅ | 无 | 按等级 |
@@ -316,7 +316,7 @@ $ARGUMENTS
 ## Git 提交格式
 
 ```
-<type>(newfeature): <任务描述> - <任务块名称>
+<type>(feature): <任务描述> - <任务块名称>
 
 改动详情
 
@@ -366,7 +366,7 @@ Locate lines 33-44 (the "Route input" section) and replace with:
 
    | 条件 | 路由 |
    |-----|-----|
-   | 描述 ≤ 100 字 + 单一功能 + 无架构设计 + 小需求关键词 | → `/om:newfeature` |
+   | 描述 ≤ 100 字 + 单一功能 + 无架构设计 + 小需求关键词 | → `/om:feature` |
    | 多个独立子系统 + 需要架构设计 + 从零搭建/重构/迁移 | → `/om:brainstorm` |
    | 中等复杂度 + 需要完整追踪 + 实现/修复关键词 | → `/om:start` |
 
@@ -382,11 +382,11 @@ Locate lines 33-44 (the "Route input" section) and replace with:
 3. **Auto-route examples**
 
    ```
-   "给列表页添加搜索按钮"  → /om:newfeature (小需求)
+   "给列表页添加搜索按钮"  → /om:feature (小需求)
    "实现用户登录功能"      → /om:start (标准)
    "从零搭建后台系统"      → /om:brainstorm (复杂)
    "修复登录页面的样式"    → /om:start (标准)
-   "小改动：调整按钮颜色"  → /om:newfeature (小需求关键词)
+   "小改动：调整按钮颜色"  → /om:feature (小需求关键词)
    "docs/task.md"         → /om:start (从文件)
    ```
 ```
@@ -397,8 +397,8 @@ Modify the `<examples>` section (lines 93-99), add newfeature examples:
 
 ```markdown
 <examples>
-/om 给用户列表页添加搜索功能              → /om:newfeature (小需求)
-/om 小改动：调整按钮颜色                  → /om:newfeature (小需求关键词)
+/om 给用户列表页添加搜索功能              → /om:feature (小需求)
+/om 小改动：调整按钮颜色                  → /om:feature (小需求关键词)
 /om 实现用户登录功能                      → /om:start (标准)
 /om 从零搭建后台系统                       → /om:brainstorm (复杂)
 /om 修复登录页面的样式问题                → /om:start (标准)
@@ -414,7 +414,7 @@ Modify the `<notes>` section (lines 101-104), add newfeature to available comman
 ```markdown
 <notes>
 `/om` is shorthand for the OpenMatrix workflow. Same skill set as `openmatrix`, shorter invocation.
-Available commands: `/om:brainstorm`, `/om:start`, `/om:newfeature`, `/om:auto`, `/om:status`, `/om:meeting`, `/om:report`, `/om:resume`, `/om:retry`, `/om:research`, `/om:approve`, `/om:check`, `/om:debug`
+Available commands: `/om:brainstorm`, `/om:start`, `/om:feature`, `/om:auto`, `/om:status`, `/om:meeting`, `/om:report`, `/om:resume`, `/om:retry`, `/om:research`, `/om:approve`, `/om:check`, `/om:debug`
 </notes>
 ```
 
@@ -423,7 +423,7 @@ Available commands: `/om:brainstorm`, `/om:start`, `/om:newfeature`, `/om:auto`,
 Modify the frontmatter `description` field (line 3):
 
 ```markdown
-description: "Default entry point for all development tasks. Routes to /om:newfeature (small), /om:start (standard), or /om:brainstorm (complex) automatically. Triggers on: implement, build, fix, create, refactor, 修复, 实现, 开发, 添加功能, new feature, 小需求, 小功能. Use for ANY task that produces code changes — don't answer directly, route to OpenMatrix workflow."
+description: "Default entry point for all development tasks. Routes to /om:feature (small), /om:start (standard), or /om:brainstorm (complex) automatically. Triggers on: implement, build, fix, create, refactor, 修复, 实现, 开发, 添加功能, new feature, 小需求, 小功能. Use for ANY task that produces code changes — don't answer directly, route to OpenMatrix workflow."
 ```
 
 - [ ] **Step 5: Commit changes**
@@ -457,8 +457,8 @@ Modify the examples section, add newfeature row after the table header:
 ```markdown
 | User Input | Intent | Complexity | Action |
 |------------|--------|------------|--------|
-| `给列表页添加搜索按钮` | Build | Small | → `/om:newfeature` |
-| `小改动：调整按钮颜色` | Change | Small | → `/om:newfeature` |
+| `给列表页添加搜索按钮` | Build | Small | → `/om:feature` |
+| `小改动：调整按钮颜色` | Change | Small | → `/om:feature` |
 | `实现这个游戏` (with @file) | Build | Complex | → `/om:brainstorm` |
 | `实现用户登录功能` | Build | Standard | → `/om:start` |
 | `修复登录页面的样式问题` | Fix | Simple | → `/om:start` |
@@ -476,7 +476,7 @@ Modify the related skills section (line 53-57), add newfeature:
 
 ```markdown
 **Related skills:**
-- `/om:newfeature` — 轻量级小需求，无任务文件
+- `/om:feature` — 轻量级小需求，无任务文件
 - `/om:auto` — 全自动执行，无需审批
 - `/om:status` — 查看执行进度
 - `/om:meeting` — 处理阻塞问题
@@ -491,7 +491,7 @@ Modify the complexity assessment section (lines 92-106), add small category:
 ```markdown
 2. **Complexity Assessment**
 
-   **Small → `/om:newfeature`** (lightweight, no task files):
+   **Small → `/om:feature`** (lightweight, no task files):
    - Description ≤ 100 chars
    - Single feature point
    - Keywords: 小需求、小功能、小改动、minor、quick、快速
@@ -513,7 +513,7 @@ Modify the complexity assessment section (lines 92-106), add small category:
 Modify the frontmatter `description` field (line 3):
 
 ```markdown
-description: "Use when starting any conversation where user wants development work done. Establishes how to detect development tasks and route to OpenMatrix workflow (newfeature/start/brainstorm). Examples: 'implement X', 'build a game', 'fix bug', 'refactor module', 'add feature', '小需求', '小功能'."
+description: "Use when starting any conversation where user wants development work done. Establishes how to detect development tasks and route to OpenMatrix workflow (feature/start/brainstorm). Examples: 'implement X', 'build a game', 'fix bug', 'refactor module', 'add feature', '小需求', '小功能'."
 ```
 
 - [ ] **Step 5: Commit changes**
