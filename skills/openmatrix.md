@@ -93,7 +93,8 @@ Detect development task intent and route to OpenMatrix's internal workflow.
    **Small → `/om:feature`** (lightweight, no task files):
    - Description ≤ 100 chars
    - Single feature point
-   - Keywords: 小需求、小功能、小改动、minor、quick、快速
+   - No architecture design required
+   - Keywords: 小需求、小功能、小改动、minor、quick、快速、简单、添加按钮、加个字段、轻量
 
    **Complex → `/om:brainstorm`** (explore requirements first):
    - New feature (from scratch)
