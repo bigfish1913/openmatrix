@@ -545,13 +545,13 @@ Check all skill files have valid frontmatter and structure:
 
 ```bash
 # Check frontmatter format
-head -6 skills/newfeature.md
+head -6 skills/feature.md
 head -6 skills/om.md
 head -6 skills/openmatrix.md
 
 # Verify no unclosed sections
-grep -c "<process>" skills/newfeature.md
-grep -c "</process>" skills/newfeature.md
+grep -c "<process>" skills/feature.md
+grep -c "</process>" skills/feature.md
 # Should both return 1
 ```
 
@@ -560,19 +560,19 @@ grep -c "</process>" skills/newfeature.md
 Compare routing descriptions across files:
 
 ```bash
-# Check newfeature routing in all three files
-grep "newfeature" skills/om.md
-grep "newfeature" skills/openmatrix.md
-grep "newfeature" skills/newfeature.md
-# All should mention newfeature
+# Check feature routing in all three files
+grep "feature" skills/om.md
+grep "feature" skills/openmatrix.md
+grep "feature" skills/feature.md
+# All should mention feature
 ```
 
-- [ ] **Step 3: Verify TodoWrite usage in newfeature**
+- [ ] **Step 3: Verify TodoWrite usage in feature**
 
 Check TodoWrite is correctly used for task management:
 
 ```bash
-grep "TodoWrite" skills/newfeature.md
+grep "TodoWrite" skills/feature.md
 # Should find multiple occurrences for task state management
 ```
 
@@ -581,7 +581,7 @@ grep "TodoWrite" skills/newfeature.md
 Check git commit format is defined:
 
 ```bash
-grep -A5 "Git 提交格式" skills/newfeature.md
+grep -A5 "Git 提交格式" skills/feature.md
 # Should show the commit format template
 ```
 
@@ -591,7 +591,7 @@ grep -A5 "Git 提交格式" skills/newfeature.md
 git status
 # If any verification fixes needed, commit them
 
-git add docs/superpowers/plans/2026-04-18-om-newfeature.md
+git add docs/superpowers/plans/2026-04-18-om-feature.md
 git commit -m "$(cat <<'EOF'
 docs: add implementation plan for om:feature
 
@@ -612,9 +612,9 @@ EOF
 
 | Spec Requirement | Covered by Task |
 |-----------------|-----------------|
-| `/om:newfeature` skill file created | Task 1 |
+| `/om:feature` skill file created | Task 1 |
 | `/om` routing logic added | Task 2 |
-| Small requests route to newfeature | Task 2 Step 1 |
+| Small requests route to feature | Task 2 Step 1 |
 | Tasks split 2-5 chunks, TodoWrite managed | Task 1 Step 3 |
 | Quality level verification | Task 1 Step 6 |
 | Stepwise Git commits | Task 1 Step 7 |
