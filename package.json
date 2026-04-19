@@ -1,6 +1,6 @@
 {
   "name": "openmatrix",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "AI Agent task orchestration system with Claude Code Skills integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
