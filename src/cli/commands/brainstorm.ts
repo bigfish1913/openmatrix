@@ -6,6 +6,7 @@ import { SmartQuestionAnalyzer } from '../../orchestrator/smart-question-analyze
 import { InteractiveQuestionGenerator } from '../../orchestrator/interactive-question-generator.js';
 import { TaskParser } from '../../orchestrator/task-parser.js';
 import { translateAnalyzerInferences } from '../../orchestrator/answer-mapper.js';
+import { logger } from '../../utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -123,7 +124,7 @@ export function mergeSessionResults(session: BrainstormResult, resultsJson?: str
  */
 export function outputCompleteResult(session: BrainstormResult, jsonMode?: boolean): void {
   if (jsonMode) {
-    console.log(JSON.stringify({
+    logger.info(JSON.stringify({
       status: 'ready_to_start',
       message: '头脑风暴完成，准备执行任务',
       taskInput: session.taskInput,
@@ -134,17 +135,17 @@ export function outputCompleteResult(session: BrainstormResult, jsonMode?: boole
       hint: '使用 /om:start 开始执行任务'
     }));
   } else {
-    console.log('✅ 头脑风暴完成!');
-    console.log(`   任务: ${session.taskTitle}`);
-    console.log('\n📋 收集的洞察:');
+    logger.info('头脑风暴完成!');
+    logger.info(`   任务: ${session.taskTitle}`);
+    logger.info('收集的洞察:');
     session.insights.forEach((insight, i) => {
-      console.log(`   ${i + 1}. ${insight}`);
+      logger.info(`   ${i + 1}. ${insight}`);
     });
-    console.log('\n📝 设计要点:');
+    logger.info('设计要点:');
     session.designNotes.forEach((note, i) => {
-      console.log(`   ${i + 1}. ${note}`);
+      logger.info(`   ${i + 1}. ${note}`);
     });
-    console.log('\n🚀 使用 /om:start 开始执行任务');
+    logger.info('使用 /om:start 开始执行任务');
   }
 }
 
@@ -153,13 +154,13 @@ export function outputCompleteResult(session: BrainstormResult, jsonMode?: boole
  */
 export function outputSessionNotFound(jsonMode?: boolean): void {
   if (jsonMode) {
-    console.log(JSON.stringify({
+    logger.info(JSON.stringify({
       status: 'error',
       message: '没有进行中的头脑风暴会话'
     }));
   } else {
-    console.log('❌ 没有进行中的头脑风暴会话');
-    console.log('   使用 openmatrix brainstorm <task> 开始新的头脑风暴');
+    logger.info('没有进行中的头脑风暴会话');
+    logger.info('   使用 openmatrix brainstorm <task> 开始新的头脑风暴');
   }
 }
 
@@ -188,16 +189,16 @@ export async function loadTaskFromDefaultFile(basePath: string, jsonMode?: boole
   try {
     const content = await fs.readFile(defaultPath, 'utf-8');
     if (!jsonMode) {
-      console.log(`📄 读取任务文件: ${defaultPath}`);
+      logger.info(`读取任务文件: ${defaultPath}`);
     }
     return content;
   } catch {
     if (jsonMode) {
-      console.log(JSON.stringify({ status: 'error', message: '请提供任务文件路径或描述' }));
+      logger.info(JSON.stringify({ status: 'error', message: '请提供任务文件路径或描述' }));
     } else {
-      console.log('❌ 请提供任务文件路径或描述');
-      console.log('   用法: openmatrix brainstorm <task.md>');
-      console.log('   或创建 TASK.md 文件');
+      logger.info('请提供任务文件路径或描述');
+      logger.info('   用法: openmatrix brainstorm <task.md>');
+      logger.info('   或创建 TASK.md 文件');
     }
     return null;
   }
@@ -210,14 +211,14 @@ export async function loadTaskFromSpecifiedFile(filePath: string, displayName: s
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     if (!jsonMode) {
-      console.log(`📄 读取任务文件: ${displayName}`);
+      logger.info(`读取任务文件: ${displayName}`);
     }
     return content;
   } catch {
     if (jsonMode) {
-      console.log(JSON.stringify({ status: 'error', message: `无法读取文件: ${displayName}` }));
+      logger.info(JSON.stringify({ status: 'error', message: `无法读取文件: ${displayName}` }));
     } else {
-      console.log(`❌ 无法读取文件: ${displayName}`);
+      logger.info(`无法读取文件: ${displayName}`);
     }
     return null;
   }
@@ -308,7 +309,7 @@ export function outputNewSessionJson(
     output.researchHint = `检测到垂直领域「${domainDetection.domain}」，建议先进行领域调研`;
   }
 
-  console.log(JSON.stringify(output));
+  logger.info(JSON.stringify(output));
 }
 
 /**
@@ -319,19 +320,19 @@ export function outputNewSessionText(
   questions: BrainstormQuestion[],
   domainDetection: { isVertical: boolean; domain: string }
 ): void {
-  console.log('\n🧠 开始头脑风暴...\n');
-  console.log(`📋 任务: ${taskTitle}\n`);
+  logger.info('开始头脑风暴...');
+  logger.info(`任务: ${taskTitle}`);
 
   if (domainDetection.isVertical) {
-    console.log(`🔍 检测到垂直领域: ${domainDetection.domain}`);
-    console.log('   建议使用 /om:research 进行领域调研\n');
+    logger.info(`检测到垂直领域: ${domainDetection.domain}`);
+    logger.info('   建议使用 /om:research 进行领域调研');
   }
 
-  console.log('需要探索以下问题:');
+  logger.info('需要探索以下问题:');
   questions.forEach((q, i) => {
-    console.log(`  ${i + 1}. ${q.question}`);
+    logger.info(`  ${i + 1}. ${q.question}`);
   });
-  console.log('\n💡 使用 /om:brainstorm 技能进行交互式问答');
+  logger.info('使用 /om:brainstorm 技能进行交互式问答');
 }
 
 /**
@@ -564,7 +565,7 @@ async function generateSmartQuestions(taskContent: string, basePath: string): Pr
     questions.push(...generateDomainAnalysisQuestions(taskContent));
     return questions;
   } catch (error) {
-    console.error(`⚠️ 智能问题生成失败，使用静态问题: ${error instanceof Error ? error.message : error}`);
+    logger.warn(`智能问题生成失败，使用静态问题: ${error instanceof Error ? error.message : error}`);
     return generateBrainstormQuestions(taskContent, '');
   }
 }

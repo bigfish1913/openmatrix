@@ -8,6 +8,7 @@ import { OrchestratorExecutor } from '../../orchestrator/executor.js';
 import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
 import { QUALITY_PRESETS, type QualityConfig } from '../../types/index.js';
 import type { TaskPriority } from '../../types/index.js';
+import { logger } from '../../utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -36,15 +37,15 @@ export const autoCommand = new Command('auto')
     // 检查是否已有运行中的任务
     if (state.status === 'running') {
       if (options.json) {
-        console.log(JSON.stringify({
+        logger.info(JSON.stringify({
           status: 'error',
           message: '已有任务在执行中',
           hint: '使用 /om:status 查看状态，或 /om:resume 恢复执行'
         }));
       } else {
-        console.log('⚠️  已有任务在执行中');
-        console.log('   使用 /om:status 查看状态');
-        console.log('   使用 /om:resume 恢复执行');
+        logger.info('已有任务在执行中');
+        logger.info('   使用 /om:status 查看状态');
+        logger.info('   使用 /om:resume 恢复执行');
       }
       return;
     }
@@ -53,14 +54,14 @@ export const autoCommand = new Command('auto')
     const qualityLevel = options.quality as string;
     if (!['strict', 'balanced', 'fast'].includes(qualityLevel)) {
       if (options.json) {
-        console.log(JSON.stringify({
+        logger.info(JSON.stringify({
           status: 'error',
           message: `无效的质量级别: ${qualityLevel}`,
           hint: '可选值: strict, balanced, fast'
         }));
       } else {
-        console.log(`❌ 无效的质量级别: ${qualityLevel}`);
-        console.log('   可选值: strict, balanced, fast');
+        logger.info(`无效的质量级别: ${qualityLevel}`);
+        logger.info('   可选值: strict, balanced, fast');
       }
       return;
     }
@@ -73,18 +74,18 @@ export const autoCommand = new Command('auto')
       try {
         taskContent = await fs.readFile(defaultPath, 'utf-8');
         if (!options.json) {
-          console.log(`📄 读取任务文件: ${defaultPath}`);
+          logger.info(`读取任务文件: ${defaultPath}`);
         }
       } catch {
         if (options.json) {
-          console.log(JSON.stringify({
+          logger.info(JSON.stringify({
             status: 'error',
             message: '请提供任务文件路径或描述'
           }));
         } else {
-          console.log('❌ 请提供任务文件路径或描述');
-          console.log('   用法: openmatrix auto <task.md>');
-          console.log('   或创建 TASK.md 文件');
+          logger.info('请提供任务文件路径或描述');
+          logger.info('   用法: openmatrix auto <task.md>');
+          logger.info('   或创建 TASK.md 文件');
         }
         return;
       }
@@ -93,16 +94,16 @@ export const autoCommand = new Command('auto')
       try {
         taskContent = await fs.readFile(taskContent, 'utf-8');
         if (!options.json) {
-          console.log(`📄 读取任务文件: ${input}`);
+          logger.info(`读取任务文件: ${input}`);
         }
       } catch {
         if (options.json) {
-          console.log(JSON.stringify({
+          logger.info(JSON.stringify({
             status: 'error',
             message: `无法读取文件: ${input}`
           }));
         } else {
-          console.log(`❌ 无法读取文件: ${input}`);
+          logger.info(`无法读取文件: ${input}`);
         }
         return;
       }
@@ -110,14 +111,14 @@ export const autoCommand = new Command('auto')
 
     // 解析任务
     if (!options.json) {
-      console.log('\n🔍 解析任务...');
+      logger.info('解析任务...');
     }
     const parser = new TaskParser();
     const parsedTask = parser.parse(taskContent);
 
     if (!options.json) {
-      console.log(`\n📋 任务: ${parsedTask.title}`);
-      console.log(`   目标: ${parsedTask.goals.join(', ')}`);
+      logger.info(`任务: ${parsedTask.title}`);
+      logger.info(`   目标: ${parsedTask.goals.join(', ')}`);
     }
 
     // 获取质量配置（在 breakdown 之前，因为需要传入）
@@ -125,7 +126,7 @@ export const autoCommand = new Command('auto')
 
     // 拆解任务
     if (!options.json) {
-      console.log('\n🔧 拆解任务...');
+      logger.info('拆解任务...');
     }
     const planner = new TaskPlanner();
     const subTasks = planner.breakdown(parsedTask, {}, qualityConfig);
@@ -192,7 +193,7 @@ export const autoCommand = new Command('auto')
 
     if (options.json) {
       // JSON 输出供 Skill 解析
-      console.log(JSON.stringify({
+      logger.info(JSON.stringify({
         status: result.status,
         message: result.message,
         mode: 'auto',
@@ -210,15 +211,15 @@ export const autoCommand = new Command('auto')
         }))
       }));
     } else {
-      console.log(`\n📋 生成 ${subTasks.length} 个子任务:\n`);
+      logger.info(`生成 ${subTasks.length} 个子任务:`);
       subTasks.forEach((task, i) => {
-        console.log(`  ${i + 1}. ${task.title} (${task.priority})`);
+        logger.info(`  ${i + 1}. ${task.title} (${task.priority})`);
       });
 
-      console.log(`\n🚀 全自动执行模式`);
-      console.log(`   质量级别: ${qualityLevel}`);
-      console.log(`   审批点: 无 (bypass permissions)`);
-      console.log('\n⏳ 开始执行...');
-      console.log('   使用 /om:status 查看进度');
+      logger.info(`全自动执行模式`);
+      logger.info(`   质量级别: ${qualityLevel}`);
+      logger.info(`   审批点: 无 (bypass permissions)`);
+      logger.info('开始执行...');
+      logger.info('   使用 /om:status 查看进度');
     }
   });

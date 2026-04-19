@@ -9,7 +9,7 @@ description: "Use when starting a new development task cycle with interactive qu
 - ❌ superpowers:* 等 superpowers 相关技能
 - ❌ 任何其他任务编排相关的 Agent 或工具
 
-**Step 10 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+**Step 11 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
 
 违规调用将导致执行失败。
 
@@ -23,30 +23,30 @@ description: "Use when starting a new development task cycle with interactive qu
 Step 1:  初始化 .openmatrix 目录
 Step 2:  解析任务输入（文件或描述）
 Step 3:  智能分析任务类型（开发/非开发）
-Step 3.5: 提交文档（git add docs/ + 所有 .md 文件, commit）
-Step 4:  必选问题（开发任务:质量+E2E+模式; 非开发:仅模式）← 不可跳过
-Step 5:  可选问题（仅复杂开发任务）+ 展示执行计划
-Step 6:  AI 提取 goals，生成 plan
-Step 7:  写入 .openmatrix/tasks-input.json          ← 必须完成
-Step 8:  调用 openmatrix start --tasks-json          ← 必须完成，不可跳过
-Step 9:  从 CLI 返回结果中读取 subagentTasks 列表     ← 必须完成
-Step 10: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步才能写代码
+Step 4:  提交文档（git add docs/ + 所有 .md 文件, commit）
+Step 5:  必选问题（开发任务:质量+E2E+模式; 非开发:仅模式）← 不可跳过
+Step 6:  可选问题（仅复杂开发任务）+ 展示执行计划
+Step 7:  AI 提取 goals，生成 plan
+Step 8:  写入 .openmatrix/tasks-input.json          ← 必须完成
+Step 9:  调用 openmatrix start --tasks-json          ← 必须完成，不可跳过
+Step 10: 从 CLI 返回结果中读取 subagentTasks 列表     ← 必须完成
+Step 11: 逐个执行 subagentTasks（调用 Agent 工具）    ← 只有这步才能写代码
 ```
 
 **违反以下任一规则将导致任务执行失败：**
 
-❌ **禁止在 Step 8 之前写任何业务代码** — 所有代码必须在 Step 10 通过 Agent 执行
-❌ **禁止跳过 Step 4 必选问题** — 开发任务必须选质量/E2E/模式，非开发任务必须选模式
-❌ **禁止跳过 Step 8** — 必须调用 CLI，不能用其他方式代替
+❌ **禁止在 Step 9 之前写任何业务代码** — 所有代码必须在 Step 11 通过 Agent 执行
+❌ **禁止跳过 Step 5 必选问题** — 开发任务必须选质量/E2E/模式，非开发任务必须选模式
+❌ **禁止跳过 Step 9** — 必须调用 CLI，不能用其他方式代替
 ❌ **禁止自行规划 Phase** — 任务由 CLI 的 TaskPlanner 拆分，AI 只提取 goals
-❌ **禁止用 Bash/npm/write 直接写业务代码** — 业务代码只能通过 Step 10 的 Agent 执行
+❌ **禁止用 Bash/npm/write 直接写业务代码** — 业务代码只能通过 Step 11 的 Agent 执行
 ❌ **禁止调用 gsd-executor 或其他编排技能** — 必须用原生 Agent 工具
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
 解析任务文档，通过必选问答确定执行模式（开发任务还需确定质量等级、E2E测试），确认后通过 CLI 拆分任务并执行。
 
-⚠️ **Step 4 必选问题不可跳过** — 开发任务必须选择：
+⚠️ **Step 5 必选问题不可跳过** — 开发任务必须选择：
 1. 质量等级 (strict/balanced/fast)
 2. E2E 测试 (当选择 strict/balanced 时)
 3. 执行模式 (全自动/关键节点确认/每阶段确认)
@@ -103,11 +103,11 @@ git init
 
 | 情况 | 处理方式 |
 |------|---------|
-| 已存在（来自 `/om:brainstorm`） | 读取文件内容 → **立即执行 Step 4 必选问题**（质量等级、E2E、执行模式） |
-| 不存在，但 `.openmatrix/research/context.json` 存在 | 读取研究上下文 → 提取 goals/constraints/deliverables → **执行 Step 4 必选问题** |
+| 已存在（来自 `/om:brainstorm`） | 读取文件内容 → **立即执行 Step 5 必选问题**（质量等级、E2E、执行模式） |
+| 不存在，但 `.openmatrix/research/context.json` 存在 | 读取研究上下文 → 提取 goals/constraints/deliverables → **执行 Step 5 必选问题** |
 | 均不存在 | 根据用户输入解析 |
 
-> ⚠️ **注意**: 即使 `tasks-input.json` 已存在，Step 4 必选问题仍然必须执行！
+> ⚠️ **注意**: 即使 `tasks-input.json` 已存在，Step 5 必选问题仍然必须执行！
 > - 开发任务：质量等级、E2E、执行模式必须由用户选择
 > - 非开发任务：执行模式必须由用户选择
 - `$ARGUMENTS` 为任务描述 → 直接使用
@@ -123,15 +123,15 @@ cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 1. 读取 `.openmatrix/research/context.json`，提取 `topic`、`domain`、`goals`、`constraints`、`deliverables`、`reportPath`
 2. 读取 `RESEARCH.md` 内容作为领域知识
 3. 告知用户："🔬 检测到「${domain}」领域研究结果，将作为任务基础"
-4. 在 Step 6 中，AI 只需**确认/补充** goals，而非从头提取
-5. Step 7 写入 `tasks-input.json` 时，将研究 goals 与 AI 补充的 goals 合并
-6. Step 8 的 CLI 调用必须增加 `--research-context @.openmatrix/research/context.json` 参数
+4. 在 Step 7 中，AI 只需**确认/补充** goals，而非从头提取
+5. Step 8 写入 `tasks-input.json` 时，将研究 goals 与 AI 补充的 goals 合并
+6. Step 9 的 CLI 调用必须增加 `--research-context @.openmatrix/research/context.json` 参数
 
 ### Step 3: 智能分析任务类型
 
-判断是开发任务还是非开发任务，这决定 Step 4 需要问哪些问题。
+判断是开发任务还是非开发任务，这决定 Step 5 需要问哪些问题。
 
-| 任务类型 | 定义 | Step 4 问题 |
+| 任务类型 | 定义 | Step 5 问题 |
 |---------|------|------------|
 | **开发任务** | 涉及代码编写、测试、Lint、构建等 | 质量等级 + E2E + 执行模式 |
 | **非开发任务** | 纯文档、配置、阅读、分析等 | 仅执行模式 |
@@ -142,7 +142,7 @@ cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 
 ---
 
-### Step 3.5: 提交文档（必须执行，不可跳过）
+### Step 4: 提交文档（必须执行，不可跳过）
 
 在开始任何新任务之前，先提交所有已变更的文档文件，确保文档和代码同步提交。
 
@@ -177,7 +177,7 @@ EOF
 
 ---
 
-### Step 4: 必选问题（不可跳过，不可使用默认值，必须通过 AskUserQuestion 让用户选择）
+### Step 5: 必选问题（不可跳过，不可使用默认值，必须通过 AskUserQuestion 让用户选择）
 
 根据 `goalTypes` 字段判断需要询问哪些问题：
 
@@ -226,7 +226,7 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
 | `关键节点确认` | plan/merge/deploy 时暂停确认 |
 | `每阶段确认` | 每个阶段（develop/verify/accept）完成后暂停 |
 
-### Step 5: 可选问题（仅复杂任务）
+### Step 6: 可选问题（仅复杂任务）
 
 根据任务类型，可能需要额外询问:
 
@@ -247,7 +247,7 @@ AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
   E2E 测试: 功能测试 / 视觉验证 / 不启用
 ```
 
-### Step 6: AI 提取 goals + 生成 plan
+### Step 7: AI 提取 goals + 生成 plan
 
 从任务描述中提取:
 - **goals**: 至少 3-8 个明确功能目标，每个是独立可交付模块
@@ -304,7 +304,7 @@ plan 中必须包含以下结构之一，系统将据此拆分为模块级任务
 | "API 文档编写" | documentation | 文档类 |
 | "CI/CD 流水线配置" | other | 配置类 |
 
-### Step 7: 写入 tasks-input.json
+### Step 8: 写入 tasks-input.json
 
 用 Write 工具写入 `.openmatrix/tasks-input.json`:
 
@@ -326,7 +326,7 @@ plan 中必须包含以下结构之一，系统将据此拆分为模块级任务
 > **goalTypes** 必须与 goals 数组长度一致，一一对应。
 > **研究上下文集成**: 如果检测到 `.openmatrix/research/context.json`，将研究的 goals/constraints/deliverables 作为基础，与 AI 提取的内容合并（去重后）。
 
-### Step 8: 调用 CLI 创建任务 ⚠️ 不可跳过
+### Step 9: 调用 CLI 创建任务 ⚠️ 不可跳过
 
 **根据任务类型选择正确的 CLI 调用：**
 
@@ -357,13 +357,13 @@ openmatrix start --tasks-json @.openmatrix/tasks-input.json --mode <执行模式
 
 此命令返回 JSON 包含 `subagentTasks` 列表。
 
-### Step 9: 读取 subagentTasks
+### Step 10: 读取 subagentTasks
 
 CLI 返回 JSON 中 `subagentTasks` 数组包含待执行任务。
 
 ## === 执行阶段（只有此阶段才能写业务代码）===
 
-### Step 10: 逐个执行 subagentTasks（禁止中断）
+### Step 11: 逐个执行 subagentTasks（禁止中断）
 
 <LOOP-ENFORCEMENT>
 **此步骤是执行循环，必须执行完所有任务后才能停止。**
@@ -430,7 +430,7 @@ openmatrix step --json
 | status | 含义 | 后续操作 |
 |--------|------|---------|
 | `next` | 有下一个任务 | 继续执行返回的 `subagent` 配置 |
-| `done` | 所有任务完成 | 进入最终提交（Step 11） |
+| `done` | 所有任务完成 | 进入最终提交（Step 12） |
 | `blocked` | 无可执行任务 | 检查是否有 Meeting，用 `/om:meeting` 处理 |
 
 **`next` 返回结构：**
@@ -593,9 +593,9 @@ $ARGUMENTS
 ## 执行流程
 
 ```
-Step 1-3: 初始化 + 解析输入 + 分析类型 → Step 3.5: 提交文档 → Step 4-5: 问答 + 确认 → Step 6: 提取 goals + plan → Step 7: 写入 tasks-input.json
-→ Step 8: openmatrix start --tasks-json (必须) → Step 9: 读取 subagentTasks
-→ Step 10: Agent 逐个执行 (只有这里写代码)
+Step 1-3: 初始化 + 解析输入 + 分析类型 → Step 4: 提交文档 → Step 5-6: 问答 + 确认 → Step 7: 提取 goals + plan → Step 8: 写入 tasks-input.json
+→ Step 9: openmatrix start --tasks-json (必须) → Step 10: 读取 subagentTasks
+→ Step 11: Agent 逐个执行 (只有这里写代码)
 ```
 
 ## Git 提交格式
