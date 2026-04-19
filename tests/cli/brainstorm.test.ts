@@ -154,8 +154,8 @@ describe('brainstorm helper functions', () => {
     it('outputs JSON when jsonMode is true', () => {
       const session = createMockSession();
       outputCompleteResult(session, true);
-      expect(console.log).toHaveBeenCalled();
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(loggerMock.info).toHaveBeenCalled();
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('ready_to_start');
       expect(parsed.taskTitle).toBe('Test Task');
@@ -165,13 +165,13 @@ describe('brainstorm helper functions', () => {
     it('outputs text when jsonMode is false', () => {
       const session = createMockSession();
       outputCompleteResult(session, false);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴完成'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴完成'));
     });
 
     it('outputs text when jsonMode is undefined', () => {
       const session = createMockSession();
       outputCompleteResult(session);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴完成'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴完成'));
     });
   });
 
@@ -180,7 +180,7 @@ describe('brainstorm helper functions', () => {
   describe('outputSessionNotFound', () => {
     it('outputs JSON error when jsonMode is true', () => {
       outputSessionNotFound(true);
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('error');
       expect(parsed.message).toContain('没有进行中的头脑风暴会话');
@@ -188,12 +188,12 @@ describe('brainstorm helper functions', () => {
 
     it('outputs text error when jsonMode is false', () => {
       outputSessionNotFound(false);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
     });
 
     it('outputs text error when jsonMode is undefined', () => {
       outputSessionNotFound();
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
     });
   });
 
@@ -209,7 +209,7 @@ describe('brainstorm helper functions', () => {
     it('returns null and prints JSON error when file not found and jsonMode true', async () => {
       const result = await loadTaskFromDefaultFile(tempDir, true);
       expect(result).toBeNull();
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('error');
     });
@@ -217,19 +217,19 @@ describe('brainstorm helper functions', () => {
     it('returns null and prints text error when file not found and jsonMode false', async () => {
       const result = await loadTaskFromDefaultFile(tempDir, false);
       expect(result).toBeNull();
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('请提供任务文件路径或描述'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('请提供任务文件路径或描述'));
     });
 
     it('prints file path in text mode when file exists', async () => {
       await fs.writeFile(path.join(tempDir, 'TASK.md'), 'task content');
       await loadTaskFromDefaultFile(tempDir, false);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
     });
 
     it('does not print file path in json mode when file exists', async () => {
       await fs.writeFile(path.join(tempDir, 'TASK.md'), 'task content');
       await loadTaskFromDefaultFile(tempDir, true);
-      expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
+      expect(loggerMock.info).not.toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
     });
   });
 
@@ -246,7 +246,7 @@ describe('brainstorm helper functions', () => {
     it('returns null with JSON error when file not found and jsonMode true', async () => {
       const result = await loadTaskFromSpecifiedFile(path.join(tempDir, 'nonexistent.md'), 'nonexistent.md', true);
       expect(result).toBeNull();
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('error');
       expect(parsed.message).toContain('无法读取文件');
@@ -255,14 +255,14 @@ describe('brainstorm helper functions', () => {
     it('returns null with text error when file not found and jsonMode false', async () => {
       const result = await loadTaskFromSpecifiedFile(path.join(tempDir, 'nonexistent.md'), 'nonexistent.md', false);
       expect(result).toBeNull();
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('无法读取文件'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('无法读取文件'));
     });
 
     it('prints file name in text mode when file exists', async () => {
       const filePath = path.join(tempDir, 'task.md');
       await fs.writeFile(filePath, 'content');
       await loadTaskFromSpecifiedFile(filePath, 'task.md', false);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('读取任务文件'));
     });
   });
 
