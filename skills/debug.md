@@ -1,6 +1,6 @@
 ---
 name: om:debug
-description: 系统化调试 - 遇到任何 bug、测试失败或异常行为时使用，在提出修复方案之前执行
+description: "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. Use for ANY technical issue: 测试失败, bug, 异常行为, 构建失败, 集成问题, 没触发, 没执行, 不工作, 原因, 为什么. Use ESPECIALLY when: under time pressure, 'just one quick fix' seems obvious, previous fix didn't work, you don't fully understand the issue. Don't skip when: issue seems simple (simple bugs have root causes too), you're in a hurry (systematic is faster than guessing)."
 priority: high
 ---
 
