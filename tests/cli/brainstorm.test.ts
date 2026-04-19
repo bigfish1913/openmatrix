@@ -21,6 +21,20 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 
+// ---------- Logger Mock ----------
+const { loggerMock } = vi.hoisted(() => ({
+  loggerMock: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
+vi.mock('../../src/utils/logger.js', () => ({
+  logger: loggerMock
+}));
+
 // ---------- Helpers ----------
 
 function createMockSession(overrides: Partial<BrainstormResult> = {}): BrainstormResult {
@@ -44,8 +58,7 @@ let tempDir: string;
 describe('brainstorm helper functions', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'brainstorm-test-'));
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.clearAllMocks();
   });
 
   afterEach(async () => {
