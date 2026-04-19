@@ -249,8 +249,16 @@ ${quality === 'strict' ? `
 
 ## 禁止行为
 ❌ 执行 git commit（由主流程处理）
+❌ 执行 git checkout — 不要切换分支
+❌ 执行 git merge — 不要合并其他分支
+❌ 执行 git pull — 不要拉取远程更新
+❌ 执行 git push — 不要推送代码
+❌ 执行 git rebase — 不要变基
+❌ 执行 git branch — 不要创建/删除分支
 ❌ 修改与当前任务无关的文件
-❌ 进行额外的重构`,
+❌ 进行额外的重构
+
+✅ 允许：git status, git diff, git log`,
   run_in_background: true
 })
 ```
@@ -375,7 +383,7 @@ $ARGUMENTS
 - 验证失败不得继续执行，必须停止等待修复
 - 不得跳过质量等级确认
 - 不得跳过任务边界确认
-- 不得在 Agent 内部执行 git commit
+- 不得在 Agent 内部执行任何 Git 操作（commit/checkout/merge/pull/push/rebase/branch）
 
 ## 红旗警告 - 停止并回归流程
 
