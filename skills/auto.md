@@ -209,13 +209,29 @@ Agent({
 ```bash
 openmatrix complete TASK-XXX --success
 ```
-3. **获取下一个任务（防止上下文压缩丢失）:**
+
+3. **获取下一个任务（必须执行，防止上下文压缩丢失）:**
 ```bash
 openmatrix step --json
 ```
-如果返回 `status: "next"` → 继续执行返回的 task
-如果返回 `status: "done"` → 所有任务完成，进入最终提交
-如果返回 `status: "blocked"` → 有阻塞任务，处理 Meeting
+
+**返回值解析：**
+
+| status | 含义 | 后续操作 |
+|--------|------|---------|
+| `next` | 有下一个任务 | 继续执行返回的 `subagent` 配置 |
+| `done` | 所有任务完成 | 进入最终提交 |
+| `blocked` | 无可执行任务 | `/om:auto` 直接跳过，继续执行其他任务 |
+
+**`next` 返回结构：**
+```json
+{
+  "status": "next",
+  "task": { "id": "TASK-XXX", "title": "...", "status": "in_progress" },
+  "subagent": { "subagent_type": "...", "description": "...", "prompt": "...", "timeout": 120000 },
+  "statistics": { "total": 5, "completed": 2, "remaining": 3, "failed": 0 }
+}
+```
 
 **Meeting 处理机制:**
  `/om:auto` 不创建 Meeting 记录，直接跳过阻塞任务，无障碍执行。

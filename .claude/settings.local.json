@@ -33,7 +33,8 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(openmatrix status *)",
       "Bash(node -e ' *)",
-      "Bash(node -e \" const fs = require\\('fs'\\); const data = JSON.parse\\(fs.readFileSync\\(0, 'utf8'\\)\\); const tasks = {}; data.subagentTasks.forEach\\(t => { tasks[t.taskId] = t; }\\); // Output first 4 tasks as JSON console.log\\(JSON.stringify\\([tasks['TASK-001'], tasks['TASK-003'], tasks['TASK-005'], tasks['TASK-007']]\\)\\); \")"
+      "Bash(node -e \" const fs = require\\('fs'\\); const data = JSON.parse\\(fs.readFileSync\\(0, 'utf8'\\)\\); const tasks = {}; data.subagentTasks.forEach\\(t => { tasks[t.taskId] = t; }\\); // Output first 4 tasks as JSON console.log\\(JSON.stringify\\([tasks['TASK-001'], tasks['TASK-003'], tasks['TASK-005'], tasks['TASK-007']]\\)\\); \")",
+      "Bash(node dist/cli/index.js check --json)"
     ]
   }
 }
