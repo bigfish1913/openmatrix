@@ -315,7 +315,7 @@ describe('brainstorm helper functions', () => {
       await fs.writeFile(brainstormPath, JSON.stringify(session));
 
       await handleCompleteMode(brainstormPath, { json: true });
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('ready_to_start');
       expect(parsed.taskTitle).toBe('Test Task');
@@ -334,7 +334,7 @@ describe('brainstorm helper functions', () => {
     it('outputs error when session file does not exist (json mode)', async () => {
       const brainstormPath = path.join(tempDir, 'no-session.json');
       await handleCompleteMode(brainstormPath, { json: true });
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('error');
     });
@@ -342,7 +342,7 @@ describe('brainstorm helper functions', () => {
     it('outputs text error when session file does not exist (text mode)', async () => {
       const brainstormPath = path.join(tempDir, 'no-session.json');
       await handleCompleteMode(brainstormPath, {});
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('没有进行中的头脑风暴会话'));
     });
 
     it('merges results when provided', async () => {
@@ -365,7 +365,7 @@ describe('brainstorm helper functions', () => {
     it('outputs JSON with questions and status', () => {
       const questions = [{ id: 'q1', question: 'What?', header: 'H1', options: [{ label: 'A', description: 'a' }], multiSelect: false, why: '' }];
       outputNewSessionJson('Title', questions, { isVertical: false, domain: '' });
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('brainstorming');
       expect(parsed.taskTitle).toBe('Title');
@@ -375,7 +375,7 @@ describe('brainstorm helper functions', () => {
 
     it('includes suggestResearch when vertical domain detected', () => {
       outputNewSessionJson('Title', [], { isVertical: true, domain: 'Game Dev' });
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.suggestResearch).toBe('Game Dev');
       expect(parsed.researchHint).toBeDefined();
@@ -383,7 +383,7 @@ describe('brainstorm helper functions', () => {
 
     it('does not include suggestResearch when no vertical domain', () => {
       outputNewSessionJson('Title', [], { isVertical: false, domain: '' });
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.suggestResearch).toBeUndefined();
     });
@@ -395,18 +395,18 @@ describe('brainstorm helper functions', () => {
     it('outputs text with task title and questions', () => {
       const questions = [{ id: 'q1', question: 'What is it?', header: 'H', options: [], multiSelect: false, why: '' }];
       outputNewSessionText('My Task', questions, { isVertical: false, domain: '' });
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('My Task'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('My Task'));
     });
 
     it('shows vertical domain detection when detected', () => {
       outputNewSessionText('My Task', [], { isVertical: true, domain: 'Game' });
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('检测到垂直领域'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('检测到垂直领域'));
     });
 
     it('does not show vertical domain when not detected', () => {
       outputNewSessionText('My Task', [], { isVertical: false, domain: '' });
-      const allCalls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
+      const allCalls = loggerMock.info.mock.calls.flat().join(' ');
       expect(allCalls).not.toContain('检测到垂直领域');
     });
   });
@@ -416,19 +416,19 @@ describe('brainstorm helper functions', () => {
   describe('outputNewSession', () => {
     it('delegates to outputNewSessionJson when jsonMode is true', () => {
       outputNewSession('Title', [], { isVertical: false, domain: '' }, true);
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('brainstorming');
     });
 
     it('delegates to outputNewSessionText when jsonMode is false', () => {
       outputNewSession('Title', [], { isVertical: false, domain: '' }, false);
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
     });
 
     it('defaults to text output when jsonMode is undefined', () => {
       outputNewSession('Title', [], { isVertical: false, domain: '' });
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
     });
   });
 
@@ -537,7 +537,7 @@ describe('brainstorm helper functions', () => {
       expect(saved.taskTitle).toBe('Test Task');
       expect(saved.status).toBe('brainstorming');
 
-      const output = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const output = loggerMock.info.mock.calls[0][0];
       const parsed = JSON.parse(output);
       expect(parsed.status).toBe('brainstorming');
       expect(parsed.taskTitle).toBe('Test Task');
@@ -550,7 +550,7 @@ describe('brainstorm helper functions', () => {
       const saved = JSON.parse(await fs.readFile(brainstormPath, 'utf-8'));
       expect(saved.taskTitle).toBe('Test Task');
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining('头脑风暴'));
     });
 
     it('detects vertical domain for system tasks', async () => {
