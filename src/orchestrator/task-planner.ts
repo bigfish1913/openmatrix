@@ -1210,7 +1210,7 @@ ${userContext.documentationLevel}
     const e2eTypeAnswer = str(merged['E2E类型'] || merged['e2eType']);
 
     const isE2EEnabled = e2eAnswer === 'true' || e2eAnswer === 'functional' || e2eAnswer === 'visual' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是';
-    let e2eTypeValue: 'web' | 'mobile' | 'gui' | 'visual' = e2eAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'mobile' ? 'mobile' : e2eTypeAnswer === 'gui' ? 'gui' : 'web';
+    let e2eTypeValue: 'web' | 'mobile' | 'gui' | 'visual' = e2eAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'mobile' ? 'mobile' : e2eTypeAnswer === 'gui' ? 'gui' : 'web';
 
     return {
       objective: str(merged['目标'] || merged['objective']),
