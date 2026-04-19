@@ -11,8 +11,31 @@ priority: high
 - ❌ gsd:* → 全部被 OpenMatrix 替代
 - ❌ /om:start / /om:auto → 本 skill 是轻量版，不调用完整流程
 
+**任务执行阶段只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+
 **相关技能**: `/om` (主入口) | `/om:start` (标准任务) | `/om:brainstorm` (复杂任务)
 </NO-OTHER-SKILLS>
+
+<MANDATORY-EXECUTION-ORDER>
+## 执行顺序 - 必须严格按此顺序，不得跳过
+
+```
+Step 1:  接收任务输入（参数、文件、或询问用户）
+Step 2:  任务边界确认（单一功能点检查）
+Step 3:  AI 拆分为 2-5 个小任务块
+Step 4:  用 TodoWrite 管理任务状态
+Step 5:  问答确认（质量等级、E2E测试、执行计划）
+Step 6:  逐个执行小任务
+Step 7:  验证（按质量等级）
+Step 8:  分步 Git 提交
+Step 9:  全部任务完成后整体验证
+Step 10: 输出执行摘要并清理
+```
+
+**铁律：不验证不得提交，验证失败必须停止**
+**铁律：每次只改一个任务块，不得并行修改多个文件**
+**铁律：验证通过后立即提交，不得积累多个任务块再提交**
+</MANDATORY-EXECUTION-ORDER>
 
 <objective>
 轻量级小需求开发流程：拆分为 2-5 个小任务块，内存状态管理，保留质量门禁验证，支持分步 Git 提交。
@@ -21,43 +44,94 @@ priority: high
 
 <process>
 
-## === 准备阶段 ===
+## Step 1: 接收任务输入
 
-### Step 1: 解析任务输入
+**检查 `$ARGUMENTS`:**
 
-检查 `$ARGUMENTS`：
-- 任务描述 → 直接使用
-- 文件路径 → Read 工具读取内容
-- 无参数 → AskUserQuestion 询问任务内容
+| 参数 | 处理方式 |
+|------|---------|
+| `<任务描述>` | 直接使用描述 |
+| `<文件路径>` | Read 工具读取内容 |
+| 空 | AskUserQuestion 询问 |
 
-**任务边界确认：**
-确认是单一功能点（无多个独立子系统），否则建议用户使用 `/om:start`。
+**如果是空参数，询问：**
 
-### Step 2: AI 拆分为 2-5 个小任务块
+AskUserQuestion: `header: "任务描述"`, `multiSelect: false`
+**question:** 请描述你的小需求
 
-分析任务，按逻辑边界拆分：
-- 拆分粒度：每个小块 ≤ 30 分钟工作量
-- 拆分原则：数据层 → API层 → UI层 / 核心逻辑 → 边界处理
-- 输出格式：任务名称 + 简要描述 + 预估文件列表
+| label | description |
+|-------|-------------|
+| 描述需求 | 输入自由文本描述 |
+| 从文件读取 | 指定任务文件路径 |
+| 取消 | 退出 |
 
-**示例拆分输出：**
-```
+## Step 2: 任务边界确认
+
+**⛔ 关键检查：确认任务边界**
+
+AskUserQuestion: `header: "任务边界确认"`, `multiSelect: false`
+**question:** 这是单一功能点的小需求吗？
+
+| label | description |
+|-------|-------------|
+| 是小需求 | 单一功能，继续执行 |
+| 不确定/复杂 | 建议使用 /om:start |
+
+**如果用户选择"不确定/复杂"：**
+- 展示建议：任务可能需要完整追踪，建议使用 `/om:start`
+- 询问是否切换
+- 如果坚持使用本 skill，继续但记录风险
+
+## Step 3: AI 拆分为 2-5 个小任务块
+
+**调用 Agent 进行任务拆分：**
+
+```typescript
+Agent({
+  subagent_type: "general-purpose",
+  description: "任务拆分分析",
+  prompt: `你是任务拆分专家。将用户需求拆分为 2-5 个小任务块。
+
+## 用户需求
+${taskDescription}
+
+## 拆分原则
+1. 拆分粒度：每个小块 ≤ 30 分钟工作量
+2. 拆分方向：数据层 → API层 → UI层 / 核心逻辑 → 边界处理
+3. 依赖关系：确保后续任务可依赖前面的成果
+4. 文件预估：每个任务预估涉及的文件
+
+## 输出格式
+请按以下格式输出：
+
+\`\`\`
 📋 任务拆分计划
 
-原始需求：给用户列表页添加搜索功能
+原始需求：${taskDescription}
 
-拆分为 3 个小任务：
-1. 数据层：添加搜索参数到 UserQuery 接口
-   预估文件：src/types/user.ts
-2. API 层：实现搜索 API 端点
-   预估文件：src/api/users.ts
-3. UI 层：添加搜索框组件和交互
-   预估文件：src/components/SearchBox.tsx, src/pages/Users.tsx
+拆分为 N 个小任务：
+1. [任务名称]
+   描述：[简要描述]
+   预估文件：[文件列表]
+   预估时间：[分钟]
+
+2. [任务名称]
+   ...
+
+📋 依赖关系图
+任务1 → 任务2 → 任务3
+\`\`\`
+
+## 注意事项
+- 如果任务过于复杂无法拆分，明确说明并建议使用完整流程
+- 保持任务块独立性，便于验证和提交`,
+  run_in_background: false
+})
 ```
 
-### Step 3: 用 TodoWrite 管理任务状态
+## Step 4: 用 TodoWrite 管理任务状态
 
-将拆分的任务写入 TodoWrite：
+**将拆分的任务写入 TodoWrite：**
 
 ```typescript
 TodoWrite({
@@ -71,9 +145,11 @@ TodoWrite({
 
 状态仅在当前会话有效，不产生持久化文件。
 
-### Step 4: 问答确认
+## Step 5: 问答确认
 
-**4.1 质量等级（必选）**
+**⛔ 执行前必须确认所有配置**
+
+**5.1 质量等级（必选）**
 
 AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
@@ -85,7 +161,7 @@ AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 | `balanced (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
 | `fast` | 无质量门禁 — 快速原型/验证 |
 
-**4.2 E2E 测试（仅 strict/balanced）**
+**5.2 E2E 测试（仅 strict/balanced）**
 
 AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
@@ -97,7 +173,7 @@ AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 | `视觉验证` | 需要浏览器可视化验证 UI 样式 |
 | `不需要 (推荐)` | 仅单元测试和集成测试 |
 
-**4.3 确认拆分计划**
+**5.3 确认拆分计划**
 
 AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 
@@ -106,69 +182,104 @@ AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 | label | description |
 |-------|-------------|
 | `开始执行 (推荐)` | 按计划逐个执行 |
-| `调整计划` | 修改拆分方案 |
+| `调整计划` | 重新拆分任务 |
 
-## === 执行阶段 ===
+## Step 6: 逐个执行小任务
 
-### Step 5: 逐个执行小任务
+**对 TodoWrite 中的每个任务（按顺序）：**
 
-对 TodoWrite 中的每个任务（按顺序）：
+**6.1 更新状态为 in_progress**
+```typescript
+TodoWrite({ todos: [...] }) // 当前任务标记 in_progress
+```
 
-1. **更新状态为 in_progress**
-   ```typescript
-   TodoWrite({ todos: [...] }) // 当前任务标记 in_progress
-   ```
+**6.2 调用 Agent 执行**
 
-2. **调用 Agent 执行**
-   ```typescript
-   Agent({
-     subagent_type: "general-purpose",
-     description: task.content,
-     prompt: `
-   任务：${task.content}
+```typescript
+Agent({
+  subagent_type: "general-purpose",
+  description: task.content,
+  prompt: `你是实现专家。执行以下任务块。
 
-   预估文件：${task.files}
+## 任务信息
+- 任务名称：${task.content}
+- 预估文件：${task.files}
+- 质量等级：${quality}
+- 前置任务完成状态：${previousTasksStatus}
 
-   质量要求：
-   - 质量等级：${quality}
-   - 测试覆盖率：${coverageThreshold}
-   - Lint：${lintRequired}
+## 质量要求
+${quality === 'strict' ? `
+- 必须使用 TDD：先写测试，再写实现
+- 测试覆盖率要求：>80%
+- 必须通过严格 Lint
+- 必须通过安全扫描
+` : quality === 'balanced' ? `
+- 测试覆盖率要求：>60%
+- 必须通过 Lint
+- 必须通过安全扫描
+` : `
+- 无质量门禁要求
+- 快速实现功能
+`}
 
-   完成后输出简短摘要（不超过3行）：
-   1. 关键决策
-   2. 创建/修改的文件
-   3. 对后续任务的建议
+## 实施原则
+1. 只修改当前任务相关的文件
+2. 不做"顺便"的重构或优化
+3. 确保代码风格与项目一致
+4. 完成后运行相关测试验证
 
-   🚫 禁止执行 git commit
-     `,
-     run_in_background: true
-   })
-   ```
+## 完成后输出
+请按以下格式输出（不超过3行）：
+1. 关键决策
+2. 创建/修改的文件列表
+3. 对后续任务的建议
 
-3. **等待 Agent 完成，接收通知**
+## 禁止行为
+❌ 执行 git commit（由主流程处理）
+❌ 修改与当前任务无关的文件
+❌ 进行额外的重构`,
+  run_in_background: true
+})
+```
 
-### Step 6: 验证（按质量等级）
+**6.3 等待 Agent 完成，接收通知**
+
+## Step 7: 验证（按质量等级）
+
+**⛔ 验证不通过不得提交，必须停止等待修复**
 
 每个任务完成后，根据质量等级执行验证：
 
+**7.1 执行验证命令**
+
 | 质量等级 | 验证命令 |
 |---------|---------|
-| `strict` | `npm test && npm run lint && npm run test:coverage` |
-| `balanced` | `npm test && npm run lint` |
-| `fast` | 无验证 |
+| `strict` | `npm test -- --run && npm run lint && npm run test:coverage` |
+| `balanced` | `npm test -- --run && npm run lint` |
+| `fast` | 跳过验证 |
 
-**验证失败处理：**
-- 停止执行
-- 提示用户修复
-- 不自动重试
-
-**E2E 验证（如果用户选择）：**
+**7.2 E2E 验证（如果用户选择）**
 - 功能测试：`npm run test:e2e`
 - 视觉验证：启动 Playwright 截图对比
 
-### Step 7: 分步 Git 提交
+**7.3 验证结果判断**
 
-验证通过后立即提交：
+AskUserQuestion: `header: "验证结果"`, `multiSelect: false`
+**question:** 任务验证通过了吗？
+
+| label | description |
+|-------|-------------|
+| 通过 | 验证成功，继续提交 |
+| 未通过 | 验证失败，停止执行 |
+
+**如果验证未通过：**
+- 展示验证失败详情
+- 停止执行流程
+- 提示用户修复后使用 `/om:resume` 继续
+
+## Step 8: 分步 Git 提交
+
+**⛔ 验证通过后必须立即提交，不得积累多个任务块**
 
 ```bash
 git add -A
@@ -183,19 +294,24 @@ EOF
 )"
 ```
 
-然后：
+提交成功后：
 1. **更新 TodoWrite 状态为 completed**
 2. **继续下一个任务**
 
-## === 完成阶段 ===
+## Step 9: 全部任务完成后
 
-### Step 8: 全部任务完成后
+**检查 TodoWrite 所有任务状态为 `completed`：**
 
-检查 TodoWrite 所有任务状态为 `completed`：
-- 运行最终整体验证
-- 收集所有任务的执行摘要
+**9.1 运行最终整体验证**
+```bash
+npm test -- --run
+```
 
-### Step 9: 输出执行摘要
+**9.2 收集所有任务的执行摘要**
+
+## Step 10: 输出执行摘要并清理
+
+**展示执行摘要：**
 
 ```
 ✅ 任务完成：${originalTask}
@@ -204,6 +320,7 @@ EOF
 - 任务块数：${chunkCount}
 - 质量等级：${quality}
 - 总耗时：约 ${totalTime} 分钟
+- Git 提交：${commitCount} 次
 
 📝 创建/修改的文件：
 ${fileList}
@@ -212,13 +329,15 @@ ${fileList}
 ${decisions}
 
 📈 测试覆盖率：${coverageResult}
+
+✨ 所有任务已完成，会话状态已清理
 ```
 
-### Step 10: 清理
+**清理操作：**
+- TodoWrite 所有任务保持 completed 状态
+- 不产生任何 `.openmatrix/` 持久化文件
+- 会话结束后状态自动消失
 
-- TodoWrite 清空（所有任务保持 completed 状态）
-- 不产生任何持久化文件
-- 会话结束状态自动消失
 </process>
 
 <arguments>
@@ -232,6 +351,19 @@ $ARGUMENTS
 </examples>
 
 <notes>
+## 铁律
+
+**不验证不得提交，验证失败必须停止**
+**每次只改一个任务块，不得并行修改多个文件**
+**验证通过后立即提交，不得积累多个任务块再提交**
+
+## 红线
+
+- 验证失败不得继续执行，必须停止等待修复
+- 不得跳过质量等级确认
+- 不得跳过任务边界确认
+- 不得在 Agent 内部执行 git commit
+
 ## 与其他指令的区别
 
 | 指令 | 适用场景 | 任务文件 | 问答 | 验证 |
@@ -249,7 +381,11 @@ $ARGUMENTS
 - 不涉及架构设计/技术选型
 - 关键词匹配：小需求、小功能、小改动、minor、quick、快速、添加按钮
 
-## 错误处理
+## 错误处理流程
+
+```
+验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 建议使用 /om:resume 继续
+```
 
 | 错误 | 处理 |
 |-----|-----|
@@ -269,4 +405,11 @@ Co-Authored-By: OpenMatrix
 ```
 
 type: feat/fix/test/refactor/docs
+
+## 恢复执行
+
+如果验证失败需要修复，使用 `/om:resume` 继续执行：
+```bash
+/om:resume
+```
 </notes>
