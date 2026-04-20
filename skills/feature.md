@@ -283,20 +283,30 @@ ${quality === 'strict' ? `
 - 功能测试：`npm run test:e2e`
 - 视觉验证：启动 Playwright 截图对比
 
-**7.3 验证结果判断**
+**7.3 验证结果自动判断**
 
-AskUserQuestion: `header: "验证结果"`, `multiSelect: false`
-**question:** 任务验证通过了吗？
+验证命令执行后，根据退出码自动判断结果：
 
-| label | description |
-|-------|-------------|
-| 通过 | 验证成功，继续提交 |
-| 未通过 | 验证失败，停止执行 |
+```bash
+# 执行验证命令并捕获结果
+if npm test -- --run && npm run lint; then
+  # 验证成功
+  echo "✅ 验证通过"
+else
+  # 验证失败
+  echo "❌ 验证失败"
+  npm test -- --run 2>&1 | tail -30  # 展示失败详情
+  exit 1
+fi
+```
 
-**如果验证未通过：**
-- 展示验证失败详情
+**验证失败处理：**
+- 自动展示验证失败详情（最后 30 行输出）
 - 停止执行流程
 - 提示用户修复后使用 `/om:resume` 继续
+
+**验证成功处理：**
+- 继续执行 Step 8 Git 提交
 
 ## Step 8: 分步 Git 提交
 
