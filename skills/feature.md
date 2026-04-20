@@ -22,14 +22,15 @@ priority: high
 ```
 Step 1:  接收任务输入（参数、文件、或询问用户）
 Step 2:  AI 自动判断任务边界（不符合条件才询问切换）
-Step 3:  AI 拆分为 2-5 个小任务块
-Step 4:  用 TodoWrite 管理任务状态
-Step 5:  问答确认（质量等级、E2E测试、执行计划）
-Step 6:  逐个执行小任务
-Step 7:  验证（按质量等级）
-Step 8:  分步 Git 提交
-Step 9:  全部任务完成后整体验证
-Step 10: 输出执行摘要并清理
+Step 3:  收集项目上下文（技术栈、目录结构、CLAUDE.md）
+Step 4:  AI 拆分为 2-5 个小任务块
+Step 5:  用 TodoWrite 管理任务状态
+Step 6:  问答确认（质量等级、E2E测试、执行计划）
+Step 7:  逐个执行小任务（含跨 Agent 上下文传递）
+Step 8:  验证（按质量等级）
+Step 9:  分步 Git 提交
+Step 10: 全部任务完成后整体验证
+Step 11: 输出执行摘要并清理
 ```
 
 **铁律：不验证不得提交，验证失败必须停止**
@@ -82,7 +83,7 @@ AskUserQuestion: `header: "任务描述"`, `multiSelect: false`
 
 | 结果 | 处理 |
 |------|------|
-| ✅ 全部满足 | 继续执行 Step 3 |
+| ✅ 全部满足 | 继续执行 Step 3 收集上下文 |
 | ❌ 不满足 | 输出建议并询问是否切换到 `/om:start` |
 
 **如果需要切换，询问：**
@@ -95,7 +96,37 @@ AskUserQuestion: `header: "任务复杂度"`, `multiSelect: false`
 | 切换到 /om:start | 使用完整流程 |
 | 继续用 /om:feature | 强制使用轻量流程（可能无法完整追踪） |
 
-## Step 3: AI 拆分为 2-5 个小任务块
+## Step 3: 收集项目上下文
+
+**在拆分任务前，收集必要的项目上下文信息，存入 `${projectContext}` 变量供后续步骤使用。**
+
+```bash
+# 收集技术栈（从 package.json 提取关键依赖）
+cat package.json | grep -E '"(react|vue|angular|next|express|fastify|koa|typeorm|prisma|sequelize|mongoose|jest|vitest|playwright|cypress)"' || echo "未检测到常见框架"
+
+# 收集项目目录结构（仅顶层，避免输出过长）
+find . -maxdepth 2 -type d -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.openmatrix/*' | head -30
+
+# 读取 CLAUDE.md 项目规范（如果存在）
+cat CLAUDE.md 2>/dev/null | head -50 || echo "无 CLAUDE.md"
+```
+
+**将收集结果存入 `${projectContext}`：**
+
+```
+## 项目上下文
+
+### 技术栈
+${从 package.json 提取的关键依赖}
+
+### 目录结构
+${顶层目录结构}
+
+### 项目规范（来自 CLAUDE.md）
+${CLAUDE.md 前 50 行，包含构建/测试命令、架构概述、开发约定}
+```
+
+## Step 4: AI 拆分为 2-5 个小任务块
 
 **调用 Agent 进行任务拆分：**
 
@@ -108,11 +139,14 @@ Agent({
 ## 用户需求
 ${taskDescription}
 
+${projectContext}
+
 ## 拆分原则
 1. 拆分粒度：每个小块 ≤ 30 分钟工作量
 2. 拆分方向：数据层 → API层 → UI层 / 核心逻辑 → 边界处理
 3. 依赖关系：确保后续任务可依赖前面的成果
-4. 文件预估：每个任务预估涉及的文件
+4. 文件预估：基于项目目录结构，预估每个任务涉及的文件路径
+5. 技术栈对齐：使用项目已有的框架和库，不引入新依赖
 
 ## 输出格式
 请按以下格式输出：
@@ -125,7 +159,7 @@ ${taskDescription}
 拆分为 N 个小任务：
 1. [任务名称]
    描述：[简要描述]
-   预估文件：[文件列表]
+   预估文件：[基于项目结构的文件路径列表]
    预估时间：[分钟]
 
 2. [任务名称]
@@ -137,12 +171,13 @@ ${taskDescription}
 
 ## 注意事项
 - 如果任务过于复杂无法拆分，明确说明并建议使用完整流程
-- 保持任务块独立性，便于验证和提交`,
+- 保持任务块独立性，便于验证和提交
+- 文件路径必须基于实际项目结构`,
   run_in_background: false
 })
 ```
 
-## Step 4: 用 TodoWrite 管理任务状态
+## Step 5: 用 TodoWrite 管理任务状态
 
 **将拆分的任务写入 TodoWrite：**
 
@@ -158,11 +193,11 @@ TodoWrite({
 
 状态仅在当前会话有效，不产生持久化文件。
 
-## Step 5: 问答确认
+## Step 6: 问答确认
 
 **⛔ 执行前必须确认所有配置**
 
-**5.1 质量等级（必选）**
+**6.1 质量等级（必选）**
 
 AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
@@ -174,7 +209,7 @@ AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 | `balanced (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
 | `fast` | 无质量门禁 — 快速原型/验证 |
 
-**5.2 E2E 测试（仅 strict/balanced）**
+**6.2 E2E 测试（仅 strict/balanced）**
 
 AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
@@ -186,7 +221,7 @@ AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 | `视觉验证` | 需要浏览器可视化验证 UI 样式 |
 | `不需要 (推荐)` | 仅单元测试和集成测试 |
 
-**5.3 确认拆分计划**
+**6.3 确认拆分计划**
 
 AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 
@@ -197,16 +232,16 @@ AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 | `开始执行 (推荐)` | 按计划逐个执行 |
 | `调整计划` | 重新拆分任务 |
 
-## Step 6: 逐个执行小任务
+## Step 7: 逐个执行小任务
 
 **对 TodoWrite 中的每个任务（按顺序）：**
 
-**6.1 更新状态为 in_progress**
+**7.1 更新状态为 in_progress**
 ```typescript
 TodoWrite({ todos: [...] }) // 当前任务标记 in_progress
 ```
 
-**6.2 调用 Agent 执行**
+**7.2 调用 Agent 执行**
 
 ```typescript
 Agent({
@@ -214,11 +249,19 @@ Agent({
   description: task.content,
   prompt: `你是实现专家。执行以下任务块。
 
-## 任务信息
+## 整体任务
+${taskDescription}
+
+## 当前任务
 - 任务名称：${task.content}
 - 预估文件：${task.files}
 - 质量等级：${quality}
 - 前置任务完成状态：${previousTasksStatus}
+
+${projectContext}
+
+${agentMemory ? `## 前序任务结果（跨 Agent 上下文）
+${agentMemory}` : ''}
 
 ## 质量要求
 ${quality === 'strict' ? `
@@ -236,16 +279,17 @@ ${quality === 'strict' ? `
 `}
 
 ## 实施原则
-1. 只修改当前任务相关的文件
-2. 不做"顺便"的重构或优化
-3. 确保代码风格与项目一致
-4. 完成后运行相关测试验证
+1. 先阅读预估文件中的现有代码，理解上下文后再动手
+2. 只修改当前任务相关的文件
+3. 不做"顺便"的重构或优化
+4. 确保代码风格与项目现有代码一致
+5. 完成后运行相关测试验证
 
 ## 完成后输出
 请按以下格式输出（不超过3行）：
-1. 关键决策
+1. 关键决策：[做了什么决策及原因]
 2. 创建/修改的文件列表
-3. 对后续任务的建议
+3. 对后续任务的建议或注意事项
 
 ## 禁止行为
 ❌ 执行 git commit（由主流程处理）
@@ -263,15 +307,25 @@ ${quality === 'strict' ? `
 })
 ```
 
-**6.3 等待 Agent 完成，接收通知**
+**7.3 等待 Agent 完成，收集上下文**
 
-## Step 7: 验证（按质量等级）
+Agent 完成后，将输出中的关键决策和建议追加到 `${agentMemory}` 变量中：
+```
+${agentMemory}
+---
+## 任务 N: ${task.content}
+${agentOutput}
+```
+
+这样后续 Agent 能获取前序 Agent 的决策和发现。
+
+## Step 8: 验证（按质量等级）
 
 **⛔ 验证不通过不得提交，必须停止等待修复**
 
 每个任务完成后，根据质量等级执行验证：
 
-**7.1 执行验证命令**
+**8.1 执行验证命令**
 
 | 质量等级 | 验证命令 |
 |---------|---------|
@@ -279,11 +333,11 @@ ${quality === 'strict' ? `
 | `balanced` | `npm test -- --run && npm run lint` |
 | `fast` | 跳过验证 |
 
-**7.2 E2E 验证（如果用户选择）**
+**8.2 E2E 验证（如果用户选择）**
 - 功能测试：`npm run test:e2e`
 - 视觉验证：启动 Playwright 截图对比
 
-**7.3 验证结果自动判断**
+**8.3 验证结果自动判断**
 
 验证命令执行后，根据退出码自动判断结果：
 
@@ -306,9 +360,9 @@ fi
 - 提示用户修复后使用 `/om:resume` 继续
 
 **验证成功处理：**
-- 继续执行 Step 8 Git 提交
+- 继续执行 Step 9 Git 提交
 
-## Step 8: 分步 Git 提交
+## Step 9: 分步 Git 提交
 
 **⛔ 验证通过后必须立即提交，不得积累多个任务块**
 
@@ -329,18 +383,18 @@ EOF
 1. **更新 TodoWrite 状态为 completed**
 2. **继续下一个任务**
 
-## Step 9: 全部任务完成后
+## Step 10: 全部任务完成后
 
 **检查 TodoWrite 所有任务状态为 `completed`：**
 
-**9.1 运行最终整体验证**
+**10.1 运行最终整体验证**
 ```bash
 npm test -- --run
 ```
 
-**9.2 收集所有任务的执行摘要**
+**10.2 收集所有任务的执行摘要**
 
-## Step 10: 输出执行摘要并清理
+## Step 11: 输出执行摘要并清理
 
 **展示执行摘要：**
 
