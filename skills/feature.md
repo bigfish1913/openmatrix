@@ -20,6 +20,7 @@ priority: high
 ## 执行顺序 - 必须严格按此顺序，不得跳过
 
 ```
+Step 0:  Git 前置检查与持久化选择（必须执行）
 Step 1:  接收任务输入（参数、文件、或询问用户）
 Step 2:  AI 自动判断任务边界（不符合条件才询问切换）
 Step 3:  收集项目上下文（技术栈、目录结构、CLAUDE.md）
@@ -44,6 +45,51 @@ Step 11: 输出执行摘要并清理
 </objective>
 
 <process>
+
+## Step 0: Git 前置检查与持久化选择（必须执行）
+
+**检查 Git 仓库:**
+
+```bash
+ls -la .git 2>/dev/null || echo "NOT_INITIALIZED"
+git status --porcelain
+```
+
+| 检查结果 | 处理 |
+|---------|------|
+| `NOT_INITIALIZED` | AskUserQuestion 是否初始化 git |
+| 有未提交文件 | AskUserQuestion 处理方式（暂存/忽略/取消） |
+| 干净 | 继续执行 |
+
+**持久化选择:**
+
+AskUserQuestion: `header: "恢复能力"`, `multiSelect: false`
+**question:** 是否需要中断恢复能力？
+
+| label | description |
+|-------|-------------|
+| `启用恢复 (推荐)` | 创建 `.openmatrix/feature-session.json`，支持中断恢复 |
+| `不启用` | 纯会话状态，中断后无法恢复 |
+
+**如果用户选择"启用恢复":**
+
+```bash
+mkdir -p .openmatrix
+cat > .openmatrix/feature-session.json << 'EOF'
+{
+  "sessionId": "FEATURE-$(date +%Y%m%d%H%M%S)",
+  "status": "running",
+  "tasks": [],
+  "currentTaskIndex": 0,
+  "quality": null,
+  "failureCount": {}
+}
+EOF
+echo '' > .openmatrix/feature-context.md
+echo '' > .openmatrix/feature-progress.md
+```
+
+将持久化状态存入会话变量 `${persistenceEnabled}`。
 
 ## Step 1: 接收任务输入
 
@@ -96,35 +142,33 @@ AskUserQuestion: `header: "任务复杂度"`, `multiSelect: false`
 | 切换到 /om:start | 使用完整流程 |
 | 继续用 /om:feature | 强制使用轻量流程（可能无法完整追踪） |
 
-## Step 3: 收集项目上下文
+## Step 3: 收集项目上下文并写入文件
 
-**在拆分任务前，收集必要的项目上下文信息，存入 `${projectContext}` 变量供后续步骤使用。**
+**收集并写入上下文文件:**
 
 ```bash
-# 收集技术栈（从 package.json 提取关键依赖）
-cat package.json | grep -E '"(react|vue|angular|next|express|fastify|koa|typeorm|prisma|sequelize|mongoose|jest|vitest|playwright|cypress)"' || echo "未检测到常见框架"
+mkdir -p .openmatrix
 
-# 收集项目目录结构（仅顶层，避免输出过长）
-find . -maxdepth 2 -type d -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.openmatrix/*' | head -30
+# 写入上下文文件头
+echo "# 项目上下文" > .openmatrix/feature-context.md
+echo "" >> .openmatrix/feature-context.md
 
-# 读取 CLAUDE.md 项目规范（如果存在）
-cat CLAUDE.md 2>/dev/null | head -50 || echo "无 CLAUDE.md"
+# 收集技术栈并写入文件
+echo "## 技术栈" >> .openmatrix/feature-context.md
+cat package.json 2>/dev/null | grep -E '"(react|vue|angular|next|express|fastify|koa|typeorm|prisma|sequelize|mongoose|jest|vitest|playwright|cypress)"' >> .openmatrix/feature-context.md || echo "未检测到常见框架" >> .openmatrix/feature-context.md
+echo "" >> .openmatrix/feature-context.md
+
+# 收集目录结构并写入文件
+echo "## 目录结构" >> .openmatrix/feature-context.md
+find . -maxdepth 2 -type d -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.openmatrix/*' 2>/dev/null | head -30 >> .openmatrix/feature-context.md
+echo "" >> .openmatrix/feature-context.md
+
+# 读取 CLAUDE.md 并写入文件
+echo "## 项目规范（来自 CLAUDE.md）" >> .openmatrix/feature-context.md
+cat CLAUDE.md 2>/dev/null | head -50 >> .openmatrix/feature-context.md || echo "无 CLAUDE.md" >> .openmatrix/feature-context.md
 ```
 
-**将收集结果存入 `${projectContext}`：**
-
-```
-## 项目上下文
-
-### 技术栈
-${从 package.json 提取的关键依赖}
-
-### 目录结构
-${顶层目录结构}
-
-### 项目规范（来自 CLAUDE.md）
-${CLAUDE.md 前 50 行，包含构建/测试命令、架构概述、开发约定}
-```
+上下文已写入 `.openmatrix/feature-context.md`，后续 Agent 会读取此文件。
 
 ## Step 4: AI 拆分为 2-5 个小任务块
 
@@ -249,6 +293,12 @@ Agent({
   description: task.content,
   prompt: `你是实现专家。执行以下任务块。
 
+## 项目上下文（请读取文件）
+请先读取 .openmatrix/feature-context.md 了解项目上下文。
+
+## 前序任务结果（请读取文件）
+请读取 .openmatrix/feature-progress.md 了解前序 Agent 的决策和发现。
+
 ## 整体任务
 ${taskDescription}
 
@@ -257,11 +307,6 @@ ${taskDescription}
 - 预估文件：${task.files}
 - 质量等级：${quality}
 - 前置任务完成状态：${previousTasksStatus}
-
-${projectContext}
-
-${agentMemory ? `## 前序任务结果（跨 Agent 上下文）
-${agentMemory}` : ''}
 
 ## 质量要求
 ${quality === 'strict' ? `
@@ -307,17 +352,19 @@ ${quality === 'strict' ? `
 })
 ```
 
-**7.3 等待 Agent 完成，收集上下文**
+**7.3 等待 Agent 完成，写入进度文件**
 
-Agent 完成后，将输出中的关键决策和建议追加到 `${agentMemory}` 变量中：
-```
-${agentMemory}
----
-## 任务 N: ${task.content}
-${agentOutput}
+Agent 完成后，将输出中的关键决策和建议写入 `.openmatrix/feature-progress.md` 文件：
+
+```bash
+# Agent 完成后，追加写入进度文件
+echo "" >> .openmatrix/feature-progress.md
+echo "## 任务 N: ${task.content}" >> .openmatrix/feature-progress.md
+echo "${agentOutput}" >> .openmatrix/feature-progress.md
+echo "" >> .openmatrix/feature-progress.md
 ```
 
-这样后续 Agent 能获取前序 Agent 的决策和发现。
+这样后续 Agent 能通过读取文件获取前序 Agent 的决策和发现。
 
 ## Step 8: 验证（按质量等级）
 
@@ -329,9 +376,13 @@ ${agentOutput}
 
 | 质量等级 | 验证命令 |
 |---------|---------|
-| `strict` | `npm test -- --run && npm run lint && npm run test:coverage` |
-| `balanced` | `npm test -- --run && npm run lint` |
+| `strict` | `npm test -- --run && npm run lint && npm run test:coverage && npm audit --audit-level=moderate` |
+| `balanced` | `npm test -- --run && npm run lint && npm audit --audit-level=moderate` |
 | `fast` | 跳过验证 |
+
+**覆盖率阈值检查说明：**
+- strict 模式要求 >80% 覆盖率，`npm run test:coverage` 命令应输出覆盖率报告
+- balanced 模式要求 >60% 覆盖率，建议定期检查覆盖率报告
 
 **8.2 E2E 验证（如果用户选择）**
 - 功能测试：`npm run test:e2e`
@@ -357,7 +408,9 @@ fi
 **验证失败处理：**
 - 自动展示验证失败详情（最后 30 行输出）
 - 停止执行流程
-- 提示用户修复后使用 `/om:resume` 继续
+- 根据持久化设置提示：
+  - 如果 `${persistenceEnabled}` = true：提示用户修复后使用 `/om:resume-feature` 继续
+  - 如果 `${persistenceEnabled}` = false：提示"会话中断，需重新开始"
 
 **验证成功处理：**
 - 继续执行 Step 9 Git 提交
@@ -366,8 +419,14 @@ fi
 
 **⛔ 验证通过后必须立即提交，不得积累多个任务块**
 
+**只提交本次任务修改的文件（而非 `git add -A`）：**
+
 ```bash
-git add .
+# 获取本次任务修改的文件列表（从 Agent 输出中提取）
+git status --porcelain
+
+# 只提交任务涉及的文件
+git add ${modifiedFiles}
 git commit -m "$(cat <<'EOF'
 feat(feature): ${originalTask} - ${currentChunk}
 
@@ -474,12 +533,12 @@ $ARGUMENTS
 
 ## 与其他指令的区别
 
-| 指令 | 适用场景 | 任务文件 | 问答 | 验证 |
-|-----|---------|:-------:|:----:|:----:|
-| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 |
-| `/om:start` | 标准任务 | ✅ | 质量+E2E+模式 | 按等级 |
-| `/om:brainstorm` | 复杂任务 | ✅ | 设计问答 | 按等级 |
-| `/om:auto` | 全自动执行 | ✅ | 无 | 按等级 |
+| 指令 | 适用场景 | 任务文件 | 问答 | 验证 | 持久化 |
+|-----|---------|:-------:|:----:|:----:|:-----:|
+| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 | 可选 |
+| `/om:start` | 标准任务 | ✅ | 质量+E2E+模式 | 按等级 | 必须 |
+| `/om:brainstorm` | 复杂任务 | ✅ | 设计问答 | 按等级 | 必须 |
+| `/om:auto` | 全自动执行 | ✅ | 无 | 按等级 | 必须 |
 
 ## 路由触发条件
 
@@ -492,13 +551,14 @@ $ARGUMENTS
 ## 错误处理流程
 
 ```
-验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 建议使用 /om:resume 继续
+验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 根据持久化设置提示恢复方式
 ```
 
 | 错误 | 处理 |
 |-----|-----|
 | 测试失败 | 停止，提示用户修复 |
 | Lint 错误 | 停止，提示用户修复 |
+| 安全扫描失败 | 停止，提示用户修复 |
 | Agent 超时 | 询问重试或跳过 |
 | Git 失败 | 提示手动处理 |
 
@@ -534,8 +594,15 @@ type: feat/fix/test/refactor/docs
 
 ## 恢复执行
 
-如果验证失败需要修复，使用 `/om:resume` 继续执行：
-```bash
-/om:resume
-```
+如果验证失败需要修复：
+
+- **启用持久化**：使用 `/om:resume-feature` 继续执行（需读取 `.openmatrix/feature-session.json`）
+- **未启用持久化**：会话中断，需重新开始
+
+## 持久化文件说明
+
+启用恢复后产生以下文件：
+- `.openmatrix/feature-session.json` - 会话状态（任务列表、当前索引、质量等级）
+- `.openmatrix/feature-context.md` - 项目上下文
+- `.openmatrix/feature-progress.md` - Agent 执行进度
 </notes>
