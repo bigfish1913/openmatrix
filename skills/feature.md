@@ -20,7 +20,7 @@ priority: high
 ## 执行顺序 - 必须严格按此顺序，不得跳过
 
 ```
-Step 0:  Git 前置检查与持久化选择（必须执行）
+Step 0:  Git 前置检查与持久化初始化（必须执行）
 Step 1:  接收任务输入（参数、文件、或询问用户）
 Step 2:  AI 自动判断任务边界（不符合条件才询问切换）
 Step 3:  收集项目上下文（技术栈、目录结构、CLAUDE.md）
@@ -46,7 +46,7 @@ Step 11: 输出执行摘要并清理
 
 <process>
 
-## Step 0: Git 前置检查与持久化选择（必须执行）
+## Step 0: Git 前置检查与持久化初始化（必须执行）
 
 **检查 Git 仓库:**
 
@@ -61,17 +61,7 @@ git status --porcelain
 | 有未提交文件 | AskUserQuestion 处理方式（暂存/忽略/取消） |
 | 干净 | 继续执行 |
 
-**持久化选择:**
-
-AskUserQuestion: `header: "恢复能力"`, `multiSelect: false`
-**question:** 是否需要中断恢复能力？
-
-| label | description |
-|-------|-------------|
-| `启用恢复 (推荐)` | 创建 `.openmatrix/feature-session.json`，支持中断恢复 |
-| `不启用` | 纯会话状态，中断后无法恢复 |
-
-**如果用户选择"启用恢复":**
+**初始化持久化状态:**
 
 ```bash
 mkdir -p .openmatrix
@@ -88,8 +78,6 @@ EOF
 echo '' > .openmatrix/feature-context.md
 echo '' > .openmatrix/feature-progress.md
 ```
-
-将持久化状态存入会话变量 `${persistenceEnabled}`。
 
 ## Step 1: 接收任务输入
 
@@ -235,7 +223,7 @@ TodoWrite({
 })
 ```
 
-状态仅在当前会话有效，不产生持久化文件。
+状态同时在会话和 `.openmatrix/feature-session.json` 中管理。
 
 ## Step 6: 问答确认
 
@@ -408,9 +396,7 @@ fi
 **验证失败处理：**
 - 自动展示验证失败详情（最后 30 行输出）
 - 停止执行流程
-- 根据持久化设置提示：
-  - 如果 `${persistenceEnabled}` = true：提示用户修复后使用 `/om:resume-feature` 继续
-  - 如果 `${persistenceEnabled}` = false：提示"会话中断，需重新开始"
+- 提示用户修复后使用 `/om:resume-feature` 继续
 
 **验证成功处理：**
 - 继续执行 Step 9 Git 提交
@@ -479,8 +465,8 @@ ${decisions}
 
 **清理操作：**
 - TodoWrite 所有任务保持 completed 状态
-- 不产生任何 `.openmatrix/` 持久化文件
-- 会话结束后状态自动消失
+- 持久化文件可选择保留或手动清理
+- 任务完成后状态标记为 `completed`
 
 </process>
 
@@ -535,7 +521,7 @@ $ARGUMENTS
 
 | 指令 | 适用场景 | 任务文件 | 问答 | 验证 | 持久化 |
 |-----|---------|:-------:|:----:|:----:|:-----:|
-| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 | 可选 |
+| `/om:feature` | 小需求（≤100字，单一功能） | ❌ | 质量+E2E | 按等级 | 必须 |
 | `/om:start` | 标准任务 | ✅ | 质量+E2E+模式 | 按等级 | 必须 |
 | `/om:brainstorm` | 复杂任务 | ✅ | 设计问答 | 按等级 | 必须 |
 | `/om:auto` | 全自动执行 | ✅ | 无 | 按等级 | 必须 |
@@ -551,7 +537,7 @@ $ARGUMENTS
 ## 错误处理流程
 
 ```
-验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 根据持久化设置提示恢复方式
+验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 使用 /om:resume-feature 恢复
 ```
 
 | 错误 | 处理 |
@@ -596,12 +582,11 @@ type: feat/fix/test/refactor/docs
 
 如果验证失败需要修复：
 
-- **启用持久化**：使用 `/om:resume-feature` 继续执行（需读取 `.openmatrix/feature-session.json`）
-- **未启用持久化**：会话中断，需重新开始
+使用 `/om:resume-feature` 继续执行（读取 `.openmatrix/feature-session.json`）
 
-## 持久化文件说明
+## 挡久化文件说明
 
-启用恢复后产生以下文件：
+执行过程中产生以下文件：
 - `.openmatrix/feature-session.json` - 会话状态（任务列表、当前索引、质量等级）
 - `.openmatrix/feature-context.md` - 项目上下文
 - `.openmatrix/feature-progress.md` - Agent 执行进度
