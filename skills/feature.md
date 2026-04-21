@@ -273,7 +273,55 @@ AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 TodoWrite({ todos: [...] }) // 当前任务标记 in_progress
 ```
 
-**7.2 调用 Agent 执行**
+**7.2 歧义检测与处理**
+
+Agent 输出中可能包含歧义报告：
+
+```
+<AMBIGUITY_REPORT>
+{
+  "ambiguities": [
+    {
+      "type": "missing_info" | "conflicting_req" | "unclear_scope" | "tech_choice" | "edge_case",
+      "severity": "critical" | "high" | "medium" | "low",
+      "description": "歧义描述",
+      "suggestions": ["建议1", "建议2"]
+    }
+  ],
+  "overallSeverity": "critical" | "high" | "medium" | "low"
+}
+</AMBIGUITY_REPORT>
+```
+
+**5 种歧义类型说明：**
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `missing_info` | 缺失关键信息 | "未指定数据库类型" |
+| `conflicting_req` | 需求冲突 | "既要高性能又要低成本" |
+| `unclear_scope` | 范围不清晰 | "是否包含历史数据处理？" |
+| `tech_choice` | 技术选型歧义 | "用 REST 还是 GraphQL？" |
+| `edge_case` | 边界情况未定义 | "超过限制时如何处理？" |
+
+**歧义处理策略（轻量模式）：**
+
+| 严重程度 | 处理方式 |
+|---------|---------|
+| **Critical/High** | AskUserQuestion 立即确认 |
+| **Medium/Low** | 写入进度文件，继续执行 |
+
+**AskUserQuestion 处理（仅 Critical/High）：**
+
+AskUserQuestion: `header: "歧义确认"`, `multiSelect: false`
+**question:** 检测到 ${severity} 级歧义：${description}。请确认处理方式
+
+| label | description |
+|-------|-------------|
+| 提供信息 | 回答歧义相关问题，继续执行 |
+| 跳过任务块 | 标记当前任务块为可选，继续执行下一个 |
+| 修改方案 | 根据歧义调整方案后继续 |
+
+**7.3 调用 Agent 执行**
 
 ```typescript
 Agent({

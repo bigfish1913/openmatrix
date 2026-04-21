@@ -167,7 +167,68 @@ openmatrix step --json                       # 获取下一个任务 + 检查是
 4. 如果返回 `status: "blocked"` → 有阻塞任务需要处理
 </LOOP-ENFORCEMENT>
 
-对 `subagentTasks` 列表中的每个任务，**必须使用 Agent 工具**（禁止用 gsd-executor 或其他技能替代）:
+#### 6.1 歧义检测机制（全自动模式）
+
+**Agent 输出中可能包含歧义报告（JSON 格式）:**
+
+当 Agent 输出包含以下标记时，表示检测到歧义：
+```
+<AMBIGUITY_REPORT>
+{
+  "ambiguities": [
+    {
+      "type": "missing_info" | "conflicting_req" | "unclear_scope" | "tech_choice" | "edge_case",
+      "severity": "critical" | "high" | "medium" | "low",
+      "description": "歧义描述",
+      "suggestions": ["建议1", "建议2"]
+    }
+  ],
+  "overallSeverity": "critical" | "high" | "medium" | "low"
+}
+</AMBIGUITY_REPORT>
+```
+
+**5 种歧义类型说明：**
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `missing_info` | 缺失关键信息 | "未指定数据库类型" |
+| `conflicting_req` | 需求冲突 | "既要高性能又要低成本" |
+| `unclear_scope` | 范围不清晰 | "是否包含历史数据处理？" |
+| `tech_choice` | 技术选型歧义 | "用 REST 还是 GraphQL？" |
+| `edge_case` | 边界情况未定义 | "超过限制时如何处理？" |
+
+#### 6.2 歧义处理策略（全自动模式）
+
+**在 `/om:auto` 全自动模式下，所有歧义都写入 Meeting 继续执行，不中断流程：**
+
+| 严重程度 | 处理方式 |
+|---------|---------|
+| **Critical** | Meeting + 继续执行其他任务 |
+| **High** | Meeting + 继续执行其他任务 |
+| **Medium** | Meeting + 继续执行其他任务 |
+| **Low** | Meeting + 继续执行其他任务 |
+
+**全自动模式特点：**
+- ❌ **不使用 AskUserQuestion** — 全自动执行，零人工干预
+- ✅ **所有歧义写入 Meeting** — 执行完成后统一展示
+- ✅ **继续执行其他任务** — 最大化并行度，无阻塞等待
+
+**Meeting 处理流程：**
+```bash
+# 检测到歧义时，写入 Meeting 记录并继续执行
+openmatrix meeting --create --task TASK-XXX --reason "歧义: ${description}" --severity ${overallSeverity}
+
+# 继续执行下一个任务
+openmatrix step --json
+```
+
+**执行完成后提示用户：**
+```
+⚠️ 检测到 N 个歧义记录，请使用 `/om:meeting` 统一处理
+```
+
+#### 6.3 执行 Agent 任务
 
 ```typescript
 Agent({

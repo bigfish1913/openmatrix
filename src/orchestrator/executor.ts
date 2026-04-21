@@ -12,8 +12,6 @@ import { MeetingManager } from './meeting-manager.js';
 import type { Task, GlobalState, Approval, AmbiguityReport, AmbiguityItem } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 
-import type { AmbiguityReport } from '../types/index.js';
-
 export interface ExecutorConfig {
   maxConcurrent: number;
   taskTimeout: number;
@@ -351,12 +349,25 @@ export class OrchestratorExecutor {
   /**
    * 标记任务完成
    *
-   * 增强：对于 reviewer 任务，自动解析 Review 报告并生成修复任务
+   * 增强：
+   * 1. 对于 reviewer 任务，自动解析 Review 报告并生成修复任务
+   * 2. 解析歧义报告并根据执行模式处理
    */
-  async completeTask(taskId: string, result: { success: boolean; output?: string; error?: string }): Promise<{ createdFixTasks?: string[] }> {
+  async completeTask(taskId: string, result: { success: boolean; output?: string; error?: string }): Promise<{ createdFixTasks?: string[]; ambiguityResult?: { status: 'ambiguity_ask_user' | 'ambiguity_handled'; report: AmbiguityReport } }> {
     const task = await this.stateManager.getTask(taskId);
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
+    }
+
+    // 检查输出中是否包含歧义报告
+    if (result.output?.includes('ambiguityDetected') || result.output?.includes('hasAmbiguity')) {
+      const ambiguityReport = this.parseAmbiguityReport(taskId, result.output);
+      if (ambiguityReport?.hasAmbiguity) {
+        const ambiguityResult = await this.handleAmbiguity(task, ambiguityReport);
+        if (ambiguityResult) {
+          return { ambiguityResult };
+        }
+      }
     }
 
     if (result.success) {
