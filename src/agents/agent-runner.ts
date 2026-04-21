@@ -143,8 +143,11 @@ export class AgentRunner {
     const agentPrompt = this.buildAgentPrompt(task);
     const phaseContext = this.buildPhaseContext(task);
     const accumulatedContext = await this.buildAccumulatedContext(task);
+    const ambiguityInstruction = this.buildAmbiguityDetectionInstruction(task);
 
     return `# 任务执行
+
+${ambiguityInstruction}
 
 ## 任务信息
 - ID: ${task.id}
@@ -180,6 +183,87 @@ ${agentPrompt.instructions}
 注意: 任务完成后，由 Skill 调用 \`openmatrix complete\` 并传入 --summary 参数，
 该摘要会自动追加到全局 \`.openmatrix/context.md\` 供后续 Agent 参考。
 `;
+  }
+
+  /**
+   * 构建歧义检测指令
+   */
+  private buildAmbiguityDetectionInstruction(task: Task): string {
+    return `## 🚨 歧义检测指令（必须在执行前完成）
+
+在开始执行任务之前，你必须完成歧义检测。检测以下 5 种歧义类型：
+
+### 检测清单
+
+1. **需求歧义** (requirement)
+   - 任务描述是否清晰可理解？
+   - 是否有缺少的关键信息？
+   - 验收标准是否明确？
+
+2. **技术歧义** (technical)
+   - 技术选型是否明确？
+   - 实现方案是否有多种选择？
+   - 是否需要特定的技术决策？
+
+3. **依赖歧义** (dependency)
+   - 依赖任务是否已完成？
+   - 依赖代码是否可找到？
+   - 是否有缺失的依赖项？
+
+4. **验收歧义** (acceptance)
+   - 验收标准是否明确？
+   - 成功定义是否清晰？
+   - 是否有模糊的边界条件？
+
+5. **测试结果歧义** (test_result)
+   - 测试失败原因是否明确？
+   - 测试通过是否可信？
+   - 是否需要额外的验证？
+
+### 严重程度定义
+
+| 级别 | 说明 | 处理方式 |
+|-----|------|---------|
+| **Critical** | 无法继续执行，必须澄清 | 立即报告，等待澄清 |
+| **High** | 可能导致错误结果 | 报告并建议处理方案 |
+| **Medium** | 影响执行效率 | 记录并尝试解决 |
+| **Low** | 轻微不确定性 | 继续执行，备注说明 |
+
+### 输出格式
+
+如果检测到歧义，在任务执行前输出：
+\`\`\`json
+{
+  "ambiguityDetected": true,
+  "report": {
+    "taskId": "${task.id}",
+    "phase": "pre_execution",
+    "ambiguities": [
+      {
+        "type": "requirement|technical|dependency|acceptance|test_result",
+        "severity": "Critical|High|Medium|Low",
+        "description": "歧义描述",
+        "suggestedResolution": "建议的处理方案"
+      }
+    ],
+    "overallSeverity": "Critical|High|Medium|Low",
+    "recommendedAction": "ask_user|proceed_with_assumption|block_and_report"
+  }
+}
+\`\`\`
+
+如果没有歧义，输出：
+\`\`\`json
+{ "ambiguityDetected": false }
+\`\`\`
+
+### 处理策略
+
+- **Critical/High**: 输出报告后暂停，等待用户决策
+- **Medium**: 输出报告后继续执行，采用合理假设
+- **Low**: 记录并继续执行
+
+**重要**: 如果无法解析歧义检测结果，视为无歧义继续执行。`;
   }
 
   /**

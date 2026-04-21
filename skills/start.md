@@ -389,7 +389,70 @@ openmatrix step --json                       # 获取下一个任务 + 检查是
 `openmatrix step` 会从磁盘读取真实状态，不依赖上下文记忆。
 </LOOP-ENFORCEMENT>
 
-对每个任务**必须使用 Agent 工具**（禁止用 gsd-executor 或其他技能替代）:
+#### 11.1 歧义检测机制
+
+**Agent 输出中可能包含歧义报告（JSON 格式）:**
+
+当 Agent 输出包含以下标记时，表示检测到歧义：
+```
+<AMBIGUITY_REPORT>
+{
+  "ambiguities": [
+    {
+      "type": "missing_info" | "conflicting_req" | "unclear_scope" | "tech_choice" | "edge_case",
+      "severity": "critical" | "high" | "medium" | "low",
+      "description": "歧义描述",
+      "suggestions": ["建议1", "建议2"]
+    }
+  ],
+  "overallSeverity": "critical" | "high" | "medium" | "low"
+}
+</AMBIGUITY_REPORT>
+```
+
+**5 种歧义类型说明：**
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `missing_info` | 缺失关键信息 | "未指定数据库类型" |
+| `conflicting_req` | 需求冲突 | "既要高性能又要低成本" |
+| `unclear_scope` | 范围不清晰 | "是否包含历史数据处理？" |
+| `tech_choice` | 技术选型歧义 | "用 REST 还是 GraphQL？" |
+| `edge_case` | 边界情况未定义 | "超过限制时如何处理？" |
+
+#### 11.2 歧义处理策略
+
+根据 `overallSeverity` 和执行模式选择处理方式：
+
+| 执行模式 | Critical/High | Medium/Low |
+|---------|--------------|------------|
+| **全自动执行** | Meeting + 继续执行 | Meeting + 继续执行 |
+| **关键节点确认** | AskUserQuestion | Meeting + 继续执行 |
+| **每阶段确认** | AskUserQuestion | Meeting + 继续执行 |
+
+**Meeting 处理（写入阻塞记录）:**
+```bash
+# 将歧义信息写入 Meeting 记录，继续执行其他任务
+openmatrix meeting --create --task TASK-XXX --reason "歧义: ${description}" --severity ${severity}
+```
+
+**AskUserQuestion 处理（交互确认）:**
+
+AskUserQuestion: `header: "歧义确认"`, `multiSelect: false`
+**question:** 检测到 ${severity} 级歧义：${description}。请确认处理方式
+
+| label | description |
+|-------|-------------|
+| 提供信息 | 回答歧义相关问题，继续执行 |
+| 跳过任务 | 标记当前任务为可选，继续执行其他任务 |
+| 修改方案 | 根据歧义调整任务方案后继续 |
+
+用户选择后：
+- **提供信息** → 将用户输入作为上下文注入，继续执行当前任务
+- **跳过任务** → `openmatrix complete TASK-XXX --skip --reason "用户选择跳过"`
+- **修改方案** → 更新任务方案，重新执行当前任务
+
+#### 11.3 执行 Agent 任务
 
 ```typescript
 Agent({

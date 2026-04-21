@@ -8,8 +8,11 @@ import { StateMachine } from './state-machine.js';
 import { PhaseExecutor } from './phase-executor.js';
 import { RetryManager } from './retry-manager.js';
 import { AIReviewer } from './ai-reviewer.js';
-import type { Task, GlobalState, Approval } from '../types/index.js';
+import { MeetingManager } from './meeting-manager.js';
+import type { Task, GlobalState, Approval, AmbiguityReport, AmbiguityItem } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+
+import type { AmbiguityReport } from '../types/index.js';
 
 export interface ExecutorConfig {
   maxConcurrent: number;
@@ -25,7 +28,7 @@ export interface ExecutorStatus {
 }
 
 export interface ExecutionResult {
-  status: 'continue' | 'waiting_approval' | 'completed' | 'failed';
+  status: 'continue' | 'waiting_approval' | 'completed' | 'failed' | 'ambiguity_ask_user';
   subagentTasks: SubagentTask[];
   message: string;
   statistics: {
@@ -35,6 +38,8 @@ export interface ExecutionResult {
     pending: number;
     failed: number;
   };
+  /** 歧义报告 (仅 status 为 'ambiguity_ask_user' 时存在) */
+  ambiguityReport?: AmbiguityReport;
 }
 
 /**

@@ -1,7 +1,7 @@
 // src/orchestrator/meeting-manager.ts
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from './approval-manager.js';
-import type { Task, Approval, Meeting, MeetingStatus, MeetingType } from '../types/index.js';
+import type { Task, Approval, Meeting, MeetingStatus, MeetingType, AmbiguityReport, AmbiguitySeverity } from '../types/index.js';
 
 // Meeting 类型已在 types/index.ts 中定义，这里不再重复定义
 
