@@ -337,21 +337,21 @@ describe('AgentRunner', () => {
       const task = createTestTask({ id: 'TASK-AMB001' });
       const prompt = await agentRunner.buildExecutionPrompt(task);
 
-      // 验证 JSON 输出格式存在
-      expect(prompt).toContain('"ambiguityDetected": true');
-      expect(prompt).toContain('"report"');
+      // 验证 XML+JSON 输出格式存在
+      expect(prompt).toContain('<ambiguity_report>');
+      expect(prompt).toContain('"hasAmbiguity": true');
       expect(prompt).toContain('"taskId": "TASK-AMB001"');
-      expect(prompt).toContain('"phase": "pre_execution"');
+      expect(prompt).toContain('"detectionPhase": "pre_execution"');
       expect(prompt).toContain('"ambiguities"');
       expect(prompt).toContain('"type"');
       expect(prompt).toContain('"severity"');
       expect(prompt).toContain('"description"');
       expect(prompt).toContain('"suggestedResolution"');
-      expect(prompt).toContain('"overallSeverity"');
-      expect(prompt).toContain('"recommendedAction"');
-      expect(prompt).toContain('ask_user');
-      expect(prompt).toContain('proceed_with_assumption');
-      expect(prompt).toContain('block_and_report');
+      expect(prompt).toContain('"maxSeverity"');
+      expect(prompt).toContain('"suggestedStrategy"');
+      expect(prompt).toContain('ask_immediate');
+      expect(prompt).toContain('write_meeting');
+      expect(prompt).toContain('continue');
     });
 
     it('should include JSON output format for no ambiguity', async () => {
@@ -359,7 +359,7 @@ describe('AgentRunner', () => {
       const prompt = await agentRunner.buildExecutionPrompt(task);
 
       // 验证无歧义时的输出格式
-      expect(prompt).toContain('"ambiguityDetected": false');
+      expect(prompt).toContain('"hasAmbiguity": false');
     });
 
     it('should include handling strategy based on severity', async () => {
