@@ -359,8 +359,8 @@ export class OrchestratorExecutor {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    // 检查输出中是否包含歧义报告
-    if (result.output?.includes('ambiguityDetected') || result.output?.includes('hasAmbiguity')) {
+    // 检查输出中是否包含歧义报告（仅匹配 XML 标签作为唯一触发标记）
+    if (result.output?.includes('<ambiguity_report>')) {
       const ambiguityReport = this.parseAmbiguityReport(taskId, result.output);
       if (ambiguityReport?.hasAmbiguity) {
         const ambiguityResult = await this.handleAmbiguity(task, ambiguityReport);
@@ -503,8 +503,8 @@ export class OrchestratorExecutor {
         return { ...report, taskId };
       }
 
-      // 尝试查找包含 hasAmbiguity 的 JSON 块
-      const jsonBlockMatch = output.match(/\{[\s\S]*?"hasAmbiguity"[\s\S]*?\}/);
+      // 尝试查找包含 hasAmbiguity 的 JSON 块（非贪婪，作为最后兜底）
+      const jsonBlockMatch = output.match(/\{[^{}]*?"hasAmbiguity"[^{}]*?\}/);
       if (jsonBlockMatch) {
         const report = JSON.parse(jsonBlockMatch[0]) as AmbiguityReport;
         return { ...report, taskId };

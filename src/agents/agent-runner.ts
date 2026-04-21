@@ -232,29 +232,32 @@ ${agentPrompt.instructions}
 ### 输出格式
 
 如果检测到歧义，在任务执行前输出：
-\`\`\`json
+\`\`\`xml
+<ambiguity_report>
 {
-  "ambiguityDetected": true,
-  "report": {
-    "taskId": "${task.id}",
-    "phase": "pre_execution",
-    "ambiguities": [
-      {
-        "type": "requirement|technical|dependency|acceptance|test_result",
-        "severity": "Critical|High|Medium|Low",
-        "description": "歧义描述",
-        "suggestedResolution": "建议的处理方案"
-      }
-    ],
-    "overallSeverity": "Critical|High|Medium|Low",
-    "recommendedAction": "ask_user|proceed_with_assumption|block_and_report"
-  }
+  "hasAmbiguity": true,
+  "taskId": "${task.id}",
+  "detectionPhase": "pre_execution",
+  "ambiguities": [
+    {
+      "type": "requirement|technical|dependency|acceptance|test_result",
+      "severity": "Critical|High|Medium|Low",
+      "description": "歧义描述",
+      "suggestedResolution": "建议的处理方案"
+    }
+  ],
+  "maxSeverity": "Critical|High|Medium|Low",
+  "suggestedStrategy": "ask_immediate|write_meeting|continue",
+  "detectedAt": "<ISO timestamp>"
 }
+</ambiguity_report>
 \`\`\`
 
 如果没有歧义，输出：
-\`\`\`json
-{ "ambiguityDetected": false }
+\`\`\`xml
+<ambiguity_report>
+{ "hasAmbiguity": false }
+</ambiguity_report>
 \`\`\`
 
 ### 处理策略
