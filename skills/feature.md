@@ -277,6 +277,7 @@ TodoWrite({ todos: [...] }) // 当前任务标记 in_progress
 
 Agent 输出中可能包含歧义报告：
 
+当 Agent 输出包含以下标记时，表示检测到歧义：
 ```
 <AMBIGUITY_REPORT>
 {

@@ -6,6 +6,7 @@ import { StateManager } from '../../src/storage/state-manager.js';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import type { AmbiguityReport, AmbiguityItem, AmbiguitySeverity } from '../../src/types/index.js';
 
 describe('MeetingManager', () => {
   let meetingManager: MeetingManager;
@@ -24,6 +25,38 @@ describe('MeetingManager', () => {
   afterEach(async () => {
     await rm(tempDir, { recursive: true, force: true });
   });
+
+  /**
+   * Helper function to create a valid AmbiguityReport
+   */
+  function createAmbiguityReport(
+    taskId: string,
+    ambiguities: AmbiguityItem[],
+    options: {
+      detectionPhase?: 'pre_execution' | 'during_execution';
+      maxSeverity?: AmbiguitySeverity;
+      suggestedStrategy?: 'ask_immediate' | 'write_meeting' | 'continue';
+      suggestedQuestions?: string[];
+    } = {}
+  ): AmbiguityReport {
+    const hasAmbiguity = ambiguities.length > 0;
+    const maxSeverity = options.maxSeverity || (hasAmbiguity ? ambiguities.reduce((max, a) => {
+      const order: AmbiguitySeverity[] = ['critical', 'high', 'medium', 'low'];
+      return order.indexOf(a.severity) < order.indexOf(max) ? a.severity : max;
+    }, 'low' as AmbiguitySeverity) : undefined);
+
+    return {
+      id: `amb-report-${Date.now().toString(36)}`,
+      taskId,
+      detectionPhase: options.detectionPhase || 'pre_execution',
+      ambiguities,
+      hasAmbiguity,
+      maxSeverity,
+      detectedAt: new Date().toISOString(),
+      suggestedStrategy: options.suggestedStrategy,
+      suggestedQuestions: options.suggestedQuestions
+    };
+  }
 
   describe('createBlockingMeeting', () => {
     it('should create blocking meeting', async () => {

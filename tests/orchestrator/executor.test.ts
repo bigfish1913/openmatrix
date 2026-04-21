@@ -1,9 +1,9 @@
 // tests/orchestrator/executor.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { OrchestratorExecutor } from '../../src/orchestrator/executor.js';
 import { StateManager } from '../../src/storage/state-manager.js';
 import { ApprovalManager } from '../../src/orchestrator/approval-manager.js';
-import type { Task, GlobalState, Approval } from '../../src/types/index.js';
+import type { Task, GlobalState, Approval, AmbiguityReport, AmbiguityItem } from '../../src/types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
