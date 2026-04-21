@@ -474,6 +474,88 @@ export class OrchestratorExecutor {
     return 'accept';
   }
 
+  // ============ Ambiguity Management ============
+
+  /**
+   * 解析歧义报告
+   *
+   * 从 Agent 输出中提取歧义报告 JSON
+   * 支持多种标记格式：
+   * - <ambiguity_report>...</ambiguity_report>
+   * - AMBIGUITY_REPORT: {...}
+   * - 直接 JSON 块
+   */
+  private parseAmbiguityReport(taskId: string, output: string): AmbiguityReport | null {
+    try {
+      // 尝试提取 XML 标记格式
+      const xmlMatch = output.match(/<ambiguity_report>([\s\S]*?)<\/ambiguity_report>/);
+      if (xmlMatch) {
+        const jsonStr = xmlMatch[1].trim();
+        const report = JSON.parse(jsonStr) as AmbiguityReport;
+        return { ...report, taskId };
+      }
+
+      // 尝试提取 AMBIGUITY_REPORT: 格式
+      const prefixMatch = output.match(/AMBIGUITY_REPORT:\s*([\s\S]*?)(?:\n\n|\n---|$)/);
+      if (prefixMatch) {
+        const jsonStr = prefixMatch[1].trim();
+        const report = JSON.parse(jsonStr) as AmbiguityReport;
+        return { ...report, taskId };
+      }
+
+      // 尝试查找包含 hasAmbiguity 的 JSON 块
+      const jsonBlockMatch = output.match(/\{[\s\S]*?"hasAmbiguity"[\s\S]*?\}/);
+      if (jsonBlockMatch) {
+        const report = JSON.parse(jsonBlockMatch[0]) as AmbiguityReport;
+        return { ...report, taskId };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn(`⚠️ 解析歧义报告失败: ${taskId}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 处理歧义
+   *
+   * 根据执行模式和严重程度选择处理策略：
+   * - auto 模式：所有歧义写入 Meeting，继续执行
+   * - 其他模式：
+   *   - Critical/High：返回 ambiguity_ask_user 状态，让 Skill 层用 AskUserQuestion 处理
+   *   - Medium/Low：写入 Meeting，继续执行
+   */
+  private async handleAmbiguity(
+    task: Task,
+    report: AmbiguityReport
+  ): Promise<{ status: 'ambiguity_ask_user' | 'ambiguity_handled'; report: AmbiguityReport } | null> {
+    const state = await this.stateManager.getState();
+    const mode = state.config.approvalPoints.length === 0 ? 'auto' : 'interactive';
+
+    console.log(`🔍 检测到歧义: ${task.id} - 最高严重程度: ${report.maxSeverity || 'unknown'}`);
+
+    // auto 模式：所有歧义写入 Meeting，继续执行
+    if (mode === 'auto') {
+      await this.meetingManager.createAmbiguityMeeting(task.id, report);
+      console.log(`📝 [auto模式] 歧义已写入 Meeting，继续执行`);
+      return { status: 'ambiguity_handled', report };
+    }
+
+    // 其他模式：根据严重程度处理
+    const severity = report.maxSeverity;
+    if (severity === 'critical' || severity === 'high') {
+      // Critical/High: 返回特殊状态让 Skill 层用 AskUserQuestion 处理
+      console.log(`⚠️ [interactive模式] Critical/High 歧义，需用户确认`);
+      return { status: 'ambiguity_ask_user', report };
+    } else {
+      // Medium/Low: 写入 Meeting，继续执行
+      await this.meetingManager.createAmbiguityMeeting(task.id, report);
+      console.log(`📝 [interactive模式] Medium/Low 歧义已写入 Meeting，继续执行`);
+      return { status: 'ambiguity_handled', report };
+    }
+  }
+
   /**
    * 获取执行器状态
    */
