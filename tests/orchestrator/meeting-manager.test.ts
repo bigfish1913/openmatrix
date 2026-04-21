@@ -304,4 +304,482 @@ describe('MeetingManager', () => {
       expect(cancelled.status).toBe('cancelled');
     });
   });
+
+  describe('createAmbiguityMeeting', () => {
+    it('should create ambiguity meeting with correct properties', async () => {
+      const ambiguities: AmbiguityItem[] = [
+        {
+          id: 'amb-001',
+          type: 'requirement',
+          severity: 'high',
+          description: 'User authentication flow is unclear',
+          impactScope: ['AuthService', 'LoginController'],
+          possibleSolutions: ['OAuth2', 'JWT', 'Session-based'],
+          relatedFiles: ['src/auth/login.ts'],
+          relatedTaskIds: ['TASK-002']
+        }
+      ];
+      const report = createAmbiguityReport('TASK-001', ambiguities);
+
+      const { meeting, approval } = await meetingManager.createAmbiguityMeeting(
+        'TASK-001',
+        report
+      );
+
+      expect(meeting.id).toMatch(/^meeting-/);
+      expect(meeting.type).toBe('ambiguity');
+      expect(meeting.status).toBe('pending');
+      expect(meeting.taskId).toBe('TASK-001');
+      expect(meeting.ambiguityReport).toEqual(report);
+      expect(meeting.suggestedQuestions).toEqual(report.suggestedQuestions);
+      expect(meeting.impactScope).toEqual(['AuthService', 'LoginController']);
+
+      expect(approval.type).toBe('meeting');
+      expect(approval.taskId).toBe('TASK-001');
+    });
+
+    it('should create approval with formatted ambiguity report', async () => {
+      const ambiguities: AmbiguityItem[] = [
+        {
+          id: 'amb-001',
+          type: 'technical',
+          severity: 'medium',
+          description: 'Database schema design needs clarification',
+          impactScope: ['DatabaseModule'],
+          possibleSolutions: ['Normalize tables', 'Use JSON columns']
+        }
+      ];
+      const report = createAmbiguityReport('TASK-001', ambiguities, {
+        detectionPhase: 'pre_execution',
+        suggestedStrategy: 'ask_immediate',
+        suggestedQuestions: ['Which database approach to use?']
+      });
+
+      const { approval } = await meetingManager.createAmbiguityMeeting(
+        'TASK-001',
+        report
+      );
+
+      expect(approval.description).toContain('歧义检测结果');
+      expect(approval.description).toContain('执行前');
+      expect(approval.description).toContain('检测时间');
+      expect(approval.description).toContain('歧义数量');
+      expect(approval.description).toContain('technical');
+      expect(approval.description).toContain('Database schema design');
+      expect(approval.description).toContain('DatabaseModule');
+      expect(approval.description).toContain('可能的解决方案');
+      expect(approval.description).toContain('建议处理策略');
+      expect(approval.description).toContain('建议的问题');
+    });
+
+    describe('severity-based title prefix', () => {
+      it('should use 🔴 Critical prefix for critical severity', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'critical',
+            description: 'Critical ambiguity in core feature',
+            impactScope: ['CoreModule']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, { maxSeverity: 'critical' });
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.title).toContain('🔴 Critical');
+      });
+
+      it('should use 🟠 High prefix for high severity', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'technical',
+            severity: 'high',
+            description: 'High priority technical ambiguity',
+            impactScope: ['TechModule']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, { maxSeverity: 'high' });
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.title).toContain('🟠 High');
+      });
+
+      it('should use 🟡 Medium prefix for medium severity', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'dependency',
+            severity: 'medium',
+            description: 'Medium priority dependency ambiguity',
+            impactScope: ['DepModule']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, { maxSeverity: 'medium' });
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.title).toContain('🟡 Medium');
+      });
+
+      it('should use 🟢 Low prefix for low severity', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'acceptance',
+            severity: 'low',
+            description: 'Low priority acceptance ambiguity',
+            impactScope: ['AccModule']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, { maxSeverity: 'low' });
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.title).toContain('🟢 Low');
+      });
+
+      it('should derive maxSeverity from ambiguities when not provided', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'low',
+            description: 'Low severity',
+            impactScope: []
+          },
+          {
+            id: 'amb-002',
+            type: 'technical',
+            severity: 'critical',
+            description: 'Critical severity',
+            impactScope: []
+          }
+        ];
+        // Don't set maxSeverity explicitly - should derive from ambiguities
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        // Should use critical as it's the highest severity
+        expect(meeting.title).toContain('🔴 Critical');
+      });
+    });
+
+    describe('formatAmbiguityReport edge cases', () => {
+      it('should handle ambiguities without optional fields', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'medium',
+            description: 'Simple ambiguity',
+            impactScope: ['ScopeA']
+            // No possibleSolutions, relatedFiles, relatedTaskIds
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(approval.description).toContain('Simple ambiguity');
+        expect(approval.description).toContain('ScopeA');
+        expect(approval.description).not.toContain('相关文件');
+        expect(approval.description).not.toContain('相关任务');
+        expect(approval.description).not.toContain('可能的解决方案');
+      });
+
+      it('should handle ambiguities with multiple related files and tasks', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'technical',
+            severity: 'high',
+            description: 'Complex ambiguity',
+            impactScope: ['ModuleA', 'ModuleB'],
+            possibleSolutions: ['Solution A', 'Solution B', 'Solution C'],
+            relatedFiles: ['file1.ts', 'file2.ts', 'file3.ts'],
+            relatedTaskIds: ['TASK-002', 'TASK-003']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(approval.description).toContain('file1.ts, file2.ts, file3.ts');
+        expect(approval.description).toContain('TASK-002, TASK-003');
+        expect(approval.description).toContain('Solution A');
+        expect(approval.description).toContain('Solution B');
+        expect(approval.description).toContain('Solution C');
+      });
+
+      it('should handle empty impactScope', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'test_result',
+            severity: 'low',
+            description: 'Test result ambiguity',
+            impactScope: []
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { meeting, approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.impactScope).toEqual([]);
+        expect(approval.description).toContain('Test result ambiguity');
+      });
+
+      it('should handle report without suggestedStrategy and suggestedQuestions', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'medium',
+            description: 'Ambiguity without suggestions',
+            impactScope: ['ScopeA']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, {
+          suggestedStrategy: undefined,
+          suggestedQuestions: undefined
+        });
+
+        const { approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(approval.description).not.toContain('建议处理策略');
+        expect(approval.description).not.toContain('建议的问题');
+      });
+
+      it('should handle during_execution detection phase', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'technical',
+            severity: 'high',
+            description: 'Runtime ambiguity',
+            impactScope: ['Runtime']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, {
+          detectionPhase: 'during_execution'
+        });
+
+        const { approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(approval.description).toContain('执行中');
+      });
+    });
+
+    describe('empty and edge cases', () => {
+      it('should handle empty ambiguities array', async () => {
+        const report = createAmbiguityReport('TASK-001', []);
+
+        const { meeting, approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.type).toBe('ambiguity');
+        expect(meeting.impactScope).toEqual([]);
+        // Should use 'medium' as default when no maxSeverity
+        expect(meeting.title).toContain('歧义检测');
+        expect(approval.description).toContain('歧义数量');
+        expect(approval.description).toContain('0');
+      });
+
+      it('should handle multiple ambiguities with different types and severities', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'critical',
+            description: 'Critical requirement issue',
+            impactScope: ['ReqScope']
+          },
+          {
+            id: 'amb-002',
+            type: 'technical',
+            severity: 'high',
+            description: 'High technical issue',
+            impactScope: ['TechScope'],
+            possibleSolutions: ['Tech solution']
+          },
+          {
+            id: 'amb-003',
+            type: 'dependency',
+            severity: 'medium',
+            description: 'Medium dependency issue',
+            impactScope: ['DepScope']
+          },
+          {
+            id: 'amb-004',
+            type: 'acceptance',
+            severity: 'low',
+            description: 'Low acceptance issue',
+            impactScope: ['AccScope']
+          },
+          {
+            id: 'amb-005',
+            type: 'test_result',
+            severity: 'high',
+            description: 'High test result issue',
+            impactScope: ['TestScope']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { meeting, approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        // Should flatten all impact scopes
+        expect(meeting.impactScope).toEqual(['ReqScope', 'TechScope', 'DepScope', 'AccScope', 'TestScope']);
+
+        // Title should use first ambiguity's description
+        expect(meeting.title).toContain('Critical requirement issue');
+
+        // All types should be in description
+        expect(approval.description).toContain('requirement');
+        expect(approval.description).toContain('technical');
+        expect(approval.description).toContain('dependency');
+        expect(approval.description).toContain('acceptance');
+        expect(approval.description).toContain('test_result');
+      });
+
+      it('should handle very long description by truncating in title', async () => {
+        const longDescription = 'This is a very long ambiguity description that exceeds the fifty character limit and should be truncated in the meeting title for better readability';
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'high',
+            description: longDescription,
+            impactScope: ['Scope']
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        // Title should contain truncated description (first 50 chars)
+        expect(meeting.title).toContain(longDescription.slice(0, 50));
+        expect(meeting.title.length).toBeLessThan(longDescription.length + 50);
+      });
+    });
+
+    describe('meeting with suggestedQuestions', () => {
+      it('should include suggestedQuestions in meeting', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'medium',
+            description: 'Need user input',
+            impactScope: ['Scope']
+          }
+        ];
+        const suggestedQuestions = [
+          'Which approach do you prefer?',
+          'Should we prioritize performance or maintainability?'
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities, {
+          suggestedQuestions
+        });
+
+        const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        expect(meeting.suggestedQuestions).toEqual(suggestedQuestions);
+      });
+    });
+
+    describe('approval content', () => {
+      it('should include meetingId and ambiguityReport in approval content', async () => {
+        const ambiguities: AmbiguityItem[] = [
+          {
+            id: 'amb-001',
+            type: 'requirement',
+            severity: 'high',
+            description: 'Test ambiguity',
+            impactScope: []
+          }
+        ];
+        const report = createAmbiguityReport('TASK-001', ambiguities);
+
+        const { meeting, approval } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+        const content = JSON.parse(approval.content);
+        expect(content.meetingId).toBe(meeting.id);
+        expect(content.ambiguityReport).toEqual(report);
+      });
+    });
+  });
+
+  describe('meeting status transitions for ambiguity meetings', () => {
+    it('should transition ambiguity meeting through full lifecycle', async () => {
+      const ambiguities: AmbiguityItem[] = [
+        {
+          id: 'amb-001',
+          type: 'requirement',
+          severity: 'high',
+          description: 'Test ambiguity',
+          impactScope: []
+        }
+      ];
+      const report = createAmbiguityReport('TASK-001', ambiguities);
+
+      const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+      expect(meeting.status).toBe('pending');
+
+      const started = await meetingManager.startMeeting(meeting.id);
+      expect(started.status).toBe('in_progress');
+
+      const resolved = await meetingManager.resolveMeeting(meeting.id, 'User clarified requirements');
+      expect(resolved.status).toBe('resolved');
+      expect(resolved.resolution).toBe('User clarified requirements');
+    });
+
+    it('should cancel ambiguity meeting', async () => {
+      const ambiguities: AmbiguityItem[] = [
+        {
+          id: 'amb-001',
+          type: 'requirement',
+          severity: 'medium',
+          description: 'Test ambiguity',
+          impactScope: []
+        }
+      ];
+      const report = createAmbiguityReport('TASK-001', ambiguities);
+
+      const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+      const cancelled = await meetingManager.cancelMeeting(meeting.id, 'No longer relevant');
+      expect(cancelled.status).toBe('cancelled');
+      expect(cancelled.resolution).toContain('Cancelled');
+    });
+  });
+
+  describe('generateMeetingReport for ambiguity meetings', () => {
+    it('should generate report for ambiguity meeting', async () => {
+      const ambiguities: AmbiguityItem[] = [
+        {
+          id: 'amb-001',
+          type: 'requirement',
+          severity: 'critical',
+          description: 'Critical ambiguity detected',
+          impactScope: ['AuthService', 'LoginModule']
+        }
+      ];
+      const report = createAmbiguityReport('TASK-001', ambiguities);
+
+      const { meeting } = await meetingManager.createAmbiguityMeeting('TASK-001', report);
+
+      const generatedReport = meetingManager.generateMeetingReport(meeting);
+
+      expect(generatedReport).toContain('Meeting 报告');
+      expect(generatedReport).toContain(meeting.id);
+      expect(generatedReport).toContain('ambiguity');
+      expect(generatedReport).toContain('TASK-001');
+      expect(generatedReport).toContain('AuthService');
+      expect(generatedReport).toContain('LoginModule');
+    });
+  });
 });
