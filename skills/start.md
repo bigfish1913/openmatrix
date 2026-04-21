@@ -382,7 +382,7 @@ openmatrix complete TASK-XXX --success --summary "决策: xxx; 文件: xxx"
 # 提交验证（防止 commit 静默失败）:
 git status --porcelain                        # 检查是否有未提交的文件
 # 如果有未提交文件 → 必须手动提交:
-git add -A && git commit -m "feat(TASK-XXX): 任务标题"
+git add . && git commit -m "feat(TASK-XXX): 任务标题"
 
 openmatrix step --json                       # 获取下一个任务 + 检查是否全部完成
 ```
@@ -538,7 +538,7 @@ openmatrix meeting --list
 
 所有任务完成后，执行最终 Git 提交（**必须使用 HEREDOC 格式**）:
 ```bash
-git add -A && git commit -m "$(cat <<'EOF'
+git add . && git commit -m "$(cat <<'EOF'
 feat: 完成所有任务 - 任务总标题
 
 改动点1

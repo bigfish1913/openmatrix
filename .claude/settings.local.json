@@ -35,7 +35,10 @@
       "Bash(node -e ' *)",
       "Bash(node -e \" const fs = require\\('fs'\\); const data = JSON.parse\\(fs.readFileSync\\(0, 'utf8'\\)\\); const tasks = {}; data.subagentTasks.forEach\\(t => { tasks[t.taskId] = t; }\\); // Output first 4 tasks as JSON console.log\\(JSON.stringify\\([tasks['TASK-001'], tasks['TASK-003'], tasks['TASK-005'], tasks['TASK-007']]\\)\\); \")",
       "Bash(node dist/cli/index.js check --json)",
-      "Bash(node dist/cli/index.js debug \"om:start 命令的可视化测试有的时候没有严格执行\" --json)"
+      "Bash(node dist/cli/index.js debug \"om:start 命令的可视化测试有的时候没有严格执行\" --json)",
+      "Bash(npm version *)",
+      "Bash(node dist/cli/index.js debug \"今天测试的出现了提交target和node_modules目录\" --json)",
+      "Bash(node dist/cli/index.js debug \"om:feature 流程是否合理\" --json)"
     ]
   }
 }

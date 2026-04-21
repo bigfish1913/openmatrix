@@ -15,6 +15,7 @@ dist/
 
 # Build Output
 build/
+target/
 *.tsbuildinfo
 
 # Environment

@@ -440,7 +440,7 @@ ${lessons}
 ```bash
 git status --porcelain
 # 如果有未提交文件：
-git add -A && git commit -m "$(cat <<'EOF'
+git add . && git commit -m "$(cat <<'EOF'
 fix: 修复 bug - 问题描述
 
 根因: ...

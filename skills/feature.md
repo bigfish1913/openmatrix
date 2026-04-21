@@ -367,7 +367,7 @@ fi
 **⛔ 验证通过后必须立即提交，不得积累多个任务块**
 
 ```bash
-git add -A
+git add .
 git commit -m "$(cat <<'EOF'
 feat(feature): ${originalTask} - ${currentChunk}
 

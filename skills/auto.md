@@ -154,7 +154,7 @@ openmatrix complete TASK-XXX --success       # 标记完成 + 更新统计（含
 # 提交验证（防止 commit 静默失败）:
 git status --porcelain                        # 检查是否有未提交的文件
 # 如果有未提交文件 → 必须手动提交:
-git add -A && git commit -m "feat(TASK-XXX): 任务标题"
+git add . && git commit -m "feat(TASK-XXX): 任务标题"
 
 openmatrix step --json                       # 获取下一个任务 + 检查是否全部完成
 ```
@@ -246,7 +246,7 @@ openmatrix step --json
 Agent-1 完成 → 写入 context.md → Agent-2 读取 Agent-1 的上下文 → 写入 context.md → ...
 ```
 ```bash
-git add -A && git commit -m "$(cat <<'EOF'
+git add . && git commit -m "$(cat <<'EOF'
 feat: 任务标题
 
 改动点1
