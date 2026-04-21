@@ -508,7 +508,7 @@ More output here.`;
 
       // Prompt must contain the ambiguity detection section
       expect(prompt).toContain('歧义检测');
-      expect(prompt).toContain('ambiguityDetected');
+      // The output format template uses hasAmbiguity as the field name
       expect(prompt).toContain('hasAmbiguity');
     });
 
