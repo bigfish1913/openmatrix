@@ -506,16 +506,24 @@ export class OrchestratorExecutor {
       // 尝试查找包含 hasAmbiguity 的 JSON 块（平衡括号匹配，作为最后兜底）
       const hasAmbiguityIdx = output.indexOf('"hasAmbiguity"');
       if (hasAmbiguityIdx !== -1) {
-        // 向前找最近的 {
-        const start = output.lastIndexOf('{', hasAmbiguityIdx);
+        // 向前扫描找到深度为 1 的最外层 {
+        let start = -1;
+        let depth = 0;
+        for (let i = hasAmbiguityIdx; i >= 0; i--) {
+          if (output[i] === '}') depth++;
+          else if (output[i] === '{') {
+            depth--;
+            if (depth < 0) { start = i; break; }
+          }
+        }
         if (start !== -1) {
-          let depth = 0;
+          let d = 0;
           let end = -1;
           for (let i = start; i < output.length; i++) {
-            if (output[i] === '{') depth++;
+            if (output[i] === '{') d++;
             else if (output[i] === '}') {
-              depth--;
-              if (depth === 0) { end = i; break; }
+              d--;
+              if (d === 0) { end = i; break; }
             }
           }
           if (end !== -1) {
