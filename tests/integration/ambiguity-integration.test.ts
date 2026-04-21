@@ -271,8 +271,8 @@ describe('Ambiguity Detection Integration Tests', () => {
         assignedAgent: 'coder',
       });
 
-      // Simulate agent output containing an ambiguity report
-      const ambiguityOutput = JSON.stringify({
+      // Simulate agent output containing an ambiguity report (XML tag format — reliably parsed)
+      const reportObj = {
         hasAmbiguity: true,
         id: 'report-test-001',
         taskId: task.id,
@@ -288,7 +288,8 @@ describe('Ambiguity Detection Integration Tests', () => {
         ],
         maxSeverity: 'high',
         detectedAt: new Date().toISOString(),
-      });
+      };
+      const ambiguityOutput = `<ambiguity_report>\n${JSON.stringify(reportObj)}\n</ambiguity_report>`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
@@ -331,7 +332,7 @@ describe('Ambiguity Detection Integration Tests', () => {
         assignedAgent: 'coder',
       });
 
-      const ambiguityOutput = JSON.stringify({
+      const criticalObj = {
         hasAmbiguity: true,
         id: 'report-critical-001',
         taskId: task.id,
@@ -347,7 +348,8 @@ describe('Ambiguity Detection Integration Tests', () => {
         ],
         maxSeverity: 'critical',
         detectedAt: new Date().toISOString(),
-      });
+      };
+      const ambiguityOutput = `<ambiguity_report>\n${JSON.stringify(criticalObj)}\n</ambiguity_report>`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
@@ -382,7 +384,7 @@ describe('Ambiguity Detection Integration Tests', () => {
         assignedAgent: 'coder',
       });
 
-      const ambiguityOutput = JSON.stringify({
+      const mediumObj = {
         hasAmbiguity: true,
         id: 'report-medium-001',
         taskId: task.id,
@@ -398,7 +400,8 @@ describe('Ambiguity Detection Integration Tests', () => {
         ],
         maxSeverity: 'medium',
         detectedAt: new Date().toISOString(),
-      });
+      };
+      const ambiguityOutput = `<ambiguity_report>\n${JSON.stringify(mediumObj)}\n</ambiguity_report>`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
@@ -435,7 +438,11 @@ describe('Ambiguity Detection Integration Tests', () => {
 
       expect(result.ambiguityResult).toBeUndefined();
 
-      const pendingMeetings = await stateManager.getMeetingsByStatus('pending');
+      // meetings dir may not exist if nothing was ever written — treat that as empty
+      let pendingMeetings: Meeting[] = [];
+      try {
+        pendingMeetings = await stateManager.getMeetingsByStatus('pending');
+      } catch { /* directory doesn't exist yet — no meetings */ }
       const ambiguityMeeting = pendingMeetings.find(m => m.type === 'ambiguity' && m.taskId === task.id);
       expect(ambiguityMeeting).toBeUndefined();
     });
@@ -557,7 +564,7 @@ More output here.`;
       expect(subagentTask.taskId).toBe(task.id);
       expect(subagentTask.agentType).toBe('coder');
       expect(subagentTask.prompt).toContain('歧义检测');
-      expect(subagentTask.prompt).toContain('ambiguityDetected');
+      expect(subagentTask.prompt).toContain('hasAmbiguity');
     });
 
     it('should map all AgentType values to valid ClaudeCodeSubagentType', async () => {
@@ -607,11 +614,11 @@ More output here.`;
       const subagentTask = await agentRunner.prepareSubagentTask(task);
       expect(subagentTask.prompt).toContain('歧义检测');
 
-      // Step 3: Simulate agent returning output with ambiguity report
+      // Step 3: Simulate agent returning output with ambiguity report (XML format)
       const report = makeAmbiguityReport(task.id, [
         makeAmbiguityItem({ type: 'requirement', severity: 'high', description: 'E2E test ambiguity' }),
       ]);
-      const agentOutput = JSON.stringify(report);
+      const agentOutput = `<ambiguity_report>\n${JSON.stringify(report)}\n</ambiguity_report>`;
 
       // Step 4: Executor processes the output
       const completeResult = await executor.completeTask(task.id, {
@@ -666,7 +673,7 @@ More output here.`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
-        output: JSON.stringify(multiReport),
+        output: `<ambiguity_report>\n${JSON.stringify(multiReport)}\n</ambiguity_report>`,
       });
 
       expect(result.ambiguityResult).toBeDefined();
