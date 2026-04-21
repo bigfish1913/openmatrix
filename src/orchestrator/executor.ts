@@ -56,6 +56,7 @@ export class OrchestratorExecutor {
   private phaseExecutor: PhaseExecutor;
   private retryManager: RetryManager;
   private aiReviewer: AIReviewer;
+  private meetingManager: MeetingManager;
   private config: ExecutorConfig;
   private taskTimers: Map<string, NodeJS.Timeout> = new Map();
 
@@ -66,6 +67,7 @@ export class OrchestratorExecutor {
   ) {
     this.stateManager = stateManager;
     this.approvalManager = approvalManager;
+    this.meetingManager = new MeetingManager(stateManager, approvalManager);
 
     // 从 state.config 读取 taskTimeout，如果未定义则使用默认值
     const stateConfig = stateManager.getState().then(s => s.config).catch(() => null);

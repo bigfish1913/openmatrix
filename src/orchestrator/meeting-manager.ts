@@ -131,6 +131,140 @@ ${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
   }
 
   /**
+   * 获取严重程度对应的图标和标题前缀
+   */
+  private getSeverityPrefix(severity: AmbiguitySeverity): string {
+    const prefixes: Record<AmbiguitySeverity, string> = {
+      critical: '🔴 Critical',
+      high: '🟠 High',
+      medium: '🟡 Medium',
+      low: '🟢 Low'
+    };
+    return prefixes[severity];
+  }
+
+  /**
+   * 格式化歧义报告为 Markdown 描述
+   */
+  private formatAmbiguityReport(report: AmbiguityReport): string {
+    const lines: string[] = [];
+
+    lines.push('## 歧义检测结果');
+    lines.push('');
+    lines.push(`**检测阶段**: ${report.detectionPhase === 'pre_execution' ? '执行前' : '执行中'}`);
+    lines.push(`**检测时间**: ${report.detectedAt}`);
+    lines.push(`**歧义数量**: ${report.ambiguities.length}`);
+    if (report.maxSeverity) {
+      lines.push(`**最高严重程度**: ${this.getSeverityPrefix(report.maxSeverity)}`);
+    }
+    lines.push('');
+
+    lines.push('## 歧义详情');
+    lines.push('');
+
+    for (const ambiguity of report.ambiguities) {
+      const severityIcon = this.getSeverityPrefix(ambiguity.severity);
+      lines.push(`### ${severityIcon} ${ambiguity.type}`);
+      lines.push('');
+      lines.push(`**描述**: ${ambiguity.description}`);
+      lines.push('');
+
+      if (ambiguity.impactScope.length > 0) {
+        lines.push('**影响范围**:');
+        for (const scope of ambiguity.impactScope) {
+          lines.push(`- ${scope}`);
+        }
+        lines.push('');
+      }
+
+      if (ambiguity.possibleSolutions && ambiguity.possibleSolutions.length > 0) {
+        lines.push('**可能的解决方案**:');
+        for (let i = 0; i < ambiguity.possibleSolutions.length; i++) {
+          lines.push(`${i + 1}. ${ambiguity.possibleSolutions[i]}`);
+        }
+        lines.push('');
+      }
+
+      if (ambiguity.relatedFiles && ambiguity.relatedFiles.length > 0) {
+        lines.push(`**相关文件**: ${ambiguity.relatedFiles.join(', ')}`);
+        lines.push('');
+      }
+
+      if (ambiguity.relatedTaskIds && ambiguity.relatedTaskIds.length > 0) {
+        lines.push(`**相关任务**: ${ambiguity.relatedTaskIds.join(', ')}`);
+        lines.push('');
+      }
+    }
+
+    if (report.suggestedStrategy) {
+      lines.push('## 建议处理策略');
+      lines.push('');
+      const strategyMap: Record<string, string> = {
+        ask_immediate: '立即提问 (ask_immediate)',
+        write_meeting: '写入 Meeting (write_meeting)',
+        continue: '继续执行 (continue)'
+      };
+      lines.push(strategyMap[report.suggestedStrategy] || report.suggestedStrategy);
+      lines.push('');
+    }
+
+    if (report.suggestedQuestions && report.suggestedQuestions.length > 0) {
+      lines.push('## 建议的问题');
+      lines.push('');
+      for (let i = 0; i < report.suggestedQuestions.length; i++) {
+        lines.push(`${i + 1}. ${report.suggestedQuestions[i]}`);
+      }
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 创建歧义 Meeting
+   */
+  async createAmbiguityMeeting(
+    taskId: string,
+    ambiguityReport: AmbiguityReport
+  ): Promise<{ meeting: Meeting; approval: Approval }> {
+    const meetingId = `meeting-${Date.now().toString(36)}`;
+    const now = new Date().toISOString();
+
+    // 根据最高严重程度生成标题
+    const severity = ambiguityReport.maxSeverity || 'medium';
+    const severityPrefix = this.getSeverityPrefix(severity);
+    const titleSummary = ambiguityReport.ambiguities[0]?.description.slice(0, 50) || '歧义检测';
+
+    const meeting: Meeting = {
+      id: meetingId,
+      type: 'ambiguity',
+      status: 'pending',
+      taskId,
+      title: `${severityPrefix}: ${titleSummary}...`,
+      description: `任务 ${taskId} 检测到歧义，需要用户确认处理方式`,
+      impactScope: ambiguityReport.ambiguities.flatMap(a => a.impactScope),
+      participants: ['user'],
+      createdAt: now,
+      ambiguityReport,
+      suggestedQuestions: ambiguityReport.suggestedQuestions
+    };
+
+    // 保存 Meeting
+    await this.stateManager.saveMeeting(meeting);
+
+    // 创建审批
+    const approval = await this.approvalManager.createApproval({
+      type: 'meeting',
+      taskId,
+      title: meeting.title,
+      description: this.formatAmbiguityReport(ambiguityReport),
+      content: JSON.stringify({ meetingId, ambiguityReport })
+    });
+
+    return { meeting, approval };
+  }
+
+  /**
    * 开始 Meeting
    */
   async startMeeting(meetingId: string): Promise<Meeting> {
