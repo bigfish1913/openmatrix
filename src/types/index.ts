@@ -283,7 +283,7 @@ export interface ApprovalOption {
 
 export type MeetingStatus = 'pending' | 'in_progress' | 'resolved' | 'cancelled';
 
-export type MeetingType = 'blocking' | 'decision' | 'review' | 'planning';
+export type MeetingType = 'blocking' | 'decision' | 'review' | 'planning' | 'ambiguity';
 
 export interface Meeting {
   id: string;
@@ -299,6 +299,10 @@ export interface Meeting {
   createdAt: string;
   startedAt?: string;
   resolvedAt?: string;
+  /** 歧义报告 (仅 type 为 'ambiguity' 时使用) */
+  ambiguityReport?: AmbiguityReport;
+  /** 建议的问题列表 (用于歧义处理) */
+  suggestedQuestions?: string[];
 }
 
 // ============ Task Parser Types ============
@@ -413,4 +417,76 @@ export interface DebugSession {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+}
+
+// ============ Ambiguity Types ============
+
+/**
+ * 歧义类型
+ * - requirement: 需求歧义 (需求描述不清晰、存在多种解读)
+ * - technical: 技术歧义 (技术方案选择、实现方式不明确)
+ * - dependency: 依赖歧义 (依赖项版本、接口契约不明确)
+ * - acceptance: 验收歧义 (验收标准不清晰、无法验证)
+ * - test_result: 测试结果歧义 (测试结果不一致、无法判断)
+ */
+export type AmbiguityType =
+  | 'requirement'
+  | 'technical'
+  | 'dependency'
+  | 'acceptance'
+  | 'test_result';
+
+/**
+ * 歧义严重程度
+ * - critical: 严重歧义，必须立即解决，否则任务无法继续
+ * - high: 高优先级歧义，影响核心功能，应尽快解决
+ * - medium: 中等优先级歧义，影响非核心功能，可稍后解决
+ * - low: 低优先级歧义，影响较小，可在后续处理
+ */
+export type AmbiguitySeverity = 'critical' | 'high' | 'medium' | 'low';
+
+/**
+ * 歧义项 - 描述单个歧义点
+ */
+export interface AmbiguityItem {
+  /** 歧义唯一标识 */
+  id: string;
+  /** 歧义类型 */
+  type: AmbiguityType;
+  /** 严重程度 */
+  severity: AmbiguitySeverity;
+  /** 歧义描述 */
+  description: string;
+  /** 影响范围 */
+  impactScope: string[];
+  /** 可能的解决方案 */
+  possibleSolutions?: string[];
+  /** 相关文件 */
+  relatedFiles?: string[];
+  /** 相关任务 ID */
+  relatedTaskIds?: string[];
+}
+
+/**
+ * 歧义报告 - Agent 输出的歧义检测结果
+ */
+export interface AmbiguityReport {
+  /** 报告唯一标识 */
+  id: string;
+  /** 关联的任务 ID */
+  taskId: string;
+  /** 检测阶段: 'pre_execution' 执行前 | 'during_execution' 执行中 */
+  detectionPhase: 'pre_execution' | 'during_execution';
+  /** 检测到的歧义列表 */
+  ambiguities: AmbiguityItem[];
+  /** 是否存在歧义 */
+  hasAmbiguity: boolean;
+  /** 最高严重程度 (用于快速判断) */
+  maxSeverity?: AmbiguitySeverity;
+  /** 检测时间 */
+  detectedAt: string;
+  /** 建议的处理策略 */
+  suggestedStrategy?: 'ask_immediate' | 'write_meeting' | 'continue';
+  /** 建议的问题列表 (用于 AskUserQuestion) */
+  suggestedQuestions?: string[];
 }
