@@ -946,9 +946,24 @@ Continuing execution...`;
 
       await executor.step();
 
-      const output = `Processing...
-{ "hasAmbiguity": true, "id": "amb-002", "taskId": "${task.id}", "detectionPhase": "pre_execution", "ambiguities": [{"id":"a1","type":"requirement","severity":"high","description":"Req unclear","impactScope":[]}], "maxSeverity": "high", "detectedAt": "${new Date().toISOString()}" }
-Done.`;
+      // Create a proper single-line JSON report
+      const report: AmbiguityReport = {
+        id: 'amb-002',
+        taskId: task.id,
+        detectionPhase: 'pre_execution',
+        ambiguities: [{
+          id: 'a1',
+          type: 'requirement',
+          severity: 'high',
+          description: 'Req unclear',
+          impactScope: []
+        }],
+        hasAmbiguity: true,
+        maxSeverity: 'high',
+        detectedAt: new Date().toISOString()
+      };
+
+      const output = `Processing... hasAmbiguity detected here. ${JSON.stringify(report)} Done.`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
