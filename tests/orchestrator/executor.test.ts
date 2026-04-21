@@ -963,7 +963,7 @@ Continuing execution...`;
         detectedAt: new Date().toISOString()
       };
 
-      const output = `Processing... hasAmbiguity detected here. ${JSON.stringify(report)} Done.`;
+      const output = `Processing...\n<ambiguity_report>\n${JSON.stringify(report)}\n</ambiguity_report>\nDone.`;
 
       const result = await executor.completeTask(task.id, {
         success: true,
