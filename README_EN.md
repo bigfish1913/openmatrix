@@ -337,7 +337,7 @@ Step 10: Output Debug Report
 | Q&A Confirm | Quality + E2E | Quality + E2E + Mode |
 | Task Split | AI auto-split 2-5 chunks | Planner Agent generates plan |
 | Git Commit | Step-by-step (after each chunk) | Final unified commit |
-| Resume Mechanism | `/om:resume-feature` | `/om:resume` |
+| Resume Mechanism | `/om:resume` (auto-detect) | `/om:resume` |
 
 **Iron Rules**:
 - No verification, no commit; verify failure must stop
@@ -553,7 +553,7 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Git Parent Directory Support (works in subdirectories of git repos)
 - [x] `/om:debug` Systematic Debugging (four-phase root cause analysis + auto-fix verification loop)
 - [x] `/om:feature` Lightweight Feature (quick iteration, step-by-step Git commit)
-- [x] `/om:resume-feature` Resume interrupted lightweight flow
+- [x] `/om:resume` Smart Resume (auto-detect lightweight/full flow)
 - [ ] VSCode Extension
 - [ ] CI/CD Integration
 

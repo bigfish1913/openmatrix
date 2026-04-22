@@ -337,7 +337,7 @@ Step 10: 输出 Debug Report
 | 问答确认 | 质量 + E2E | 质量 + E2E + 模式 |
 | 任务拆分 | AI 自动拆分 2-5 块 | Planner Agent 生成计划 |
 | Git 提交 | 分步提交（每块完成后） | 最终统一提交 |
-| 恢复机制 | `/om:resume-feature` | `/om:resume` |
+| 恢复机制 | `/om:resume` (自动检测) | `/om:resume` |
 
 **铁律**:
 - 不验证不得提交，验证失败必须停止
@@ -578,7 +578,7 @@ cd openmatrix && npm install && npm run build && npm test
 - [x] Git 父级目录支持 (子目录中正常执行 git 操作)
 - [x] `/om:debug` 系统化调试 (四阶段根因分析 + 自动修复验证循环)
 - [x] `/om:feature` 轻量小需求 (快速迭代，分步 Git 提交)
-- [x] `/om:resume-feature` 恢复中断的轻量流程
+- [x] `/om:resume` 智能恢复 (自动检测轻量/完整流程)
 - [ ] VSCode 扩展
 - [ ] CI/CD 集成
 
