@@ -500,6 +500,9 @@ export class TaskPlanner {
     const coverageTarget = this.getCoverageTarget(qualityConfig, userContext);
     const globalContext = this.buildGlobalContext(parsedTask, userContext, plan);
 
+    // 提取 planMetadata 用于测试任务描述注入
+    const planMetadata = this.extractPlanMetadata(plan);
+
     // 1. 为每个模块创建开发 + 测试任务对
     const devTaskIds: string[] = [];
     const moduleIdToTaskIds = new Map<string, string[]>();
@@ -553,7 +556,7 @@ export class TaskPlanner {
       breakdowns.push({
         taskId: testTaskId,
         title: `测试: ${mod.name}`,
-        description: `## 测试目标\n为 "${mod.name}" 模块编写测试用例\n\n${globalContext}\n\n## 关联开发任务\n${modTaskId}\n\n## 测试要求\n- 单元测试覆盖率 >= ${coverageTarget}%\n- 测试正常流程\n- 测试边界情况\n- 测试异常处理\n\n## 输出\n- 测试文件\n- 测试报告\n- 覆盖率报告`,
+        description: this.buildTestDescription(mod.name, modTaskId, coverageTarget, globalContext, planMetadata),
         priority: this.determineModulePriority(mod, parsedPlan.modules.indexOf(mod)),
         dependencies: [modTaskId],
         estimatedComplexity: 'medium',
@@ -918,7 +921,7 @@ ${globalContext}
         breakdowns.push({
           taskId: testTaskId,
           title: `测试: ${goal}`,
-          description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext),
+          description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext, planMetadata),
           priority: this.determinePriority(i),
           dependencies: [devTaskId],
           estimatedComplexity: 'medium',
