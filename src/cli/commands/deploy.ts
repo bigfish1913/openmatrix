@@ -13,14 +13,18 @@ import type {
 } from '../../types/index.js';
 
 export const deployCommand = new Command('deploy')
-  .description('读取项目结构，生成部署命令和环境信息')
+  .description('智能部署助手：检测环境 → 推荐部署方式 → 生成一键脚本')
+  .argument('[env-type]', '部署环境类型 (local, test, prod)', undefined)
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .option('--interactive', '交互式选择部署方式', false)
   .option('--auto', '自动执行推荐的部署命令', false)
-  .option('--deploy-method <method>', '指定部署方式 (docker, docker-compose, kubernetes, helm, npm, make, script)', undefined)
+  .option('--deploy-method <method>', '指定部署方式 (docker, docker-compose, kubernetes, helm, npm, make, taskfile)', undefined)
+  .option('--env-type <type>', '指定环境类型 (local, test, prod)', undefined)
+  .option('--generate-script <tool>', '生成一键部署脚本 (taskfile, make, npm)', undefined)
   .option('--dry-run', '仅生成命令不执行', false)
   .option('--show-dev', '显示开发环境命令', false)
-  .action(async (options) => {
+  .option('--recommend', '显示 AI 推荐的部署方案', false)
+  .action(async (envType: string | undefined, options) => {
     const projectRoot = process.cwd();
 
     if (!options.json) {
@@ -132,6 +136,9 @@ export const deployCommand = new Command('deploy')
 function formatJsonOutput(envInfo: EnvironmentInfo, options: Record<string, unknown>): Record<string, unknown> {
   const deployCommands = generateDeployCommands(envInfo, options.deployMethod as DeployMethod | undefined, options.dryRun as boolean);
 
+  // 生成 AI 推荐信息
+  const recommendations = generateRecommendations(envInfo);
+
   return {
     action: 'deploy_info',
     projectName: envInfo.projectName,
@@ -139,6 +146,7 @@ function formatJsonOutput(envInfo: EnvironmentInfo, options: Record<string, unkn
     projectRoot: envInfo.projectRoot,
     timestamp: envInfo.timestamp,
     summary: envInfo.summary,
+    recommendations,
     deployCommands,
     devCommands: options.showDev ? envInfo.devCommands : undefined,
     deployOptions: envInfo.deployOptions.map(o => ({
@@ -147,7 +155,80 @@ function formatJsonOutput(envInfo: EnvironmentInfo, options: Record<string, unkn
       configFile: o.configFile,
       recommended: o.recommended,
       description: o.description
-    }))
+    })),
+    envType: options.envType || undefined,
+    generateScript: options.generateScript || undefined
+  };
+}
+
+/**
+ * 生成 AI 推荐信息
+ */
+function generateRecommendations(envInfo: EnvironmentInfo): {
+  envType: { recommended: 'local' | 'test' | 'prod'; reason: string };
+  deployMethod: { recommended: DeployMethod; reason: string };
+  scriptTool: { recommended: 'taskfile' | 'make' | 'npm'; reason: string };
+} {
+  const hasDockerfile = envInfo.deployOptions.some(o => o.method === 'docker' || o.method === 'docker-compose');
+  const hasMakefile = envInfo.deployOptions.some(o => o.method === 'make');
+  const hasCIConfig = envInfo.summary.hasCIConfig;
+  const buildToolCount = envInfo.summary.buildToolCount;
+
+  // 环境类型推荐
+  let envTypeRecommend: 'local' | 'test' | 'prod' = 'local';
+  let envTypeReason = '无特殊配置，本地开发最简单';
+
+  if (hasDockerfile && !hasCIConfig) {
+    envTypeRecommend = 'local';
+    envTypeReason = '检测到 Dockerfile，适合容器化本地开发';
+  } else if (hasCIConfig) {
+    envTypeRecommend = 'test';
+    envTypeReason = '有 CI 配置，适合自动化测试部署';
+  } else if (hasDockerfile && hasCIConfig) {
+    envTypeRecommend = 'prod';
+    envTypeReason = '有完整的生产配置（容器+CI），可部署生产';
+  }
+
+  // 部署工具推荐
+  let deployMethodRecommend: DeployMethod = 'docker';
+  let deployMethodReason = '容器化是最佳实践';
+
+  if (hasDockerfile) {
+    deployMethodRecommend = 'docker';
+    deployMethodReason = '已检测到 Dockerfile，直接使用容器部署';
+  } else if (envInfo.deployOptions.some(o => o.method === 'docker-compose')) {
+    deployMethodRecommend = 'docker-compose';
+    deployMethodReason = '检测到 docker-compose.yml，多服务编排';
+  } else if (envInfo.deployOptions.some(o => o.method === 'kubernetes')) {
+    deployMethodRecommend = 'kubernetes';
+    deployMethodReason = '检测到 k8s 配置，生产级部署';
+  } else if (hasMakefile) {
+    deployMethodRecommend = 'make';
+    deployMethodReason = '检测到 Makefile，使用 make deploy';
+  } else if (buildToolCount > 0) {
+    deployMethodRecommend = 'npm';
+    deployMethodReason = '使用 package.json scripts 部署';
+  }
+
+  // 脚本工具推荐
+  let scriptToolRecommend: 'taskfile' | 'make' | 'npm' = 'taskfile';
+  let scriptToolReason = 'Taskfile 是现代化任务工具，跨平台支持好';
+
+  if (hasMakefile) {
+    scriptToolRecommend = 'make';
+    scriptToolReason = '已有 Makefile，保持一致性';
+  } else if (envInfo.projectType === 'typescript' || envInfo.projectType === 'nodejs') {
+    scriptToolRecommend = 'npm';
+    scriptToolReason = 'Node.js 项目，无需额外依赖';
+  } else if (envInfo.projectType === 'go' || envInfo.projectType === 'rust') {
+    scriptToolRecommend = 'taskfile';
+    scriptToolReason = 'Go/Rust 项目，Taskfile 更现代';
+  }
+
+  return {
+    envType: { recommended: envTypeRecommend, reason: envTypeReason },
+    deployMethod: { recommended: deployMethodRecommend, reason: deployMethodReason },
+    scriptTool: { recommended: scriptToolRecommend, reason: scriptToolReason }
   };
 }
 

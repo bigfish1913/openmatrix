@@ -65,10 +65,16 @@ export class SmartQuestionAnalyzer {
     // 1. 获取项目上下文
     const projectContext = await this.getProjectContext();
 
-    // 2. 执行推断
-    const inferences = this.inferAnswers(taskDescription, projectContext);
+    // 2. 如果 parsedTask 有 goalTypes，优先使用
+    let goalTypeOverride: string | undefined;
+    if (parsedTask?.goalTypes && parsedTask.goalTypes.length > 0) {
+      goalTypeOverride = parsedTask.goalTypes[0];
+    }
 
-    // 3. 筛选需要提问的问题
+    // 3. 执行推断
+    const inferences = this.inferAnswers(taskDescription, projectContext, goalTypeOverride);
+
+    // 4. 筛选需要提问的问题
     const questionsToAsk = inferences
       .filter(i => i.confidence === 'low' || !i.inferredAnswer)
       .map(i => i.questionId);
@@ -188,7 +194,8 @@ export class SmartQuestionAnalyzer {
    */
   private inferAnswers(
     taskDescription: string,
-    context: ProjectContext
+    context: ProjectContext,
+    goalTypeOverride?: string
   ): QuestionInference[] {
     const inferences: QuestionInference[] = [];
     const desc = taskDescription.toLowerCase();
@@ -213,6 +220,16 @@ export class SmartQuestionAnalyzer {
 
     // 7. 推断测试覆盖率级别
     inferences.push(this.inferTestCoverage(desc, context));
+
+    // 8. 如果有 goalTypeOverride，覆盖 objective 推断
+    if (goalTypeOverride) {
+      const objectiveInference = inferences.find(i => i.questionId === 'objective');
+      if (objectiveInference) {
+        objectiveInference.inferredAnswer = goalTypeOverride;
+        objectiveInference.confidence = 'high';
+        objectiveInference.reason = '来自 AI 任务解析的目标类型标注';
+      }
+    }
 
     return inferences;
   }
@@ -389,6 +406,14 @@ export class SmartQuestionAnalyzer {
       reason: ''
     };
 
+    // 文档/skill 文件 -> 不需要 E2E
+    if (/(skill|\.md|文档|readme|document|说明|指南)/i.test(desc)) {
+      inference.inferredAnswer = 'false';
+      inference.confidence = 'high';
+      inference.reason = '文档或 skill 文件修改不需要 E2E 测试';
+      return inference;
+    }
+
     // CLI/后端 -> 不需要 E2E
     if (/(cli|api|backend|后端|命令行)/i.test(desc) && !context.hasFrontend) {
       inference.inferredAnswer = 'false';
@@ -459,20 +484,28 @@ export class SmartQuestionAnalyzer {
       reason: ''
     };
 
+    // 文档类任务 -> documentation
+    if (/(文档|document|readme|skill|\.md|说明|指南)/i.test(desc)) {
+      inference.inferredAnswer = 'documentation';
+      inference.confidence = 'high';
+      inference.reason = '任务涉及文档或 skill 文件';
+      return inference;
+    }
+
     if (/(fix|bug|修复|hotfix|patch)/i.test(desc)) {
-      inference.inferredAnswer = 'bug_fix';
+      inference.inferredAnswer = 'development';
       inference.confidence = 'medium';
-      inference.reason = '任务描述包含修复关键词';
+      inference.reason = '任务描述包含修复关键词（bug 修复属于开发）';
     } else if (/(implement|add|新功能|实现|开发|feature|新增)/i.test(desc)) {
-      inference.inferredAnswer = 'new_feature';
+      inference.inferredAnswer = 'development';
       inference.confidence = 'medium';
       inference.reason = '任务描述包含新功能关键词';
     } else if (/(refactor|优化|重构|improve|性能)/i.test(desc)) {
-      inference.inferredAnswer = 'refactor';
+      inference.inferredAnswer = 'development';
       inference.confidence = 'medium';
-      inference.reason = '任务描述包含重构关键词';
+      inference.reason = '任务描述包含重构关键词（重构属于开发）';
     } else if (/(test|测试|coverage|覆盖)/i.test(desc)) {
-      inference.inferredAnswer = 'test';
+      inference.inferredAnswer = 'testing';
       inference.confidence = 'medium';
       inference.reason = '任务描述包含测试关键词';
     } else {
