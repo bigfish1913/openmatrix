@@ -53,6 +53,7 @@ describe('PhaseExecutor', () => {
 
     approvalManager = new ApprovalManager(stateManager);
     phaseExecutor = new PhaseExecutor(stateManager, approvalManager);
+    phaseExecutor.disableGitCommit();
   });
 
   describe('getCurrentPhase', () => {

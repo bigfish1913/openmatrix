@@ -59,6 +59,7 @@ describe('OrchestratorExecutor', () => {
       maxConcurrent: 2,
       taskTimeout: 60000
     });
+    executor.getPhaseExecutor().disableGitCommit();
   });
 
   describe('step', () => {

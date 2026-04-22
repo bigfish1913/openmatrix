@@ -101,6 +101,10 @@ export class PhaseExecutor {
     this.isAutoMode = auto;
   }
 
+  disableGitCommit(): void {
+    this.gitCommitManager.setEnabled(false);
+  }
+
   /**
    * 获取自动模式状态
    */
