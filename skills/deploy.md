@@ -1,208 +1,251 @@
 ---
 name: om:deploy
-description: "智能部署助手：读取项目环境 → 推荐部署方式 → 生成一键脚本。Triggers on: deploy, 部署, 发布, docker, kubernetes, 环境搭建, 开发环境, make, taskfile"
+description: "智能部署助手：分析项目+系统环境 → 推荐最可行方案 → 执行部署 → 生成一键脚本。Triggers on: deploy, 部署, 发布, docker, kubernetes, 环境搭建, 开发环境, make, taskfile, pm2"
 ---
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。
 </NO-OTHER-SKILLS>
 
 <objective>
-智能部署助手：自动检测项目环境 → 推荐最优部署方案 → 交互确认 → 执行部署 → 生成一键脚本。
+智能部署助手：自动分析项目文件和系统环境 → 推荐当前环境下最可行的部署方案 → 用户确认后执行 → 生成可复用的一键脚本。
 </objective>
-
-<trigger-conditions>
-**当用户想要:**
-- 查看项目部署选项
-- 搭建开发/测试/生产环境
-- 执行部署命令
-- 生成一键部署脚本
-
-**用户输入示例:**
-- `/om:deploy` - 智能部署流程
-- `/om:deploy local` - 本地开发环境
-- `/om:deploy prod` - 生产环境
-</trigger-conditions>
 
 <process>
 
-## Step 1: 检测项目环境
+## Step 1: 分析项目文件
 
-调用 CLI 获取完整环境信息:
+直接读取项目文件，不调用 CLI：
+
 ```bash
-openmatrix deploy --json --show-dev
+# 项目配置文件
+ls -la Dockerfile docker-compose.yml docker-compose.yaml Makefile Taskfile.yml Taskfile.yaml 2>/dev/null
+ls -la k8s/ helm/ .github/workflows/ 2>/dev/null
+cat package.json 2>/dev/null
+cat go.mod 2>/dev/null
+cat Cargo.toml 2>/dev/null
+cat requirements.txt pyproject.toml 2>/dev/null
 ```
 
-解析检测结果，提取：
-- 项目类型、构建工具
-- 已有的部署配置（Dockerfile、docker-compose.yml、Makefile 等）
-- 可用的中间件（Docker、Kubernetes、npm、Make）
-- CI/CD 配置
+提取关键信息：
+- 项目类型（Node.js/Go/Python/Rust/Java 等）
+- 已有部署配置（Dockerfile、docker-compose、Makefile、k8s 等）
+- package.json 中的 scripts（build/start/deploy 等）
 
 ---
 
-## Step 2: 确认部署环境类型（带推荐）
+## Step 2: 检测系统环境
 
-**AI 根据项目特征判断推荐：**
-
-| 检测特征 | 推荐环境 |
-|---------|---------|
-| 有 Dockerfile + docker-compose.yml | **本地开发** (容器化开发) |
-| 有 CI 配置 + 测试覆盖 | **测试环境** (CI 自动化) |
-| 有生产配置 (nginx、ssl、生产依赖) | **生产环境** |
-| 无任何配置 | **本地开发** (最简单) |
-
-使用 AskUserQuestion 询问，**显示推荐选项**：
-
-```
-header: "部署环境"
-question: "选择部署目标环境（AI 推荐基于项目配置）"
-
-options:
-- 本地开发 (推荐) - description: "检测到 Dockerfile，适合容器化本地开发"
-- 测试环境 - description: "有 CI 配置，适合自动化测试部署"
-- 生产环境 - description: "需要完整的生产配置和安全检查"
-```
-
----
-
-## Step 3: 确认使用的中间件（带推荐）
-
-**AI 根据检测结果判断推荐：**
-
-| 已有配置 | 推荐中间件 | 原因 |
-|---------|-----------|------|
-| Dockerfile | **Docker** | 项目已有容器化配置 |
-| docker-compose.yml | **Docker Compose** | 多服务编排已配置 |
-| k8s/*.yaml | **Kubernetes** | K8s 部署已配置 |
-| Makefile + deploy target | **Make** | 一键部署命令已存在 |
-| 仅 package.json | **npm scripts** | 最简单，无需额外工具 |
-| 无任何配置 | **建议创建 Dockerfile** | 容器化是最佳实践 |
-
-使用 AskUserQuestion 询问，**显示推荐选项**：
-
-```
-header: "部署工具"
-question: "选择使用的部署工具（AI 推荐已检测到的配置）"
-
-options:
-- Docker (推荐) - description: "已检测到 Dockerfile，直接使用容器部署"
-- Docker Compose - description: "检测到 docker-compose.yml，多服务编排"
-- Kubernetes - description: "检测到 k8s 配置，生产级部署"
-- Make - description: "检测到 Makefile，使用 make deploy"
-- npm scripts - description: "使用 package.json 中的 scripts"
-- 生成新配置 - description: "无部署配置，AI 自动生成 Dockerfile"
-```
-
----
-
-## Step 4: 执行部署命令
-
-根据用户选择执行对应的部署命令：
-
-| 中间件 | 命令 |
-|-------|------|
-| Docker | `docker build -t <name> . && docker run <name>` |
-| Docker Compose | `docker-compose up -d` |
-| Kubernetes | `kubectl apply -f k8s/` |
-| Make | `make deploy` |
-| npm | `npm run deploy` |
-
-执行前先 **dry-run 预览**：
 ```bash
-openmatrix deploy --deploy-method <method> --dry-run
+# 检测已安装的工具
+docker --version 2>/dev/null && echo "docker:ok" || echo "docker:missing"
+docker-compose --version 2>/dev/null && echo "docker-compose:ok" || echo "docker-compose:missing"
+kubectl version --client 2>/dev/null && echo "kubectl:ok" || echo "kubectl:missing"
+make --version 2>/dev/null && echo "make:ok" || echo "make:missing"
+task --version 2>/dev/null && echo "task:ok" || echo "task:missing"
+pm2 --version 2>/dev/null && echo "pm2:ok" || echo "pm2:missing"
+node --version 2>/dev/null && echo "node:ok" || echo "node:missing"
+
+# 操作系统
+uname -s 2>/dev/null || echo "Windows"
 ```
 
-用户确认后执行：
+---
+
+## Step 3: AI 分析并展示环境报告
+
+基于收集到的信息，直接输出分析报告（不用 AskUserQuestion）：
+
+```markdown
+## 🔍 环境分析报告
+
+**项目**: [名称] ([类型])
+**操作系统**: [Linux/macOS/Windows]
+
+### 已检测到的部署配置
+- ✅ Dockerfile
+- ✅ docker-compose.yml
+- ❌ Makefile（未找到）
+
+### 已安装的工具
+- ✅ Docker 24.0.5
+- ✅ make 4.3
+- ❌ task（未安装）
+- ❌ pm2（未安装）
+```
+
+---
+
+## Step 4: 推荐部署方案（带理由）
+
+AI 根据"项目配置 × 已安装工具"交叉分析，用 AskUserQuestion 展示推荐方案：
+
+**推荐逻辑（AI 自行判断，不是硬编码）：**
+- 有 Dockerfile + docker 已安装 → Docker 是最直接的选择
+- 有 docker-compose + 多服务 → Docker Compose 更合适
+- 有 k8s 配置 + kubectl 已安装 → Kubernetes
+- 有 Makefile + make 已安装 → 直接用 make
+- Node.js + pm2 已安装 → PM2 轻量方案
+- 什么都没有 → AI 根据项目类型推荐创建配置
+
+```
+AskUserQuestion:
+  header: "部署方案"
+  question: "基于你的环境分析，推荐以下方案（已标注推荐原因）："
+
+  options:
+  - label: "Docker (推荐)"
+    description: "已有 Dockerfile + Docker 已安装，直接可用，环境隔离好"
+  - label: "Docker Compose"
+    description: "检测到 docker-compose.yml，适合多服务编排"
+  - label: "Make"
+    description: "已有 Makefile + make 已安装，运行 make deploy"
+  - label: "npm scripts"
+    description: "无需额外工具，直接用 package.json 中的 scripts"
+```
+
+---
+
+## Step 5: 确认部署环境
+
+```
+AskUserQuestion:
+  header: "目标环境"
+  question: "部署到哪个环境？"
+
+  options:
+  - label: "本地开发 (推荐)"
+    description: "快速启动，用于开发调试"
+  - label: "测试环境"
+    description: "模拟生产配置，用于验证"
+  - label: "生产环境"
+    description: "需要完整配置和安全检查"
+```
+
+---
+
+## Step 6: 执行部署
+
+根据用户选择，AI 执行对应命令：
+
+**Docker 本地：**
 ```bash
-openmatrix deploy --deploy-method <method> --auto
+docker build -t <project-name> .
+docker run -d -p <port>:<port> --name <project-name> <project-name>
+docker ps | grep <project-name>
+```
+
+**Docker Compose：**
+```bash
+docker-compose up -d --build
+docker-compose ps
+```
+
+**Make：**
+```bash
+make deploy
+```
+
+**npm scripts：**
+```bash
+npm run build
+npm run start
+```
+
+执行后验证：
+```bash
+# 检查服务是否正常运行
+docker ps 2>/dev/null | grep <name>
+curl -s http://localhost:<port>/health 2>/dev/null || echo "服务已启动"
+```
+
+输出执行结果，告知用户服务状态。
+
+---
+
+## Step 7: 询问是否生成一键脚本
+
+```
+AskUserQuestion:
+  header: "一键脚本"
+  question: "部署完成！是否生成一键脚本方便后续开发调试？"
+
+  options:
+  - label: "生成 Taskfile.yml (推荐)"
+    description: "task 已安装 / 现代化工具，YAML 格式简洁，跨平台"
+  - label: "生成 Makefile"
+    description: "make 已安装 / 经典工具，已有 Makefile 时保持一致"
+  - label: "添加到 npm scripts"
+    description: "Node.js 项目，无需额外工具"
+  - label: "不需要"
+    description: "已有足够配置"
 ```
 
 ---
 
-## Step 5: 验证部署结果
+## Step 8: 生成一键脚本
 
-执行部署后验证：
-- Docker: `docker ps` 检查容器运行状态
-- Kubernetes: `kubectl get pods` 检查 Pod 状态
-- 本地服务: `curl localhost:<port>` 健康检查
+根据用户选择和项目实际情况，用 Write 工具生成脚本。
 
----
-
-## Step 6: 确认生成一键部署脚本（带推荐）
-
-**AI 根据项目特征判断推荐：**
-
-| 项目特征 | 推荐脚本工具 | 原因 |
-|---------|-------------|------|
-| 已有 Makefile | **Make** | 保持一致性，添加新 target |
-| Go/复杂项目 | **Taskfile** | 更现代，跨平台支持好 |
-| Node.js 项目 | **npm scripts** | 无需额外工具 |
-| 多服务项目 | **Docker Compose** | 编排多个服务 |
-| 无脚本工具 | **Taskfile (推荐)** | 现代化，易维护 |
-
-使用 AskUserQuestion 询问，**显示推荐选项**：
-
-```
-header: "一键脚本"
-question: "部署完成！是否生成一键部署脚本？（AI 推荐最适合的工具）"
-
-options:
-- 生成 Taskfile (推荐) - description: "现代化任务工具，跨平台，YAML 配置简洁"
-- 生成 Makefile - description: "经典工具，已有 Makefile 时保持一致性"
-- 使用 npm scripts - description: "Node.js 项目，无需额外依赖"
-- 不生成 - description: "已有足够配置，无需额外脚本"
-```
-
----
-
-## Step 7: 生成一键脚本
-
-如果用户选择生成脚本，创建对应文件：
-
-### Taskfile.yml 格式
+**Taskfile.yml 示例（根据实际项目定制）：**
 ```yaml
 version: '3'
 
 vars:
-  IMAGE_NAME: '{{.PROJECT_NAME}}'
-  VERSION: '{{.TAG | default "latest"}}'
+  APP: '{{.APP | default "app"}}'
+  PORT: '{{.PORT | default "3000"}}'
 
 tasks:
   setup:
     desc: 安装依赖
     cmds:
       - npm install
-  
+
   build:
     desc: 构建项目
     cmds:
       - npm run build
-  
+
   test:
     desc: 运行测试
     cmds:
-      - npm run test
-  
-  deploy-local:
+      - npm test
+
+  dev:
+    desc: 本地开发（热重载）
+    cmds:
+      - npm run dev
+
+  deploy:local:
     desc: 本地 Docker 部署
     cmds:
-      - docker build -t {{.IMAGE_NAME}}:{{.VERSION}} .
-      - docker run -d -p 3000:3000 {{.IMAGE_NAME}}:{{.VERSION}}
-  
-  deploy-prod:
+      - docker build -t {{.APP}} .
+      - docker run -d -p {{.PORT}}:{{.PORT}} --name {{.APP}} {{.APP}}
+      - echo "✅ 服务已启动 http://localhost:{{.PORT}}"
+
+  deploy:prod:
     desc: 生产部署
     cmds:
-      - docker build -t {{.IMAGE_NAME}}:{{.VERSION}} .
-      - docker push {{.REGISTRY}}/{{.IMAGE_NAME}}:{{.VERSION}}
+      - docker build -t {{.APP}}:{{.VERSION}} .
+      - docker push {{.REGISTRY}}/{{.APP}}:{{.VERSION}}
+
+  logs:
+    desc: 查看日志
+    cmds:
+      - docker logs -f {{.APP}}
+
+  stop:
+    desc: 停止服务
+    cmds:
+      - docker stop {{.APP}} && docker rm {{.APP}}
 ```
 
-### Makefile 格式
+**Makefile 示例（根据实际项目定制）：**
 ```makefile
-.PHONY: setup build test deploy deploy-local deploy-prod
+APP ?= app
+PORT ?= 3000
 
-IMAGE_NAME = app
-VERSION = latest
+.PHONY: setup build test dev deploy-local deploy-prod logs stop
 
 setup:
 	npm install
@@ -211,38 +254,44 @@ build:
 	npm run build
 
 test:
-	npm run test
+	npm test
+
+dev:
+	npm run dev
 
 deploy-local:
-	docker build -t $(IMAGE_NAME):$(VERSION) .
-	docker run -d -p 3000:3000 $(IMAGE_NAME):$(VERSION)
+	docker build -t $(APP) .
+	docker run -d -p $(PORT):$(PORT) --name $(APP) $(APP)
+	@echo "✅ 服务已启动 http://localhost:$(PORT)"
 
 deploy-prod:
-	docker build -t $(IMAGE_NAME):$(VERSION) .
-	docker push registry/$(IMAGE_NAME):$(VERSION)
+	docker build -t $(APP):$(VERSION) .
+	docker push $(REGISTRY)/$(APP):$(VERSION)
+
+logs:
+	docker logs -f $(APP)
+
+stop:
+	docker stop $(APP) && docker rm $(APP)
 ```
 
 ---
 
-## Step 8: 最终总结
+## Step 9: 输出总结
 
-输出部署总结：
 ```markdown
 ## ✅ 部署完成
 
-**环境**: 本地开发/测试/生产
-**工具**: Docker/Make/Taskfile
+**方案**: Docker 本地部署
+**环境**: 本地开发
 **脚本**: 已生成 Taskfile.yml
 
-### 一键命令
-- `task deploy-local` - 本地部署
-- `task deploy-prod` - 生产部署
-- `task setup build test` - 完整流程
-
-### 验证状态
-- ✅ 容器运行正常
-- ✅ 健康检查通过
-- ✅ 端口映射正确
+### 常用命令
+- `task dev` — 本地开发
+- `task deploy:local` — Docker 本地部署
+- `task deploy:prod` — 生产部署
+- `task logs` — 查看日志
+- `task stop` — 停止服务
 ```
 
 </process>
@@ -252,62 +301,38 @@ $ARGUMENTS
 </arguments>
 
 <examples>
-/om:deploy              # 智能部署 → 交互问答（带推荐） → 执行 → 生成脚本
-/om:deploy local        # 直接指定本地开发环境
-/om:deploy prod docker  # 直接指定生产 + Docker
+/om:deploy              # 自动分析 → 推荐方案 → 执行 → 生成脚本
+/om:deploy local        # 直接指定本地环境
+/om:deploy prod         # 直接指定生产环境
 </examples>
 
 <notes>
-## 智能推荐逻辑
+## 核心原则
 
-每个交互问答都基于检测结果提供推荐：
+1. **AI 是分析者**：读取真实文件和系统状态，不靠硬编码规则推断
+2. **AI 是执行者**：用户确认后直接运行命令，不只是给建议
+3. **推荐最可行的**：基于"当前系统已有什么工具"，不是"理论上最好的"
+4. **产出可复用脚本**：最终生成 Taskfile/Makefile，方便后续开发调试
 
-| 步骤 | 推荐依据 |
-|------|---------|
-| 环境类型 | 项目配置特征（Dockerfile → 本地，CI → 测试，nginx → 生产） |
-| 中间件 | 已存在的配置文件（Dockerfile → Docker，Makefile → Make） |
-| 脚本工具 | 项目类型和已有工具（Go → Taskfile，Node → npm，已有 Make → Make） |
+## 推荐决策依据（AI 自行判断）
 
-## 执行流程
+| 项目配置 | 系统工具 | 推荐方案 |
+|---------|---------|---------|
+| 有 Dockerfile | docker 已安装 | Docker |
+| 有 docker-compose | docker-compose 已安装 | Docker Compose |
+| 有 k8s/ | kubectl 已安装 | Kubernetes |
+| 有 Makefile | make 已安装 | Make |
+| Node.js | pm2 已安装 | PM2 |
+| Node.js | 无特殊工具 | npm scripts |
+| 无任何配置 | docker 已安装 | 生成 Dockerfile |
+| 无任何配置 | 无工具 | npm scripts / shell 脚本 |
 
-```
-/om:deploy
-    │
-    ├── 1. 检测环境 ──→ 获取完整项目信息
-    │
-    ├── 2. 问环境类型 ──→ 显示推荐（如：本地开发 ✓ 检测到 Dockerfile）
-    │
-    ├── 3. 问中间件 ──→ 显示推荐（如：Docker ✓ 已有 Dockerfile）
-    │
-    ├── 4. 执行部署 ──→ dry-run 预览 → 确认 → 执行
-    │
-    ├── 5. 验证结果 ──→ 检查容器/服务状态
-    │
-    ├── 6. 问生成脚本 ──→ 显示推荐（如：Taskfile ✓ 现代化工具）
-    │
-    ├── 7. 生成脚本 ──→ 创建 Taskfile.yml 或 Makefile
-    │
-    └── 8. 输出总结 ──→ 一键命令 + 验证状态
-```
+## 脚本工具选择依据
 
-## 支持的中间件
-
-| 中间件 | 检测文件 | 命令 |
-|-------|---------|------|
-| Docker | Dockerfile | `docker build/run` |
-| Docker Compose | docker-compose.yml | `docker-compose up` |
-| Kubernetes | k8s/*.yaml | `kubectl apply` |
-| Helm | helm/Chart.yaml | `helm install` |
-| Make | Makefile | `make deploy` |
-| Taskfile | Taskfile.yml | `task deploy` |
-| npm | package.json | `npm run deploy` |
-
-## 脚本工具对比
-
-| 工具 | 优点 | 适用场景 |
-|------|------|---------|
-| Taskfile | 跨平台、YAML 简洁、变量支持 | Go/Rust/现代项目 |
-| Makefile | 经典、广泛支持 | C/C++/已有 Makefile 项目 |
-| npm scripts | 无需额外依赖 | Node.js 项目 |
-| Docker Compose | 多服务编排 | 微服务项目 |
+| 条件 | 推荐 |
+|------|------|
+| task 已安装 | Taskfile.yml |
+| make 已安装 / 已有 Makefile | Makefile |
+| Node.js 项目 / 无工具 | npm scripts |
+| Windows + 无工具 | package.json scripts |
 </notes>
