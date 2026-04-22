@@ -1311,17 +1311,31 @@ ${userContext.documentationLevel}
     goal: string,
     devTaskId: string,
     coverageTarget: number,
-    globalContext: string
+    globalContext: string,
+    planMetadata?: PlanMetadata
   ): string {
-    return `## 测试目标
+    let desc = `## 测试目标
 为 "${goal}" 编写测试用例
 
 ${globalContext}
 
 ## 关联开发任务
-${devTaskId}
+${devTaskId}`;
 
-## 测试要求
+    // 注入 plan 提取的关键信息（参考 buildTaskDescription）
+    if (planMetadata && planMetadata.interfaces.length > 0) {
+      desc += `\n\n## 相关接口/API\n${planMetadata.interfaces.slice(0, 10).map(i => `- ${i}`).join('\n')}`;
+    }
+
+    if (planMetadata && planMetadata.dataModels.length > 0) {
+      desc += `\n\n## 相关数据模型\n${planMetadata.dataModels.slice(0, 10).map(d => `- ${d}`).join('\n')}`;
+    }
+
+    if (planMetadata && planMetadata.keyDecisions.length > 0) {
+      desc += `\n\n## 关键决策参考\n${planMetadata.keyDecisions.slice(0, 5).map(d => `- ${d}`).join('\n')}`;
+    }
+
+    desc += `\n\n## 测试要求
 - 单元测试覆盖率 >= ${coverageTarget}%
 - 测试正常流程
 - 测试边界情况
@@ -1335,6 +1349,8 @@ ${devTaskId}
 - 测试文件
 - 测试报告
 - 覆盖率报告`;
+
+    return desc;
   }
 
   private buildE2ETestDescription(

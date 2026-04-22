@@ -490,3 +490,212 @@ export interface AmbiguityReport {
   /** 建议的问题列表 (用于 AskUserQuestion) */
   suggestedQuestions?: string[];
 }
+
+// ============ Environment Detection Types ============
+
+/**
+ * 构建工具类型
+ */
+export type BuildToolType =
+  | 'npm'         // npm scripts
+  | 'yarn'        // yarn commands
+  | 'pnpm'        // pnpm commands
+  | 'make'        // Makefile
+  | 'docker'      // Docker/Docker Compose
+  | 'gradle'      // Gradle (Java)
+  | 'maven'       // Maven (Java)
+  | 'cargo'       // Cargo (Rust)
+  | 'go'          // Go commands
+  | 'pip'         // pip (Python)
+  | 'poetry'      // Poetry (Python)
+  | 'nuget'       // NuGet (C#)
+  | 'msbuild'     // MSBuild (C#)
+  | 'webpack'     // webpack
+  | 'vite'        // Vite
+  | 'esbuild'     // esbuild
+  | 'rollup'      // Rollup
+  | 'turbo'       // Turborepo
+  | 'bazel'       // Bazel
+  | 'unknown';    // Unknown build tool
+
+/**
+ * 构建工具信息
+ */
+export interface BuildTool {
+  /** 工具类型 */
+  type: BuildToolType;
+  /** 可用命令列表 */
+  commands: string[];
+  /** 配置文件路径 */
+  configFile?: string;
+  /** 是否为默认构建工具 */
+  isDefault?: boolean;
+  /** 工具版本 */
+  version?: string;
+}
+
+/**
+ * 部署方式
+ */
+export type DeployMethod =
+  | 'docker'          // Docker 部署
+  | 'docker-compose'  // Docker Compose 部署
+  | 'kubernetes'      // Kubernetes 部署
+  | 'helm'            // Helm 部署
+  | 'npm'             // npm 发布
+  | 'make'            // Makefile 部署命令
+  | 'script'          // 自定义脚本
+  | 'github-pages'    // GitHub Pages
+  | 'vercel'          // Vercel
+  | 'netlify'         // Netlify
+  | 'aws'             // AWS 部署
+  | 'gcp'             // Google Cloud 部署
+  | 'azure'           // Azure 部署
+  | 'heroku'          // Heroku
+  | 'unknown';        // 未知部署方式
+
+/**
+ * 部署选项
+ */
+export interface DeployOption {
+  /** 部署方式 */
+  method: DeployMethod;
+  /** 部署命令 */
+  command?: string;
+  /** 配置文件路径 */
+  configFile?: string;
+  /** 部署环境 */
+  environment?: 'development' | 'staging' | 'production';
+  /** 是否推荐 */
+  recommended?: boolean;
+  /** 描述信息 */
+  description?: string;
+}
+
+/**
+ * CI 平台类型
+ */
+export type CIPlatform =
+  | 'github-actions'  // GitHub Actions
+  | 'gitlab-ci'       // GitLab CI
+  | 'jenkins'         // Jenkins
+  | 'circleci'        // CircleCI
+  | 'travis-ci'       // Travis CI
+  | 'azure-pipelines' // Azure Pipelines
+  | 'bitbucket-pipelines' // Bitbucket Pipelines
+  | 'drone'           // Drone CI
+  | 'teamcity'        // TeamCity
+  | 'unknown';        // 未知 CI 平台
+
+/**
+ * CI 配置信息
+ */
+export interface CIConfig {
+  /** CI 平台 */
+  platform: CIPlatform;
+  /** 配置文件列表 */
+  configFiles: string[];
+  /** 可用的 workflow 名称 */
+  workflows?: string[];
+  /** 触发条件 */
+  triggers?: string[];
+}
+
+/**
+ * 开发命令信息
+ */
+export interface DevCommands {
+  /** 安装/设置命令 */
+  setup: string[];
+  /** 构建命令 */
+  build: string[];
+  /** 测试命令 */
+  test: string[];
+  /** 开发/调试命令 */
+  dev: string[];
+  /** 启动命令 */
+  start: string[];
+  /** 清理命令 */
+  clean?: string[];
+  /** Lint 命令 */
+  lint?: string[];
+  /** 格式化命令 */
+  format?: string[];
+}
+
+/**
+ * 项目环境检测结果
+ */
+export interface EnvironmentInfo {
+  /** 项目名称 */
+  projectName: string;
+  /** 项目类型 */
+  projectType: ProjectType;
+  /** 项目根目录 */
+  projectRoot: string;
+  /** 检测时间 */
+  timestamp: string;
+  /** 构建工具列表 */
+  buildTools: BuildTool[];
+  /** CI 配置 */
+  ciConfig?: CIConfig;
+  /** 部署选项 */
+  deployOptions: DeployOption[];
+  /** 开发命令 */
+  devCommands: DevCommands;
+  /** 检测摘要 */
+  summary: {
+    /** 是否有构建工具 */
+    hasBuildTool: boolean;
+    /** 是否有 CI 配置 */
+    hasCIConfig: boolean;
+    /** 是否有部署选项 */
+    hasDeployOption: boolean;
+    /** 构建工具数量 */
+    buildToolCount: number;
+    /** 部署选项数量 */
+    deployOptionCount: number;
+  };
+}
+
+/**
+ * 项目类型 (复用 UpgradeDetector 中的定义)
+ * 注意：如果 UpgradeDetector 的 ProjectType 发生变化，这里需要同步
+ */
+export type ProjectType =
+  | 'openmatrix'    // OpenMatrix 自身
+  | 'ai-project'    // AI 项目 (包含 prompts/skills/agents)
+  | 'nodejs'        // Node.js 项目
+  | 'typescript'    // TypeScript 项目
+  | 'python'        // Python 项目
+  | 'go'            // Go 项目
+  | 'rust'          // Rust 项目
+  | 'java'          // Java 项目
+  | 'csharp'        // C# 项目
+  | 'cpp'           // C/C++ 项目
+  | 'php'           // PHP 项目
+  | 'dart'          // Dart 项目
+  | 'ruby'          // Ruby 项目
+  | 'swift'         // Swift 项目
+  | 'kotlin'        // Kotlin 项目
+  | 'scala'         // Scala 项目
+  | 'flutter'       // Flutter 项目
+  | 'react'         // React 项目
+  | 'vue'           // Vue 项目
+  | 'angular'       // Angular 项目
+  | 'nextjs'        // Next.js 项目
+  | 'nuxt'          // Nuxt.js 项目
+  | 'svelte'        // Svelte 项目
+  | 'unknown';      // 未知类型
+
+/**
+ * 环境检测器配置
+ */
+export interface EnvironmentDetectorConfig {
+  /** 扫描目录 */
+  scanDirs: string[];
+  /** 排除目录 */
+  excludeDirs: string[];
+  /** 最大建议数量 */
+  maxDeployOptions?: number;
+}
