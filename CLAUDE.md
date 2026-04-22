@@ -21,6 +21,70 @@ npm test -- --watch
 npm run dev -- <command>
 ```
 
+## Core Philosophy
+
+**OpenMatrix 的核心思想：让 AI 做 AI 擅长的事，让 CLI 做 CLI 擅长的事。**
+
+### 分层职责原则
+
+```
+Skill 层（AI）          CLI 层（程序）
+─────────────────       ─────────────────
+理解上下文              收集原始数据
+分析权衡                状态持久化
+给出推荐理由            执行命令
+交互问答                管理任务生命周期
+生成配置文件            输出结构化 JSON
+```
+
+**CLI 只做两件事：**
+1. 收集原始事实（文件存在与否、命令输出、状态数据）
+2. 执行明确的操作（运行命令、写入状态、读取文件）
+
+**Skill 层 AI 负责：**
+1. 读取原始数据，自行分析和推断
+2. 基于上下文给出带理由的推荐
+3. 通过 AskUserQuestion 与用户交互
+4. 生成配置文件、脚本等产出物
+
+### 反模式（禁止）
+
+```typescript
+// ❌ 错误：CLI 用硬编码规则模拟 AI 推荐
+function generateRecommendations(envInfo) {
+  if (hasDockerfile && !hasCIConfig) {
+    return { recommended: 'local', reason: '检测到 Dockerfile' };
+  }
+  // ...更多 if/else
+}
+
+// ✅ 正确：CLI 只输出原始数据，AI 自己分析
+function buildRawOutput(envInfo) {
+  return { projectType, buildTools, deployOptions, ciConfig, summary };
+}
+```
+
+```markdown
+// ❌ 错误：Skill 依赖 CLI 的推荐字段
+const rec = cliOutput.recommendations.deployMethod.recommended;
+
+// ✅ 正确：Skill 读取原始数据，AI 自己判断
+// Bash: ls Dockerfile docker-compose.yml Makefile
+// Bash: docker --version && make --version
+// → AI 看到这些结果，自己决定推荐什么
+```
+
+### 设计决策记录
+
+**om:deploy 的演进：**
+- v1：CLI 硬编码推荐逻辑（if/else 规则树）→ 脆弱，无法处理边界情况
+- v2：CLI 输出原始数据 + Skill AI 分析 → 正确分层，AI 做 AI 的事
+
+**核心洞察：** 推荐逻辑本质上是"理解上下文后的判断"，这正是 LLM 的强项。
+用代码模拟这个过程，不仅代码复杂，还不如 AI 直接看数据判断准确。
+
+---
+
 ## Project Overview
 
 OpenMatrix is an AI Agent task orchestration system that integrates with Claude Code Skills. It provides automated task execution with quality gates (TDD, coverage, lint, security), multiple execution modes (strict/balanced/fast), and a Meeting mechanism for handling blocked tasks without interrupting execution.
