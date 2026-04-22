@@ -1,5 +1,4 @@
 // src/orchestrator/answer-mapper.ts
-import type { QuestionInference } from './smart-question-analyzer.js';
 
 /**
  * 答案键映射 — 统一三套 ID 体系
@@ -31,17 +30,6 @@ const CANONICAL_TO_PLANNER: Record<string, Record<string, string>> = {
   e2e_type: { 'E2E类型': '', e2eType: '' },
 };
 
-/** Analyzer 旧 ID → 规范 ID */
-const ANALYZER_TO_CANONICAL: Record<string, string> = {
-  quality_level: 'quality_level',
-  tech_stack: 'tech_stack',
-  doc_level: 'documentation_level',
-  e2e_test: 'e2e_tests',
-  execution_mode: 'execution_mode',
-  objective: 'objective',
-  test_coverage: 'test_coverage',
-};
-
 /**
  * 将 brainstorm 答案键翻译为 TaskPlanner 期望的键
  *
@@ -71,26 +59,6 @@ export function translateBrainstormAnswers(
     if (canonical !== key) {
       result[canonical] = value;
     }
-  }
-
-  return result;
-}
-
-/**
- * 将 SmartQuestionAnalyzer 推理结果转换为 brainstorm 规范 ID
- */
-export function translateAnalyzerInferences(
-  inferences: QuestionInference[]
-): Map<string, { answer: string | string[]; reason: string }> {
-  const result = new Map<string, { answer: string | string[]; reason: string }>();
-
-  for (const inf of inferences) {
-    if (inf.inferredAnswer === undefined) continue;
-    const canonical = ANALYZER_TO_CANONICAL[inf.questionId] || inf.questionId;
-    result.set(canonical, {
-      answer: inf.inferredAnswer,
-      reason: inf.reason
-    });
   }
 
   return result;

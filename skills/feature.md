@@ -231,17 +231,28 @@ TodoWrite({
 
 **6.1 质量等级（必选）**
 
+根据任务描述，Claude 直接推断推荐的质量等级，并在问题中标注推荐项：
+
+- Bug 修复 / 重构 → 推荐 `balanced`
+- 原型 / demo / 快速验证 → 推荐 `fast`
+- 新功能 / 生产代码 / 涉及测试 → 推荐 `strict`
+- 文档 / skill 文件 → 推荐 `fast`
+
 AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
-**question:** 选择质量等级（决定测试覆盖、Lint、安全扫描等要求）
+**question:** 选择质量等级（Claude 推荐：${inferredQuality}，原因：${inferReason}）
 
 | label | description |
 |-------|-------------|
 | `strict` | TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码 |
-| `balanced (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
+| `balanced` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
 | `fast` | 无质量门禁 — 快速原型/验证 |
 
 **6.2 E2E 测试（仅 strict/balanced）**
+
+根据任务描述推断：若任务涉及前端页面/UI/Web，询问；否则默认跳过（不需要）。
+
+如需询问：
 
 AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
@@ -445,7 +456,7 @@ fi
 **验证失败处理：**
 - 自动展示验证失败详情（最后 30 行输出）
 - 停止执行流程
-- 提示用户修复后使用 `/om:resume-feature` 继续
+- 提示用户修复后使用 `/om:resume` 继续
 
 **验证成功处理：**
 - 继续执行 Step 9 Git 提交
@@ -586,7 +597,7 @@ $ARGUMENTS
 ## 错误处理流程
 
 ```
-验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 使用 /om:resume-feature 恢复
+验证失败 → 停止执行 → 展示错误详情 → 提示用户修复 → 使用 /om:resume 恢复
 ```
 
 | 错误 | 处理 |
@@ -631,7 +642,7 @@ type: feat/fix/test/refactor/docs
 
 如果验证失败需要修复：
 
-使用 `/om:resume-feature` 继续执行（读取 `.openmatrix/feature-session.json`）
+使用 `/om:resume` 继续执行（自动检测 `.openmatrix/feature-session.json` 或 `state.json`）
 
 ## 挡久化文件说明
 

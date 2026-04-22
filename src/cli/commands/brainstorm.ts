@@ -2,10 +2,8 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
-import { SmartQuestionAnalyzer } from '../../orchestrator/smart-question-analyzer.js';
 import { InteractiveQuestionGenerator } from '../../orchestrator/interactive-question-generator.js';
 import { TaskParser } from '../../orchestrator/task-parser.js';
-import { translateAnalyzerInferences } from '../../orchestrator/answer-mapper.js';
 import { logger } from '../../utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -571,20 +569,13 @@ async function generateSmartQuestions(taskContent: string, basePath: string): Pr
 }
 
 /**
- * 构建智能问题会话：解析任务 → 分析推断 → 生成问题
+ * 构建智能问题会话：解析任务 → 生成问题
  */
-export async function buildSmartQuestionSession(taskContent: string, basePath: string) {
+export async function buildSmartQuestionSession(taskContent: string, _basePath: string) {
   const parser = new TaskParser();
   const parsedTask = parser.parse(taskContent);
 
-  const analyzer = new SmartQuestionAnalyzer(basePath);
-  const analysisResult = await analyzer.analyze(taskContent, parsedTask);
-
-  const inferenceMap = translateAnalyzerInferences(analysisResult.inferences);
-
   const questionGen = new InteractiveQuestionGenerator();
-  questionGen.setInferences(inferenceMap);
-
   const session = questionGen.startSession(parsedTask);
   questionGen.addContextualQuestions(parsedTask, session.questions);
   return session;
