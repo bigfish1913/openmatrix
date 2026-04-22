@@ -19,6 +19,7 @@ import { researchCommand } from './commands/research.js';
 import { debugCommand } from './commands/debug.js';
 import { completeCommand } from './commands/complete.js';
 import { stepCommand } from './commands/step.js';
+import { deployCommand } from './commands/deploy.js';
 
 // 读取 package.json 版本
 let version = '0.0.0';
@@ -55,6 +56,7 @@ program.addCommand(analyzeCommand);
 program.addCommand(brainstormCommand);
 program.addCommand(researchCommand);
 program.addCommand(debugCommand);
+program.addCommand(deployCommand);
 
 // 默认帮助
 program.parse();
