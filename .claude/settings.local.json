@@ -40,7 +40,8 @@
       "Bash(node dist/cli/index.js debug \"今天测试的出现了提交target和node_modules目录\" --json)",
       "Bash(node dist/cli/index.js debug \"om:feature 流程是否合理\" --json)",
       "Bash(node dist/cli/index.js debug \"当前项目的测试用例不够全面也严谨\" --json)",
-      "Bash(openmatrix debug *)"
+      "Bash(openmatrix debug *)",
+      "Bash(node dist/cli/index.js debug \"用户选择了 strict 模式。这只是一个 skill 文件的修改，不涉及代码逻辑，所以 E2E 测试应该不需要。让我确认执行计划。但是还是弹出了问题\" --json)"
     ]
   }
 }
