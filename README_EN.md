@@ -261,8 +261,7 @@ Accept Phase executed by Reviewer Agent:
 | `/om:status` | View status |
 | `/om:approve` | Approve decisions |
 | `/om:meeting` | Handle blockers |
-| `/om:resume` | Resume interruption |
-| `/om:resume-feature` | Resume interrupted lightweight feature flow |
+| `/om:resume` | **Smart Resume** - Auto-detect lightweight/full flow and resume interrupted tasks |
 | `/om:retry` | Retry failures |
 | `/om:report` | Generate report |
 

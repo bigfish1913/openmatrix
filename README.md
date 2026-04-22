@@ -261,8 +261,7 @@ Accept 阶段由 Reviewer Agent 执行:
 | `/om:status` | 查看状态 |
 | `/om:approve` | 审批决策 |
 | `/om:meeting` | 处理阻塞问题 |
-| `/om:resume` | 恢复中断 |
-| `/om:resume-feature` | 恢复中断的轻量小需求流程 |
+| `/om:resume` | **智能恢复** - 自动检测轻量/完整流程并恢复中断任务 |
 | `/om:retry` | 重试失败 |
 | `/om:report` | 生成报告 |
 
