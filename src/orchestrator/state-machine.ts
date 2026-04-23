@@ -5,14 +5,17 @@ import type { Task, TaskStatus } from '../types/index.js';
  * 任务状态转换规则
  *
  * pending → scheduled → in_progress → verify → accept → completed
- *                │            │           │        │
- *                │            ▼           ▼        ▼
- *                │        blocked      failed   failed
- *                │            │           │        │
- *                │            ▼           └────────┘
- *                │        waiting              │
- *                │            │                ▼
- *                └────────────┴──────────► retry_queue
+ *    │                       │           │        │
+ *    ├──────► blocked ◄──────┘           ▼        ▼
+ *    │            │                   failed ◄─ failed
+ *    │            ▼                      │
+ *    │        waiting                    ▼
+ *    │            │               retry_queue
+ *    │            │                   │  │
+ *    └────────────┴───────────────────┘  └──► blocked
+ *
+ * retry_queue → in_progress (直接重试)
+ * scheduled/blocked/waiting → failed
  */
 
 export type TransitionEvent =
