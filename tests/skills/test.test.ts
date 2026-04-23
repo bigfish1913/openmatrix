@@ -49,10 +49,9 @@ describe('skills/test.md', () => {
       expect(frontmatter.priority).toBe('high');
     });
 
-    it('should contain trigger keywords in description', () => {
-      expect(frontmatter.description).toContain('生成测试');
-      expect(frontmatter.description).toContain('测试覆盖');
-      expect(frontmatter.description).toContain('补测试');
+    it('should contain intent-based trigger description', () => {
+      expect(frontmatter.description).toContain('TEST-CREATION intent');
+      expect(frontmatter.description).toContain('DO NOT trigger on');
     });
   });
 
