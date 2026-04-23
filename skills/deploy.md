@@ -211,7 +211,7 @@ npm run start &
 
 ## Step 7.1: 自动验证部署结果
 
-执行部署后，AI 自动验证服务是否正常运行：
+执行部署后，AI 自动执行以下验证（按顺序，全部通过才算成功）：
 
 **1. 检查容器/进程状态：**
 ```bash
@@ -228,7 +228,7 @@ pm2 list
 ps aux | grep <project-name>
 ```
 
-**2. 检查端口占用：**
+**2. 检查端口是否在监听：**
 ```bash
 # Linux/Mac
 lsof -i :<port> 2>/dev/null || netstat -tlnp 2>/dev/null | grep <port>
@@ -237,16 +237,45 @@ lsof -i :<port> 2>/dev/null || netstat -tlnp 2>/dev/null | grep <port>
 netstat -ano | findstr :<port>
 ```
 
-**3. 健康检查（如果有 health endpoint）：**
+**3. HTTP 连通性验证（核心验证）：**
 ```bash
-# HTTP 健康检查
-curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/health 2>/dev/null
+# 等待服务启动（最多重试 5 次，每次间隔 2 秒）
+for i in 1 2 3 4 5; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/ 2>/dev/null)
+  if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+    echo "HTTP $STATUS OK"
+    break
+  fi
+  sleep 2
+done
 
-# 或尝试访问主页
+# 获取响应内容摘要
 curl -s http://localhost:<port>/ 2>/dev/null | head -20
 ```
 
-**4. 日志检查（失败时）：**
+**4. 健康检查端点（如果存在）：**
+```bash
+curl -s http://localhost:<port>/health 2>/dev/null
+curl -s http://localhost:<port>/api/health 2>/dev/null
+curl -s http://localhost:<port>/healthz 2>/dev/null
+```
+
+**5. 浏览器可访问性验证（Web 项目）：**
+
+如果是 Web 项目，使用 Playwright 工具打开浏览器验证页面是否正常加载：
+```
+browser_navigate: http://localhost:<port>/
+browser_snapshot: 检查页面是否正常渲染
+browser_take_screenshot: 截图保存验证结果
+browser_close
+```
+
+如果无法使用浏览器工具，输出可访问的 URL 供用户手动验证：
+```
+🌐 请在浏览器中访问: http://localhost:<port>/
+```
+
+**6. 日志检查（任何验证失败时）：**
 ```bash
 # Docker 日志
 docker logs <project-name> --tail 50
@@ -267,11 +296,17 @@ AI 根据验证结果输出状态报告：
 
 **服务状态**: 运行中 (Up 2 minutes)
 **端口**: 3000 已监听
-**健康检查**: HTTP 200 OK
+**HTTP 连通**: http://localhost:3000/ → 200 OK
+**健康检查**: /health → 200 OK
 
-### 容器信息
-- 名称: <project-name>
-- 状态: healthy
+### 验证清单
+- ✅ 容器/进程正常运行
+- ✅ 端口 3000 已监听
+- ✅ HTTP 请求返回 200
+- ✅ 页面可正常访问
+
+### 访问地址
+🌐 http://localhost:3000/
 
 ### 快捷命令
 - 查看日志: docker logs -f <project-name>
