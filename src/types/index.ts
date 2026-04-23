@@ -699,3 +699,336 @@ export interface EnvironmentDetectorConfig {
   /** 最大建议数量 */
   maxDeployOptions?: number;
 }
+
+// ============ Test Types ============
+
+/**
+ * 测试框架类型
+ */
+export type TestFramework =
+  | 'vitest'       // Vitest
+  | 'jest'         // Jest
+  | 'mocha'        // Mocha
+  | 'jasmine'      // Jasmine
+  | 'playwright'   // Playwright (E2E)
+  | 'cypress'      // Cypress (E2E)
+  | 'selenium'     // Selenium
+  | 'puppeteer'    // Puppeteer
+  | 'appium'       // Appium (Mobile)
+  | 'detox'        // Detox (React Native)
+  | 'pytest'       // pytest (Python)
+  | 'unittest'     // unittest (Python)
+  | 'junit'        // JUnit (Java)
+  | 'testng'       // TestNG (Java)
+  | 'xctest'       // XCTest (Swift/iOS)
+  | 'gotest'       // Go testing
+  | 'cargo-test'   // Cargo test (Rust)
+  | 'unknown';     // 未知框架
+
+/**
+ * 测试类型
+ */
+export type TestType =
+  | 'unit'           // 单元测试
+  | 'integration'    // 集成测试
+  | 'e2e'            // 端到端测试
+  | 'api'            // API 测试
+  | 'ui'             // UI 测试
+  | 'visual'         // 视觉回归测试
+  | 'performance'    // 性能测试
+  | 'accessibility'; // 无障碍测试
+
+/**
+ * 测试框架检测结果
+ */
+export interface TestFrameworkInfo {
+  /** 框架类型 */
+  framework: TestFramework;
+  /** 框架版本 */
+  version?: string;
+  /** 配置文件路径 */
+  configFile?: string;
+  /** 是否为主要测试框架 */
+  isPrimary: boolean;
+  /** 支持的测试类型 */
+  supportedTypes: TestType[];
+  /** 可用的测试命令 */
+  commands: {
+    /** 运行所有测试 */
+    test: string;
+    /** 运行特定测试文件 */
+    testFile?: string;
+    /** 运行测试并生成覆盖率 */
+    testCoverage?: string;
+    /** 监听模式 */
+    watch?: string;
+    /** 更新快照 */
+    updateSnapshot?: string;
+  };
+}
+
+/**
+ * 测试配置 - 用户确认的测试配置
+ */
+export interface TestConfig {
+  /** 目标文件或目录 */
+  target: string;
+  /** 测试类型列表 */
+  testTypes: TestType[];
+  /** 测试框架（AI 推荐，用户确认） */
+  framework: TestFramework;
+  /** 是否生成 UI/E2E 测试 */
+  includeUI: boolean;
+  /** 覆盖率目标 (%) */
+  coverageTarget?: number;
+  /** 测试文件输出目录 */
+  outputDir?: string;
+  /** 测试文件命名模式 */
+  namingPattern?: string;
+  /** 是否包含快照测试 */
+  includeSnapshots?: boolean;
+  /** 是否包含 Mock 数据 */
+  includeMocks?: boolean;
+  /** 额外配置选项 */
+  extraOptions?: Record<string, unknown>;
+}
+
+/**
+ * 测试用例 - 单个测试用例描述
+ */
+export interface TestCase {
+  /** 测试用例 ID */
+  id: string;
+  /** 测试用例名称 */
+  name: string;
+  /** 测试类型 */
+  type: TestType;
+  /** 测试描述 */
+  description: string;
+  /** 测试文件路径（相对于项目根目录） */
+  filePath: string;
+  /** 被测试的源文件 */
+  sourceFile: string;
+  /** 被测试的函数/模块/组件 */
+  target: string;
+  /** 测试优先级 */
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  /** 测试标签 */
+  tags?: string[];
+  /** 前置条件 */
+  preconditions?: string[];
+  /** 测试步骤 */
+  steps: TestStep[];
+  /** 预期结果 */
+  expectedResults: string[];
+  /** Mock 需求 */
+  mockRequirements?: MockRequirement[];
+  /** 测试数据 */
+  testData?: Record<string, unknown>;
+  /** 依赖的其他测试 */
+  dependencies?: string[];
+}
+
+/**
+ * 测试步骤
+ */
+export interface TestStep {
+  /** 步骤序号 */
+  step: number;
+  /** 步骤描述 */
+  action: string;
+  /** 输入数据 */
+  input?: unknown;
+  /** 预期输出 */
+  expectedOutput?: unknown;
+}
+
+/**
+ * Mock 需求
+ */
+export interface MockRequirement {
+  /** Mock 目标类型 */
+  type: 'function' | 'module' | 'api' | 'component' | 'service';
+  /** Mock 目标名称 */
+  target: string;
+  /** Mock 行为描述 */
+  behavior: string;
+  /** 返回值 */
+  returnValue?: unknown;
+  /** 是否需要验证调用 */
+  verifyCalls?: boolean;
+}
+
+/**
+ * 测试扫描结果 - CLI 输出的原始数据
+ * 注意：CLI 只负责收集事实，不做推荐判断
+ */
+export interface TestScanResult {
+  /** 扫描时间 */
+  timestamp: string;
+  /** 项目根目录 */
+  projectRoot: string;
+  /** 扫描目标 */
+  target: string;
+  /** 检测到的测试框架 */
+  frameworks: TestFrameworkInfo[];
+  /** 现有测试文件列表 */
+  existingTests: ExistingTestFile[];
+  /** 源文件列表（未覆盖的） */
+  uncoveredSources: UncoveredSourceFile[];
+  /** 项目类型 */
+  projectType: ProjectType;
+  /** 是否为前端项目 */
+  isFrontend: boolean;
+  /** 是否有 UI 组件 */
+  hasUIComponents: boolean;
+  /** 测试覆盖率报告（如果存在） */
+  coverageReport?: {
+    /** 总覆盖率 */
+    total: number;
+    /** 各文件覆盖率 */
+    files: Array<{
+      path: string;
+      coverage: number;
+      uncoveredLines?: number[];
+    }>;
+  };
+  /** 现有测试风格（从现有测试文件推断） */
+  testStyle?: {
+    /** 命名约定: describe/it vs test */
+    namingConvention: 'describe-it' | 'test' | 'mixed';
+    /** 断言库 */
+    assertionLibrary: 'expect' | 'assert' | 'should' | 'chai' | 'unknown';
+    /** 是否使用 TypeScript */
+    usesTypeScript: boolean;
+    /** 是否使用 JSX/TSX */
+    usesJSX: boolean;
+    /** 测试文件后缀 */
+    fileSuffix: string;
+    /** 测试文件位置: 同目录 vs 独立目录 */
+    fileLocation: 'adjacent' | 'separate';
+  };
+  /** 原始数据摘要 */
+  summary: {
+    /** 框架数量 */
+    frameworkCount: number;
+    /** 现有测试文件数量 */
+    existingTestCount: number;
+    /** 未覆盖源文件数量 */
+    uncoveredSourceCount: number;
+    /** 是否有测试配置 */
+    hasTestConfig: boolean;
+    /** 是否有覆盖率配置 */
+    hasCoverageConfig: boolean;
+  };
+}
+
+/**
+ * 现有测试文件信息
+ */
+export interface ExistingTestFile {
+  /** 文件路径 */
+  path: string;
+  /** 测试类型 */
+  type: TestType;
+  /** 关联的源文件 */
+  sourceFile?: string;
+  /** 测试用例数量（如果可解析） */
+  testCount?: number;
+  /** 最后修改时间 */
+  lastModified?: string;
+}
+
+/**
+ * 未覆盖的源文件信息
+ */
+export interface UncoveredSourceFile {
+  /** 文件路径 */
+  path: string;
+  /** 文件类型 */
+  fileType: 'module' | 'component' | 'service' | 'util' | 'class' | 'function' | 'unknown';
+  /** 导出的函数/类/组件 */
+  exports: string[];
+  /** 是否有对应的测试文件 */
+  hasTest: boolean;
+  /** 建议的测试类型 */
+  suggestedTestTypes: TestType[];
+  /** 复杂度指标（可选） */
+  complexity?: {
+    /** 行数 */
+    lines: number;
+    /** 函数数量 */
+    functions: number;
+    /** 圈复杂度 */
+    cyclomaticComplexity?: number;
+  };
+}
+
+/**
+ * 测试生成结果
+ */
+export interface TestGenerationResult {
+  /** 生成时间 */
+  timestamp: string;
+  /** 关联的测试配置 */
+  config: TestConfig;
+  /** 生成的测试文件 */
+  files: GeneratedTestFile[];
+  /** 生成的测试用例 */
+  testCases: TestCase[];
+  /** 生成的 Mock 文件 */
+  mockFiles?: GeneratedMockFile[];
+  /** 生成统计 */
+  statistics: {
+    /** 测试文件数量 */
+    fileCount: number;
+    /** 测试用例数量 */
+    testCaseCount: number;
+    /** 单元测试数量 */
+    unitTestCount: number;
+    /** 集成测试数量 */
+    integrationTestCount: number;
+    /** E2E 测试数量 */
+    e2eTestCount: number;
+    /** Mock 文件数量 */
+    mockFileCount: number;
+    /** 预估覆盖率提升 */
+    estimatedCoverageIncrease?: number;
+  };
+  /** 运行测试的命令 */
+  runCommand: string;
+  /** 注意事项 */
+  notes?: string[];
+}
+
+/**
+ * 生成的测试文件
+ */
+export interface GeneratedTestFile {
+  /** 文件路径 */
+  path: string;
+  /** 文件内容 */
+  content: string;
+  /** 测试类型 */
+  type: TestType;
+  /** 关联的源文件 */
+  sourceFile: string;
+  /** 包含的测试用例 ID 列表 */
+  testCaseIds: string[];
+  /** 是否覆盖现有文件 */
+  overwrites: boolean;
+}
+
+/**
+ * 生成的 Mock 文件
+ */
+export interface GeneratedMockFile {
+  /** 文件路径 */
+  path: string;
+  /** 文件内容 */
+  content: string;
+  /** Mock 类型 */
+  type: 'function' | 'module' | 'api' | 'component' | 'service';
+  /** 描述 */
+  description: string;
+}
