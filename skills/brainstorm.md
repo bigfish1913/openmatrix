@@ -201,9 +201,9 @@ AskUserQuestion: `header: "确认"`, `multiSelect: false`
 | 继续 | 设计合理，继续下一部分 |
 | 修改 | 我有调整建议 |
 
-## 步骤 6: 总结确认
+## 步骤 6: 总结确认 + 自动路由判断
 
-所有设计部分确认后，**先在界面展示完整总结**，再用简短 AskUserQuestion 确认：
+所有设计部分确认后，**先在界面展示完整总结和路由判断**，再让用户确认：
 
 **输出总结到界面（普通文本）：**
 
@@ -227,18 +227,30 @@ AskUserQuestion: `header: "确认"`, `multiSelect: false`
 
 验收标准
    - CRUD 接口完整 / 测试覆盖率 > 80%
+
+---
+路由判断: 标准流程 (start)
+理由: 澄清后任务明确，需完整追踪和质量门禁
 ```
 
-**然后让用户选择下一步：**
+**AI 根据澄清结果自动判断路由：**
+
+| 判断条件 | 路由 |
+|---------|------|
+| 单一改动点 + 实现路径清晰 | feature |
+| 任务明确 + 需完整追踪 | start |
+| 仍有多方案/需进一步设计 | 继续 brainstorm |
+
+**然后让用户确认：**
 
 AskUserQuestion: `header: "下一步"`, `multiSelect: false`
-**question:** 头脑风暴完成，是否开始执行任务？
+**question:** 头脑风暴完成。AI 判断路由：${route}（${reason}）。确认后自动进入对应流程。
 
 | label | description |
 |-------|-------------|
-| 开始执行 (推荐) | 写入 tasks-input.json 并调用 /om:start |
+| 确认并执行 (推荐) | 自动调用 /om:${route} |
 | 继续探索 | 还有问题需要进一步讨论 |
-| 仅生成计划 | 生成详细计划但不执行 |
+| 仅生成文档 | 生成设计文档但不执行 |
 
 ## 步骤 7: 输出设计文档
 
@@ -300,9 +312,9 @@ AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 | 开始执行 (推荐) | 写入 tasks-input.json 并调用 /om:start |
 | 修改设计 | 需要调整设计方案 |
 
-## 步骤 8: 写入 tasks-input.json 并调用 /om:start
+## 步骤 8: 写入任务文件并调用对应 Skill
 
-用户选择"开始执行"后：
+用户选择"确认并执行"后：
 
 1. **检测状态:**
 ```bash
@@ -314,7 +326,18 @@ ls .openmatrix/state.json 2>/dev/null
 openmatrix start --init-only
 ```
 
-3. **写入 `.openmatrix/tasks-input.json`:**
+3. **根据路由判断结果写入不同文件：**
+
+**路由为 feature 时**，写入 `.openmatrix/feature-session.json`：
+```json
+{
+  "taskDescription": "任务描述",
+  "designNotes": "关键设计要点（可选）",
+  "startedAt": "ISO时间戳"
+}
+```
+
+**路由为 start 时**，写入 `.openmatrix/tasks-input.json`：
 ```json
 {
   "title": "任务标题",
@@ -326,16 +349,19 @@ openmatrix start --init-only
 }
 ```
 
-> **注意**: `quality`、`mode`、`e2eTests` 不在此写入，由 `/om:start` 的必选问题决定。
+> **注意**: `quality`、`mode`、`e2eTests` 不在此写入，由对应 Skill 的必选问题决定。
 
-4. **⚠️ 必须执行（不可跳过）：使用 Skill 工具调用 `/om:start`**
+4. **⚠️ 必须执行（不可跳过）：根据路由调用对应 Skill**
 
 ```
-Skill 工具: skill = "om:start"
+Skill 工具:
+  - feature → skill = "om:feature"
+  - start → skill = "om:start"
 ```
 
-这不是可选的 — 如果不调用 `/om:start`，任务不会开始执行。
-`/om:start` 会检测到已存在的 `tasks-input.json`，然后询问必选问题（质量等级、E2E、执行模式）。
+这不是可选的 — 如果不调用对应 Skill，任务不会开始执行。
+- `/om:feature` 会检测已存在的 `feature-session.json`，快速进入执行
+- `/om:start` 会检测已存在的 `tasks-input.json`，询问必选问题（质量等级、E2E、执行模式）
 
 </process>
 
@@ -360,6 +386,14 @@ $ARGUMENTS
 - **为隔离而设计** — 每个模块应有清晰的边界和接口
 - **问题要贴合任务** — 不问泛泛的问题，而是针对具体任务深入
 - **理解目的 > 理解实现** — 先搞清楚为什么做，再讨论怎么做
+
+## 路由判断（澄清完成后自动判断）
+
+brainstorm 澄清完成后，自动判断下一步路由：
+- **feature**: 单一改动点 + 实现路径清晰 → 写入 feature-session.json，调用 /om:feature
+- **start**: 任务明确但需完整追踪 → 写入 tasks-input.json，调用 /om:start
+
+不再让用户二次选择流程，根据澄清结果直接进入对应执行流程。
 
 ## 领域调研集成
 
@@ -437,21 +471,26 @@ $ARGUMENTS
          │ NO
          ▼
 ┌─────────────────┐
-│  总结 + 确认    │
+│  总结 + 路由判断 │
+│  (自动判断      │
+│   feature/start)│
 └────────┬────────┘
          │
+    确认执行?
+         │ YES
          ▼
 ┌─────────────────┐
 │  写入设计文档   │
 │  (docs/openmatrix/) │
 └────────┬────────┘
          │
-    开始执行
-         │
-         ▼
-┌─────────────────┐
-│  写入 JSON      │
-│  调用 /om:start │
-└─────────────────┘
+         ├──────┬──────────┐
+         │      │          │
+    feature    start    仅文档
+         │      │          │
+         ▼      ▼          ▼
+┌─────────┐ ┌─────────┐   完成
+│/om:feature│ │/om:start │
+└─────────┘ └─────────┘
 ```
 </notes>
