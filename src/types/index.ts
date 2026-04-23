@@ -860,6 +860,48 @@ export interface MockRequirement {
 }
 
 /**
+ * 测试风格信息
+ */
+export interface TestStyle {
+  /** 命名约定: describe/it vs test */
+  namingConvention: 'describe-it' | 'test' | 'mixed';
+  /** 断言库 */
+  assertionLibrary: 'expect' | 'assert' | 'should' | 'chai' | 'unknown';
+  /** 是否使用 TypeScript */
+  usesTypeScript: boolean;
+  /** 是否使用 JSX/TSX */
+  usesJSX: boolean;
+  /** 测试文件后缀 */
+  fileSuffix: string;
+  /** 测试文件位置: 同目录 vs 独立目录 */
+  fileLocation: 'adjacent' | 'separate';
+}
+
+/**
+ * 前端项目信息
+ */
+export interface FrontendInfo {
+  /** 是否为前端项目 */
+  isFrontend: boolean;
+  /** 是否有 UI 组件 */
+  hasUIComponents: boolean;
+}
+
+/**
+ * 覆盖率报告
+ */
+export interface CoverageReport {
+  /** 总覆盖率 */
+  total: number;
+  /** 各文件覆盖率 */
+  files: Array<{
+    path: string;
+    coverage: number;
+    uncoveredLines?: number[];
+  }>;
+}
+
+/**
  * 测试扫描结果 - CLI 输出的原始数据
  * 注意：CLI 只负责收集事实，不做推荐判断
  */
@@ -883,31 +925,9 @@ export interface TestScanResult {
   /** 是否有 UI 组件 */
   hasUIComponents: boolean;
   /** 测试覆盖率报告（如果存在） */
-  coverageReport?: {
-    /** 总覆盖率 */
-    total: number;
-    /** 各文件覆盖率 */
-    files: Array<{
-      path: string;
-      coverage: number;
-      uncoveredLines?: number[];
-    }>;
-  };
+  coverageReport?: CoverageReport;
   /** 现有测试风格（从现有测试文件推断） */
-  testStyle?: {
-    /** 命名约定: describe/it vs test */
-    namingConvention: 'describe-it' | 'test' | 'mixed';
-    /** 断言库 */
-    assertionLibrary: 'expect' | 'assert' | 'should' | 'chai' | 'unknown';
-    /** 是否使用 TypeScript */
-    usesTypeScript: boolean;
-    /** 是否使用 JSX/TSX */
-    usesJSX: boolean;
-    /** 测试文件后缀 */
-    fileSuffix: string;
-    /** 测试文件位置: 同目录 vs 独立目录 */
-    fileLocation: 'adjacent' | 'separate';
-  };
+  testStyle?: TestStyle;
   /** 原始数据摘要 */
   summary: {
     /** 框架数量 */
