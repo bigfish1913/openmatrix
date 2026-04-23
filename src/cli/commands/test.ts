@@ -15,7 +15,7 @@ import type {
 /**
  * 检测测试框架
  */
-function detectTestFrameworks(projectRoot: string): TestFrameworkInfo[] {
+export function detectTestFrameworks(projectRoot: string): TestFrameworkInfo[] {
   const frameworks: TestFrameworkInfo[] = [];
 
   // 检测 package.json (Node.js/TypeScript)
@@ -270,7 +270,7 @@ function detectTestFrameworks(projectRoot: string): TestFrameworkInfo[] {
 /**
  * 检测项目类型
  */
-function detectProjectType(projectRoot: string): ProjectType {
+export function detectProjectType(projectRoot: string): ProjectType {
   const packageJsonPath = path.join(projectRoot, 'package.json');
 
   // Node.js/TypeScript 项目
@@ -339,7 +339,7 @@ function detectProjectType(projectRoot: string): ProjectType {
 /**
  * 扫描测试文件
  */
-function scanTestFiles(projectRoot: string, testDirs: string[]): ExistingTestFile[] {
+export function scanTestFiles(projectRoot: string, testDirs: string[]): ExistingTestFile[] {
   const testFiles: ExistingTestFile[] = [];
   const testPatterns = [
     /\.test\.(ts|tsx|js|jsx)$/,
@@ -394,7 +394,7 @@ function scanTestFiles(projectRoot: string, testDirs: string[]): ExistingTestFil
 /**
  * 扫描源文件
  */
-function scanSourceFiles(projectRoot: string, sourceDirs: string[], existingTests: ExistingTestFile[]): UncoveredSourceFile[] {
+export function scanSourceFiles(projectRoot: string, sourceDirs: string[], existingTests: ExistingTestFile[]): UncoveredSourceFile[] {
   const sourceFiles: UncoveredSourceFile[] = [];
   const sourcePatterns = [
     /\.(ts|tsx)$/,
@@ -472,7 +472,7 @@ function scanSourceFiles(projectRoot: string, sourceDirs: string[], existingTest
 /**
  * 递归扫描目录
  */
-function scanDirectory(dir: string, callback: (filePath: string) => void): void {
+export function scanDirectory(dir: string, callback: (filePath: string) => void): void {
   const excludeDirs = ['node_modules', 'dist', 'build', '.git', '__pycache__', 'vendor', 'target'];
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -492,7 +492,7 @@ function scanDirectory(dir: string, callback: (filePath: string) => void): void 
 /**
  * 推断关联的源文件
  */
-function inferSourceFile(testPath: string, projectRoot: string): string | undefined {
+export function inferSourceFile(testPath: string, projectRoot: string): string | undefined {
   const testFileName = path.basename(testPath);
   const testDir = path.dirname(testPath);
 
@@ -527,7 +527,7 @@ function inferSourceFile(testPath: string, projectRoot: string): string | undefi
 /**
  * 推断文件类型
  */
-function inferFileType(filePath: string): UncoveredSourceFile['fileType'] {
+export function inferFileType(filePath: string): UncoveredSourceFile['fileType'] {
   const fileName = path.basename(filePath);
   const dirPath = path.dirname(filePath);
 
@@ -553,7 +553,7 @@ function inferFileType(filePath: string): UncoveredSourceFile['fileType'] {
 /**
  * 提取导出（简化版）
  */
-function extractExports(filePath: string): string[] {
+export function extractExports(filePath: string): string[] {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const exports: string[] = [];
@@ -607,7 +607,7 @@ function extractExports(filePath: string): string[] {
 /**
  * 检查是否有对应的测试文件
  */
-function hasCorrespondingTest(sourcePath: string, existingTests: ExistingTestFile[]): boolean {
+export function hasCorrespondingTest(sourcePath: string, existingTests: ExistingTestFile[]): boolean {
   const sourceFileName = path.basename(sourcePath);
 
   // 生成可能的测试文件名
@@ -625,7 +625,7 @@ function hasCorrespondingTest(sourcePath: string, existingTests: ExistingTestFil
 /**
  * 推断建议的测试类型
  */
-function inferTestTypes(fileType: UncoveredSourceFile['fileType'], filePath: string): TestType[] {
+export function inferTestTypes(fileType: UncoveredSourceFile['fileType'], filePath: string): TestType[] {
   const types: TestType[] = ['unit'];
 
   if (fileType === 'component') {
@@ -644,7 +644,7 @@ function inferTestTypes(fileType: UncoveredSourceFile['fileType'], filePath: str
 /**
  * 检测测试风格
  */
-function detectTestStyle(projectRoot: string, existingTests: ExistingTestFile[]): TestScanResult['testStyle'] | undefined {
+export function detectTestStyle(projectRoot: string, existingTests: ExistingTestFile[]): TestScanResult['testStyle'] | undefined {
   if (existingTests.length === 0) return undefined;
 
   // 读取第一个测试文件分析风格
@@ -697,7 +697,7 @@ function detectTestStyle(projectRoot: string, existingTests: ExistingTestFile[])
 /**
  * 检测是否有前端项目
  */
-function detectFrontend(projectRoot: string, projectType: ProjectType): {
+export function detectFrontend(projectRoot: string, projectType: ProjectType): {
   isFrontend: boolean;
   hasUIComponents: boolean;
 } {
@@ -714,7 +714,7 @@ function detectFrontend(projectRoot: string, projectType: ProjectType): {
 /**
  * 检测覆盖率报告
  */
-function detectCoverageReport(projectRoot: string): TestScanResult['coverageReport'] | undefined {
+export function detectCoverageReport(projectRoot: string): TestScanResult['coverageReport'] | undefined {
   const coveragePaths = [
     'coverage/coverage-summary.json',
     'coverage/lcov-report/lcov.info',
@@ -825,7 +825,7 @@ async function runTests(projectRoot: string, frameworks: TestFrameworkInfo[]): P
 /**
  * 执行测试扫描
  */
-function performScan(projectRoot: string, target?: string): TestScanResult {
+export function performScan(projectRoot: string, target?: string): TestScanResult {
   // 确定扫描目录
   const testDirs = ['tests', 'test', '__tests__', 'spec', 'src/__tests__', 'cypress/e2e', 'e2e'];
   const sourceDirs = target ? [target] : ['src', 'lib', 'app', 'packages'];
