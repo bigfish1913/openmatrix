@@ -91,6 +91,80 @@ cat requirements.txt pyproject.toml 2>/dev/null
 
 ---
 
+## Step 2.1: 检测并优化依赖源
+
+检测项目使用的包管理器和镜像源，如果是国外慢源则建议替换为国内镜像：
+
+```bash
+# npm/yarn/pnpm 源
+npm config get registry 2>/dev/null
+cat .npmrc 2>/dev/null
+cat .yarnrc 2>/dev/null
+cat .yarnrc.yml 2>/dev/null
+
+# pip 源
+cat pip.conf 2>/dev/null
+pip config get global.index-url 2>/dev/null
+
+# Docker 镜像源
+cat /etc/docker/daemon.json 2>/dev/null
+cat ~/.docker/daemon.json 2>/dev/null
+
+# Go 代理
+go env GOPROXY 2>/dev/null
+
+# Rust 源
+cat ~/.cargo/config.toml 2>/dev/null
+
+# Gradle/Maven 源
+cat build.gradle 2>/dev/null | grep -i "repositories" -A 5
+cat pom.xml 2>/dev/null | grep -i "mirror" -A 5
+```
+
+**AI 分析源速度，如果检测到国外源，建议替换：**
+
+| 包管理器 | 国外源 | 国内镜像 |
+|---------|--------|---------|
+| npm/yarn/pnpm | registry.npmjs.org | https://registry.npmmirror.com |
+| pip | pypi.org | https://pypi.tuna.tsinghua.edu.cn/simple |
+| Docker | docker.io | mirror.ccs.tencentyun.com |
+| Go | proxy.golang.org | https://goproxy.cn,direct |
+| Rust/Cargo | crates.io | https://rsproxy.cn/crates.io-index |
+| Gradle/Maven | repo.maven.apache.org | https://maven.aliyun.com/repository/public |
+
+**如果检测到慢源，输出建议并询问：**
+
+```
+AskUserQuestion:
+  header: "镜像源"
+  question: "检测到 npm 使用官方源（registry.npmjs.org），国内访问较慢。是否切换到国内镜像？"
+
+  options:
+  - label: "切换到淘宝镜像 (推荐)"
+    description: "npmmirror.com，国内速度快，同步延迟 < 10 分钟"
+  - label: "保持不变"
+    description: "当前源可用，不需要切换"
+  - label: "使用其他镜像"
+    description: "指定自定义镜像地址"
+```
+
+**用户确认后执行切换：**
+```bash
+# npm
+npm config set registry https://registry.npmmirror.com
+
+# pip
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Go
+go env -w GOPROXY=https://goproxy.cn,direct
+
+# Dockerfile 中的 apt 源（如果有）
+# AI 读取 Dockerfile，将 archive.ubuntu.com 替换为 mirrors.aliyun.com
+```
+
+---
+
 ## Step 3: 检测系统环境
 
 ```bash
