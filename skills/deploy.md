@@ -1,7 +1,39 @@
 ---
 name: om:deploy
-description: "智能部署助手：分析项目+系统环境 → 推荐最可行方案 → 执行部署 → 生成一键脚本。Triggers on: deploy, 部署, 发布, docker, kubernetes, 环境搭建, 开发环境, make, taskfile, pm2"
+description: "智能部署助手：分析项目+系统环境 → 推荐最可行方案 → 执行部署 → 生成一键脚本。Triggers on DEPLOYMENT intent: user wants to deploy code, set up environments, configure deployment tools, or create deployment scripts. DO NOT trigger on: development tasks, status checks, or debugging. Intent signals: user mentions deploy/publish/release, asks about docker/kubernetes, or needs environment setup."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（部署意图）
+
+- 用户想部署/发布项目
+- 需要配置 Docker/Kubernetes
+- 环境搭建需求
+- 生成部署脚本
+- 发布到生产环境
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 实现功能 | /om:start |
+| 修复 bug | /om:debug 或 /om:start |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "部署到服务器" | 部署意图 | 触发 ✓ |
+| "用 Docker 运行" | 环境配置意图 | 触发 ✓ |
+| "发布 npm 包" | 发布意图 | 触发 ✓ |
+| "实现 API 接口" | 开发意图 | /om:start |
+| "为什么部署失败" | 调查意图 | /om:debug |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。
@@ -157,13 +189,11 @@ AskUserQuestion:
 ```bash
 docker build -t <project-name> .
 docker run -d -p <port>:<port> --name <project-name> <project-name>
-docker ps | grep <project-name>
 ```
 
 **Docker Compose：**
 ```bash
 docker-compose up -d --build
-docker-compose ps
 ```
 
 **Make：**
@@ -174,17 +204,98 @@ make deploy
 **npm scripts：**
 ```bash
 npm run build
-npm run start
+npm run start &
 ```
 
-执行后验证：
+---
+
+## Step 7.1: 自动验证部署结果
+
+执行部署后，AI 自动验证服务是否正常运行：
+
+**1. 检查容器/进程状态：**
 ```bash
-# 检查服务是否正常运行
-docker ps 2>/dev/null | grep <name>
-curl -s http://localhost:<port>/health 2>/dev/null || echo "服务已启动"
+# Docker
+docker ps --format "{{.Names}}\t{{.Status}}" | grep <project-name>
+
+# Docker Compose
+docker-compose ps
+
+# PM2
+pm2 list
+
+# 进程检查
+ps aux | grep <project-name>
 ```
 
-输出执行结果，告知用户服务状态。
+**2. 检查端口占用：**
+```bash
+# Linux/Mac
+lsof -i :<port> 2>/dev/null || netstat -tlnp 2>/dev/null | grep <port>
+
+# Windows
+netstat -ano | findstr :<port>
+```
+
+**3. 健康检查（如果有 health endpoint）：**
+```bash
+# HTTP 健康检查
+curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/health 2>/dev/null
+
+# 或尝试访问主页
+curl -s http://localhost:<port>/ 2>/dev/null | head -20
+```
+
+**4. 日志检查（失败时）：**
+```bash
+# Docker 日志
+docker logs <project-name> --tail 50
+
+# PM2 日志
+pm2 logs <project-name> --lines 50
+```
+
+---
+
+## Step 7.2: 输出验证报告
+
+AI 根据验证结果输出状态报告：
+
+**验证成功：**
+```markdown
+## ✅ 部署验证报告
+
+**服务状态**: 运行中 (Up 2 minutes)
+**端口**: 3000 已监听
+**健康检查**: HTTP 200 OK
+
+### 容器信息
+- 名称: <project-name>
+- 状态: healthy
+
+### 快捷命令
+- 查看日志: docker logs -f <project-name>
+- 停止服务: docker stop <project-name>
+- 重启服务: docker restart <project-name>
+```
+
+**验证失败：**
+```markdown
+## ❌ 部署验证失败
+
+**问题**: 容器启动后立即退出
+**状态**: Exited (1)
+
+### 错误日志（最近 20 行）
+<显示 docker logs 输出>
+
+### 建议修复
+1. 检查 Dockerfile 配置
+2. 检查启动命令是否正确
+3. 查看完整日志: docker logs <project-name>
+```
+
+验证失败时，询问用户是否要查看完整日志或尝试修复。
 
 ---
 
