@@ -1,5 +1,5 @@
 // src/orchestrator/state-machine.ts
-import type { Task, TaskStatus, TaskPhase } from '../types/index.js';
+import type { Task, TaskStatus } from '../types/index.js';
 
 /**
  * 任务状态转换规则
@@ -21,10 +21,7 @@ export type TransitionEvent =
   | 'develop_done'  // 开发完成
   | 'verify_done'   // 验证完成
   | 'accept_done'   // 验收完成
-  | 'need_verify'   // 需要验证
-  | 'need_accept'   // 需要验收
   | 'block'         // 阻塞
-  | 'unblock'       // 解除阻塞
   | 'wait'          // 等待外部资源
   | 'resume'        // 恢复
   | 'fail'          // 失败
@@ -57,6 +54,15 @@ const TRANSITIONS: StateTransition[] = [
   // pending → in_progress (跳过 scheduled，直接开始)
   { from: 'pending', to: 'in_progress', event: 'start' },
 
+  // retry_queue → in_progress (重试后直接开始)
+  { from: 'retry_queue', to: 'in_progress', event: 'start' },
+
+  // pending → blocked (循环依赖检测)
+  { from: 'pending', to: 'blocked', event: 'block' },
+
+  // retry_queue → blocked (循环依赖检测)
+  { from: 'retry_queue', to: 'blocked', event: 'block' },
+
   // in_progress → verify
   { from: 'in_progress', to: 'verify', event: 'develop_done' },
 
@@ -79,6 +85,9 @@ const TRANSITIONS: StateTransition[] = [
   { from: 'in_progress', to: 'failed', event: 'fail' },
   { from: 'verify', to: 'failed', event: 'fail' },
   { from: 'accept', to: 'failed', event: 'fail' },
+  { from: 'scheduled', to: 'failed', event: 'fail' },
+  { from: 'blocked', to: 'failed', event: 'fail' },
+  { from: 'waiting', to: 'failed', event: 'fail' },
 
   // failed → retry_queue
   { from: 'failed', to: 'retry_queue', event: 'retry' },
@@ -178,10 +187,7 @@ export class StateMachine {
       'develop_done': '开发完成',
       'verify_done': '验证完成',
       'accept_done': '验收完成',
-      'need_verify': '需要验证',
-      'need_accept': '需要验收',
       'block': '阻塞任务',
-      'unblock': '解除阻塞',
       'wait': '等待外部',
       'resume': '恢复执行',
       'fail': '标记失败',

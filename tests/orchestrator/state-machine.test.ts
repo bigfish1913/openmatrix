@@ -189,11 +189,11 @@ describe('StateMachine', () => {
       expect(result.toStatus).toBe('failed');
     });
 
-    it('blocked -> failed should fail (cannot mark failed directly)', () => {
+    it('blocked -> failed should succeed', () => {
       const result = sm.transition(createTask('blocked'), 'fail');
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
       expect(result.fromStatus).toBe('blocked');
-      expect(result.toStatus).toBe('blocked');
+      expect(result.toStatus).toBe('failed');
     });
   });
 
@@ -230,12 +230,13 @@ describe('StateMachine', () => {
   // ========== 4. getAllowedTransitions ==========
 
   describe('getAllowedTransitions', () => {
-    it('pending allows: schedule, start', () => {
+    it('pending allows: schedule, start, block', () => {
       const transitions = sm.getAllowedTransitions('pending');
       const events = transitions.map(t => t.event);
       expect(events).toContain('schedule');
       expect(events).toContain('start');
-      expect(transitions).toHaveLength(2);
+      expect(events).toContain('block');
+      expect(transitions).toHaveLength(3);
     });
 
     it('in_progress allows: develop_done, block, fail', () => {
@@ -254,12 +255,13 @@ describe('StateMachine', () => {
       expect(transitions).toHaveLength(1);
     });
 
-    it('blocked allows: wait, cancel', () => {
+    it('blocked allows: wait, cancel, fail', () => {
       const transitions = sm.getAllowedTransitions('blocked');
       const events = transitions.map(t => t.event);
       expect(events).toContain('wait');
       expect(events).toContain('cancel');
-      expect(transitions).toHaveLength(2);
+      expect(events).toContain('fail');
+      expect(transitions).toHaveLength(3);
     });
 
     it('completed has no allowed transitions', () => {
@@ -326,8 +328,8 @@ describe('StateMachine', () => {
   describe('getEventDescription', () => {
     const events: TransitionEvent[] = [
       'schedule', 'start', 'develop_done', 'verify_done',
-      'accept_done', 'need_verify', 'need_accept', 'block',
-      'unblock', 'wait', 'resume', 'fail', 'retry', 'cancel'
+      'accept_done', 'block',
+      'wait', 'resume', 'fail', 'retry', 'cancel'
     ];
 
     it('returns a non-empty description for every event', () => {

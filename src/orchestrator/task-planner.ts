@@ -1615,7 +1615,7 @@ ${typeConfig.runCommand}
         if (b.title.startsWith('系统集成:') && devTaskIds.length > 0) {
           // 集成任务依赖当前阶段的所有开发任务
           const currentDeps = b.dependencies;
-          if (currentDeps.every(d => devTaskIds.includes(d) || !devTaskIds.includes(d))) {
+          if (currentDeps.length === 0 || currentDeps.some(d => devTaskIds.includes(d))) {
             integrationTaskId = b.taskId;
           }
         }

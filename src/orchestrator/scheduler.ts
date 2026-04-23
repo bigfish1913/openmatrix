@@ -316,14 +316,16 @@ export class Scheduler {
     this.lastCycleCheck = now;
 
     // 标记阻塞任务
+    const blockedIds = new Set<string>();
     for (const cycle of cycles) {
       for (const taskId of cycle) {
+        if (blockedIds.has(taskId)) continue;
         const task = tasks.find(t => t.id === taskId);
         if (task && (task.status === 'pending' || task.status === 'retry_queue')) {
-          await this.stateManager.updateTask(taskId, {
-            status: 'blocked',
+          await this.transitionTask(taskId, 'block', {
             error: `循环依赖检测: ${cycle.join(' → ')}`
           });
+          blockedIds.add(taskId);
         }
       }
     }

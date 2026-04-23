@@ -319,7 +319,7 @@ describe('Scheduler', () => {
       expect(updated?.status).toBe('blocked');
     });
 
-    it('should throw error when trying to block pending task', async () => {
+    it('should allow blocking pending task (e.g. circular dependency)', async () => {
       const task = await stateManager.createTask({
         title: 'Test Task',
         description: 'Test',
@@ -329,9 +329,9 @@ describe('Scheduler', () => {
         assignedAgent: 'coder'
       });
 
-      // Trying to block pending task should fail
-      await expect(scheduler.markTaskBlocked(task.id, 'Missing dependency'))
-        .rejects.toThrow('状态转换失败');
+      await scheduler.markTaskBlocked(task.id, 'Circular dependency');
+      const updated = await stateManager.getTask(task.id);
+      expect(updated?.status).toBe('blocked');
     });
   });
 

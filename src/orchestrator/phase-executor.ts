@@ -969,13 +969,21 @@ ACCEPT_FAILED
     const now = new Date().toISOString();
 
     if (result.success) {
+      // 计算阶段耗时
+      const phaseKey = phase as keyof typeof task.phases;
+      const phaseData = task.phases?.[phaseKey];
+      const startedAt = phaseData?.startedAt;
+      const duration = startedAt
+        ? Math.round((new Date(now).getTime() - new Date(startedAt).getTime()) / 1000)
+        : 0;
+
       // 更新阶段状态
       const updates: Partial<Task> = {
         phases: {
           ...task.phases,
           [phase]: {
             status: 'completed',
-            duration: 0,
+            duration,
             completedAt: now
           }
         }

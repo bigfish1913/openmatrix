@@ -56,6 +56,7 @@ export class OrchestratorExecutor {
   private aiReviewer: AIReviewer;
   private meetingManager: MeetingManager;
   private config: ExecutorConfig;
+  private _configReady: Promise<void>;
   private taskTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
@@ -67,8 +68,6 @@ export class OrchestratorExecutor {
     this.approvalManager = approvalManager;
     this.meetingManager = new MeetingManager(stateManager, approvalManager);
 
-    // 从 state.config 读取 taskTimeout，如果未定义则使用默认值
-    const stateConfig = stateManager.getState().then(s => s.config).catch(() => null);
     const defaultTaskTimeout = 600000; // 10 分钟（毫秒）
 
     this.config = {
@@ -77,12 +76,7 @@ export class OrchestratorExecutor {
       ...config
     };
 
-    // 异步获取配置并更新 taskTimeout
-    stateConfig.then(cfg => {
-      if (cfg?.taskTimeout) {
-        this.config.taskTimeout = cfg.taskTimeout;
-      }
-    });
+    this._configReady = this.loadConfigFromState(stateManager);
 
     this.scheduler = new Scheduler(stateManager, {
       maxConcurrentTasks: this.config.maxConcurrent,
@@ -107,12 +101,24 @@ export class OrchestratorExecutor {
     return this.phaseExecutor;
   }
 
+  private async loadConfigFromState(stateManager: StateManager): Promise<void> {
+    try {
+      const state = await stateManager.getState();
+      if (state.config?.taskTimeout) {
+        this.config.taskTimeout = state.config.taskTimeout;
+      }
+    } catch {
+      // use default config
+    }
+  }
+
   /**
    * 执行一步 - 返回待执行的 Subagent 任务
    *
    * Skills 调用此方法获取任务，然后使用 Agent 工具执行
    */
   async step(): Promise<ExecutionResult> {
+    await this._configReady;
     const state = await this.stateManager.getState();
 
     // 1. 检查是否需要审批
@@ -222,15 +228,6 @@ export class OrchestratorExecutor {
       const approvalPoint = approval.type;
       return state.config.approvalPoints.includes(approvalPoint as any);
     });
-  }
-
-  /**
-   * 检查是否所有任务完成
-   */
-  private checkAllCompleted(tasks: Task[]): boolean {
-    if (tasks.length === 0) return true;
-
-    return tasks.every(task => task.status === 'completed');
   }
 
   /**
@@ -410,6 +407,7 @@ export class OrchestratorExecutor {
         });
       } else if (currentPhase === 'accept') {
         await this.scheduler.markTaskCompleted(taskId);
+        this.agentRunner.markTaskCompleted(taskId);
 
         // Review 任务完成：自动解析报告并生成修复任务
         if (task.assignedAgent === 'reviewer' && result.output) {
@@ -418,6 +416,7 @@ export class OrchestratorExecutor {
       }
     } else {
       this.clearTaskTimeout(taskId);
+      this.agentRunner.markTaskCompleted(taskId);
       await this.scheduler.markTaskFailed(taskId, result.error || 'Unknown error');
     }
 
@@ -621,6 +620,7 @@ export class OrchestratorExecutor {
       console.error(`⏰ 任务超时: ${taskId} (${timeoutSeconds}s)`);
       logger.task.timeout(taskId, timeoutSeconds);
       this.taskTimers.delete(taskId);
+      this.agentRunner.markTaskCompleted(taskId);
       await this.scheduler.markTaskFailed(taskId, `Task timed out after ${timeoutSeconds}s`);
     }, this.config.taskTimeout);
     this.taskTimers.set(taskId, timer);

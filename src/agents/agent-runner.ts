@@ -855,6 +855,13 @@ describe('MyFunction', () => {
   }
 
   /**
+   * 标记任务完成，释放 runningAgents 槽位
+   */
+  markTaskCompleted(taskId: string): void {
+    this.runningAgents.delete(taskId);
+  }
+
+  /**
    * 检查是否可以启动新 Agent
    */
   canStartNew(): boolean {

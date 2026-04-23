@@ -323,43 +323,43 @@ export class StateManager {
     await this.withFileLock(async () => {
       // 从文件重新读取最新状态（不用缓存，避免 stale）
       const state = await this.store.readJson<GlobalState>('state.json') ?? await this.getState();
-      const stats = { ...state.statistics } as typeof state.statistics;
+      const stats = { ...state.statistics };
 
-    // 扩展统计字段（如果不存在则初始化）
-    if (!('scheduled' in stats)) (stats as any).scheduled = 0;
-    if (!('blocked' in stats)) (stats as any).blocked = 0;
-    if (!('waiting' in stats)) (stats as any).waiting = 0;
-    if (!('verify' in stats)) (stats as any).verify = 0;
-    if (!('accept' in stats)) (stats as any).accept = 0;
-    if (!('retry_queue' in stats)) (stats as any).retry_queue = 0;
+      // 确保扩展统计字段已初始化
+      stats.scheduled ??= 0;
+      stats.blocked ??= 0;
+      stats.waiting ??= 0;
+      stats.verify ??= 0;
+      stats.accept ??= 0;
+      stats.retry_queue ??= 0;
 
-    // Decrement old status count
-    if (oldStatus === 'pending') stats.pending--;
-    else if (oldStatus === 'scheduled') (stats as any).scheduled--;
-    else if (oldStatus === 'in_progress') stats.inProgress--;
-    else if (oldStatus === 'blocked') (stats as any).blocked--;
-    else if (oldStatus === 'waiting') (stats as any).waiting--;
-    else if (oldStatus === 'verify') (stats as any).verify--;
-    else if (oldStatus === 'accept') (stats as any).accept--;
-    else if (oldStatus === 'completed') stats.completed--;
-    else if (oldStatus === 'failed') stats.failed--;
-    else if (oldStatus === 'retry_queue') (stats as any).retry_queue--;
+      // Decrement old status count
+      if (oldStatus === 'pending') stats.pending--;
+      else if (oldStatus === 'scheduled') stats.scheduled--;
+      else if (oldStatus === 'in_progress') stats.inProgress--;
+      else if (oldStatus === 'blocked') stats.blocked--;
+      else if (oldStatus === 'waiting') stats.waiting--;
+      else if (oldStatus === 'verify') stats.verify--;
+      else if (oldStatus === 'accept') stats.accept--;
+      else if (oldStatus === 'completed') stats.completed--;
+      else if (oldStatus === 'failed') stats.failed--;
+      else if (oldStatus === 'retry_queue') stats.retry_queue--;
 
-    // Increment new status count
-    if (newStatus === 'pending') stats.pending++;
-    else if (newStatus === 'scheduled') (stats as any).scheduled++;
-    else if (newStatus === 'in_progress') stats.inProgress++;
-    else if (newStatus === 'blocked') (stats as any).blocked++;
-    else if (newStatus === 'waiting') (stats as any).waiting++;
-    else if (newStatus === 'verify') (stats as any).verify++;
-    else if (newStatus === 'accept') (stats as any).accept++;
-    else if (newStatus === 'completed') stats.completed++;
-    else if (newStatus === 'failed') stats.failed++;
-    else if (newStatus === 'retry_queue') (stats as any).retry_queue++;
+      // Increment new status count
+      if (newStatus === 'pending') stats.pending++;
+      else if (newStatus === 'scheduled') stats.scheduled++;
+      else if (newStatus === 'in_progress') stats.inProgress++;
+      else if (newStatus === 'blocked') stats.blocked++;
+      else if (newStatus === 'waiting') stats.waiting++;
+      else if (newStatus === 'verify') stats.verify++;
+      else if (newStatus === 'accept') stats.accept++;
+      else if (newStatus === 'completed') stats.completed++;
+      else if (newStatus === 'failed') stats.failed++;
+      else if (newStatus === 'retry_queue') stats.retry_queue++;
 
-    const newState = { ...state, statistics: stats };
-    await this.store.writeJson('state.json', newState);
-    this.stateCache = newState;
+      const newState = { ...state, statistics: stats };
+      await this.store.writeJson('state.json', newState);
+      this.stateCache = newState;
     });
   }
 
