@@ -13,7 +13,32 @@ description: "智能部署助手：分析项目+系统环境 → 推荐最可行
 
 <process>
 
-## Step 1: 分析项目文件
+## Step 1: 读取历史部署配置
+
+```bash
+cat .openmatrix/deploy-config.json 2>/dev/null || echo "NO_HISTORY"
+```
+
+**如果有历史配置：**
+- 对比上次记录的关键文件和当前实际文件
+- 判断是否有变更
+
+```bash
+# 对比关键文件是否存在变化
+ls -la Dockerfile docker-compose.yml Makefile Taskfile.yml 2>/dev/null
+cat package.json 2>/dev/null | grep -E '"(deploy|start|build)"'
+```
+
+**变更检测结果：**
+| 状态 | 处理 |
+|------|------|
+| 无历史配置 | 正常流程（分析+询问） |
+| 无变更 | 直接使用上次配置，仅确认一次 |
+| 有变更 | 重新分析并询问 |
+
+---
+
+## Step 2: 分析项目文件
 
 直接读取项目文件，不调用 CLI：
 
@@ -34,7 +59,7 @@ cat requirements.txt pyproject.toml 2>/dev/null
 
 ---
 
-## Step 2: 检测系统环境
+## Step 3: 检测系统环境
 
 ```bash
 # 检测已安装的工具
@@ -52,7 +77,7 @@ uname -s 2>/dev/null || echo "Windows"
 
 ---
 
-## Step 3: AI 分析并展示环境报告
+## Step 4: AI 分析并展示环境报告
 
 基于收集到的信息，直接输出分析报告（不用 AskUserQuestion）：
 
@@ -76,7 +101,7 @@ uname -s 2>/dev/null || echo "Windows"
 
 ---
 
-## Step 4: 推荐部署方案（带理由）
+## Step 5: 推荐部署方案（带理由）
 
 AI 根据"项目配置 × 已安装工具"交叉分析，用 AskUserQuestion 展示推荐方案：
 
@@ -106,7 +131,7 @@ AskUserQuestion:
 
 ---
 
-## Step 5: 确认部署环境
+## Step 6: 确认部署环境
 
 ```
 AskUserQuestion:
@@ -124,7 +149,7 @@ AskUserQuestion:
 
 ---
 
-## Step 6: 执行部署
+## Step 7: 执行部署
 
 根据用户选择，AI 执行对应命令：
 
@@ -163,7 +188,7 @@ curl -s http://localhost:<port>/health 2>/dev/null || echo "服务已启动"
 
 ---
 
-## Step 7: 询问是否生成一键脚本
+## Step 8: 询问是否生成一键脚本
 
 ```
 AskUserQuestion:
@@ -183,7 +208,7 @@ AskUserQuestion:
 
 ---
 
-## Step 8: 生成一键脚本
+## Step 9: 生成一键脚本
 
 根据用户选择和项目实际情况，用 Write 工具生成脚本。
 
@@ -277,7 +302,35 @@ stop:
 
 ---
 
-## Step 9: 输出总结
+## Step 10: 保存部署配置
+
+将用户选择的部署方式保存到 `.openmatrix/deploy-config.json`：
+
+```json
+{
+  "deployMethod": "docker",
+  "envType": "local",
+  "scriptTool": "taskfile",
+  "lastDetectedFiles": {
+    "Dockerfile": true,
+    "docker-compose.yml": false,
+    "Makefile": false,
+    "package.json": true
+  },
+  "lastDetectedTools": {
+    "docker": "24.0.5",
+    "make": "4.3",
+    "task": null
+  },
+  "timestamp": "2026-04-22T15:00:00Z"
+}
+```
+
+下次运行时，对比 `lastDetectedFiles` 和当前实际文件状态，判断是否需要重新询问。
+
+---
+
+## Step 11: 输出总结
 
 ```markdown
 ## ✅ 部署完成
@@ -313,6 +366,19 @@ $ARGUMENTS
 2. **AI 是执行者**：用户确认后直接运行命令，不只是给建议
 3. **推荐最可行的**：基于"当前系统已有什么工具"，不是"理论上最好的"
 4. **产出可复用脚本**：最终生成 Taskfile/Makefile，方便后续开发调试
+5. **记录上次选择**：保存部署配置，下次未变化时直接复用，减少重复询问
+
+## 历史配置复用
+
+`.openmatrix/deploy-config.json` 存储上次部署选择：
+- 对比 `lastDetectedFiles` 和当前文件状态
+- 状态一致 → 直接使用上次配置，仅确认一次
+- 状态变化 → 重新分析并询问
+
+变更检测：
+- Dockerfile/docker-compose.yml/Makefile 新增或删除
+- package.json scripts 变化
+- 系统工具安装状态变化
 
 ## 推荐决策依据（AI 自行判断）
 
