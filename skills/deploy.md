@@ -1,6 +1,6 @@
 ---
 name: om:deploy
-description: "智能部署助手：分析项目+系统环境 → 推荐最可行方案 → 执行部署 → 生成一键脚本。Triggers on DEPLOYMENT intent: user wants to deploy code, set up environments, configure deployment tools, or create deployment scripts. DO NOT trigger on: development tasks, status checks, or debugging. Intent signals: user mentions deploy/publish/release, asks about docker/kubernetes, or needs environment setup."
+description: "Triggers on DEPLOYMENT intent: user wants to deploy, publish, set up environments, or create deployment scripts. DO NOT trigger on: development tasks, status checks, or debugging."
 ---
 
 <INTENT-JUDGMENT>

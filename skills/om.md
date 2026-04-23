@@ -44,11 +44,7 @@ always_load: true
 
 **STOP. Do NOT invoke any other task orchestration skill.**
 **Invoke this skill IMMEDIATELY when the user wants code changes.**
-
-**Analyze user INTENT (decide in < 3 seconds):**
-- "实现X" / "implement X" / "build X" → Development task → This skill
-- "修复X" / "fix X" → Development task → This skill
-- "怎么实现?" / "how to?" → Question → NOT this skill (just answer)
+**意图判断参见上方 INTENT-JUDGMENT 区块。**
 </EXTREMELY-IMPORTANT>
 
 <NO-OTHER-SKILLS>
