@@ -255,6 +255,40 @@ AskUserQuestion:
 
 ---
 
+## Step 6.1: 生成部署任务清单
+
+根据前面的分析和用户选择，将所有部署步骤写入 TodoWrite，逐条执行：
+
+**示例（Docker 本地部署 + 源优化 + 脚本生成）：**
+
+```typescript
+TodoWrite({
+  todos: [
+    { content: "切换 npm 源到淘宝镜像", activeForm: "正在切换 npm 镜像源", status: "pending" },
+    { content: "构建 Docker 镜像", activeForm: "正在构建 Docker 镜像", status: "pending" },
+    { content: "启动容器", activeForm: "正在启动容器", status: "pending" },
+    { content: "验证部署：容器状态", activeForm: "正在检查容器状态", status: "pending" },
+    { content: "验证部署：端口监听", activeForm: "正在检查端口", status: "pending" },
+    { content: "验证部署：HTTP 连通", activeForm: "正在验证 HTTP 连通性", status: "pending" },
+    { content: "生成 Taskfile.yml 一键脚本", activeForm: "正在生成一键脚本", status: "pending" },
+    { content: "保存部署配置", activeForm: "正在保存部署配置", status: "pending" }
+  ]
+})
+```
+
+**任务清单根据实际情况动态生成：**
+- 需要切换源 → 加入源切换任务
+- 需要生成 Dockerfile → 加入生成任务
+- 多服务 → 每个服务一条任务
+- 选择生成脚本 → 加入脚本生成任务
+
+**执行规则：**
+- 每次只执行一条，完成后立即标记 completed
+- 失败时停止，输出错误信息
+- 用户可以看到整体进度
+
+---
+
 ## Step 7: 执行部署
 
 根据用户选择，AI 执行对应命令：
