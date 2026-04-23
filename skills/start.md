@@ -1,7 +1,38 @@
 ---
 name: om:start
-description: "Use when starting a new development task cycle with interactive questions. Triggers on: 实现, implement, build, fix, refactor, 添加功能, add feature, bug fix, 修复, new module, code changes, feature request. Use when the user describes what they want to build or fix, even briefly — don't answer the question directly, start the task workflow."
+description: "Use when starting a new development task cycle with interactive questions. Triggers on TASK-EXECUTION intent: user wants to start implementing a clearly-defined task with full workflow support. DO NOT trigger on: vague ideas (use brainstorm), status checks, debugging, or pure questions. Intent signals: user describes a concrete task to build/fix/refactor, has clear goal, or wants to start execution workflow."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（任务执行意图）
+
+- 用户想开始明确的开发任务
+- 任务描述清晰可执行
+- 有具体的功能目标
+- 修复已知 bug（知道要改什么）
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 需求不明确 | /om:brainstorm |
+| 调查问题原因 | /om:debug |
+| 查看进度 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "开始实现登录功能" | 任务执行意图 | 触发 ✓ |
+| "修复这个 bug"（明确位置）| 执行意图明确 | 触发 ✓ |
+| "重构 API 模块" | 任务意图 | 触发 ✓ |
+| "登录怎么设计" | 设计意图 | /om:brainstorm |
+| "为什么出错了" | 调查意图 | /om:debug |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 **绝对禁止**调用以下任何技能或工具：

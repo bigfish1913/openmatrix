@@ -1,6 +1,6 @@
 ---
 name: om:debug
-description: "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. Use for ANY technical issue: 测试失败, bug, 异常行为, 构建失败, 集成问题, 没触发, 没执行, 不工作, 原因, 为什么. Use ESPECIALLY when: under time pressure, 'just one quick fix' seems obvious, previous fix didn't work, you don't fully understand the issue. Don't skip when: issue seems simple (simple bugs have root causes too), you're in a hurry (systematic is faster than guessing)."
+description: "Use when user encounters ANY technical problem and needs systematic diagnosis. Triggers on PROBLEM-EXPLORATION intent: user wants to understand WHY something failed, investigate root cause, or diagnose unexpected behavior. DO NOT trigger on: simple questions (how to do X), implementation requests (build/fix/add), or status checks. Intent signals: user seems confused about failure, asks '为什么', mentions error/issue without clear solution, wants to investigate before fixing."
 priority: high
 ---
 
@@ -13,6 +13,61 @@ priority: high
 
 **诊断和修复阶段只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
 </NO-OTHER-SKILLS>
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图，而非关键词匹配：**
+
+### 触发信号（问题探索意图）
+
+用户表现出：
+- 需要理解失败原因（不知道为什么出错）
+- 想先调查再行动（排查、诊断、定位）
+- 对问题感到困惑（不清楚根因）
+- 多次尝试未成功（之前修复没生效）
+- 系统行为不符合预期（奇怪、意外）
+
+### 不触发信号（其他意图）
+
+| 用户意图 | 应调用的 skill |
+|---------|---------------|
+| 想要实现新功能 | /om 或 /om:start |
+| 想要修复已知问题（明确知道改什么） | /om:start |
+| 询问如何做某事 | 直接回答，不调用 skill |
+| 查看当前状态 | /om:status |
+| 简单问题咨询 | 直接回答 |
+
+### 判断流程
+
+```
+用户消息
+    │
+    ├── 是否描述了技术问题/失败？
+    │   ├─ 否 → 不触发
+    │   └─ 是 ↓
+    │
+    ├── 用户是否理解问题原因？
+    │   ├─ 是，明确知道怎么修 → /om:start (直接修复)
+    │   └─ 否，想先调查 → 触发 /om:debug ✓
+    │
+    ├── 用户是否想先诊断再修复？
+    │   ├─ 是 → 触发 /om:debug ✓
+    │   └─ 否 → 根据其他意图选择
+```
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "测试失败了" | 描述问题，未说明原因 | 触发 debug |
+| "查一下为什么没触发" | 明确要调查 | 触发 debug ✓ |
+| "帮我排查这个问题" | 排查意图明确 | 触发 debug ✓ |
+| "不知道为什么出错了" | 困惑，需要诊断 | 触发 debug ✓ |
+| "修复登录页bug" | 明确要修复，知道改哪 | /om:start |
+| "API返回500，帮我改一下" | 要修复而非调查 | /om:start |
+| "怎么调试node进程" | 询问方法，非排查 | 直接回答 |
+</INTENT-JUDGMENT>
 
 <MANDATORY-EXECUTION-ORDER>
 ## 执行顺序 - 必须严格按此顺序，不得跳过

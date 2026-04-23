@@ -1,7 +1,37 @@
 ---
 name: om:retry
-description: "Use when retrying failed tasks after execution errors, test failures, or timeouts. Triggers on: 重试, retry, failed task, 失败任务, rerun, 重新执行, test failure, timeout, 超时, error recovery."
+description: "Use when retrying failed tasks after execution errors, test failures, or timeouts. Triggers on RETRY intent: user wants to retry a previously failed task, rerun execution, or recover from error. DO NOT trigger on: starting new tasks, status checks, or debugging root causes. Intent signals: user mentions 'retry', 'rerun', 'try again', or refers to a specific failed task to re-execute."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（重试意图）
+
+- 用户想重试失败的任务
+- 重新执行之前的任务
+- 从错误恢复重新尝试
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 开始新任务 | /om:start |
+| 调查失败原因 | /om:debug |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "重试这个任务" | 重试意图 | 触发 ✓ |
+| "重新执行" | 重试意图 | 触发 ✓ |
+| "再试一次" | 重试意图 | 触发 ✓ |
+| "为什么失败" | 调查意图 | /om:debug |
+| "开始新功能" | 开发意图 | /om:start |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。

@@ -1,8 +1,38 @@
 ---
 name: om:resume
-description: "恢复中断的任务执行。智能检测数据源：轻量流程 (feature-session.json) 或完整流程 (state.json)。Triggers on: 恢复, resume, continue task, 继续执行, interrupted, 中断, paused, 暂停."
+description: "恢复中断的任务执行。智能检测数据源：轻量流程 (feature-session.json) 或完整流程 (state.json)。Triggers on RESUME intent: user wants to continue interrupted task execution, resume paused tasks, or recover from session interruption. DO NOT trigger on: starting new tasks, debugging, or status checks. Intent signals: user mentions 'resume', 'continue', '中断了', '暂停', or refers to interrupted execution."
 priority: high
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（恢复意图）
+
+- 用户想恢复中断的执行
+- 继续之前的任务
+- 从暂停状态恢复
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 开始新任务 | /om:start |
+| 调查问题 | /om:debug |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "恢复执行" | 恢复意图 | 触发 ✓ |
+| "继续刚才的任务" | 继续意图 | 触发 ✓ |
+| "中断了怎么恢复" | 恢复意图 | 触发 ✓ |
+| "开始新功能" | 开发意图 | /om:start |
+| "为什么卡住了" | 调查意图 | /om:debug |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 **绝对禁止**调用以下技能：

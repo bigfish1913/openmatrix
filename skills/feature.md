@@ -1,8 +1,39 @@
 ---
 name: om:feature
-description: "Use for small feature requests needing quick iteration without full task file management. Triggers on: 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段, 轻量. AI evaluates complexity and routes automatically from /om entry point."
+description: "Use for small feature requests needing quick iteration without full task file management. Triggers on MINOR-CHANGE intent: user wants small, quick changes with clear scope - single component, few files, straightforward implementation. DO NOT trigger on: complex multi-module tasks, unclear requirements, or investigation tasks. Intent signals: user explicitly says 'small/quick/simple', describes a focused change, or task is clearly localized."
 priority: high
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（小需求意图）
+
+- 用户表达"小改动"、"快速"、"简单"
+- 任务范围明确且单一
+- 改动点集中在少数文件
+- 实现路径显而易见
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 多模块复杂任务 | /om:start 或 /om:brainstorm |
+| 需求不明确 | /om:brainstorm |
+| 状态检查 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "给列表加搜索按钮" | 小改动意图 | 触发 ✓ |
+| "调整按钮颜色" | 简单修改意图 | 触发 ✓ |
+| "加个字段到表单" | 小需求意图 | 触发 ✓ |
+| "重构认证模块" | 复杂任务 | /om:start |
+| "从零搭建系统" | 需要设计 | /om:brainstorm |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 **绝对禁止**调用以下技能：

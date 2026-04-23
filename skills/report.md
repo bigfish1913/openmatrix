@@ -1,7 +1,38 @@
 ---
 name: om:report
-description: "Use when generating a task execution report with statistics, task details, approval history, and agent performance. Triggers on: 报告, report, summary, 总结, execution stats, 统计, sprint report, weekly summary, 产出物, deliverables overview."
+description: "Use when generating a task execution report with statistics, task details, approval history, and agent performance. Triggers on REPORT intent: user wants a summary of execution, statistics overview, or deliverables documentation. DO NOT trigger on: starting tasks, debugging, or status checks. Intent signals: user asks for 'report', 'summary', 'statistics', 'what was done', or wants comprehensive output of execution results."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（报告意图）
+
+- 用户想要执行总结
+- 需要统计数据报告
+- 查看任务完成详情
+- 生成交付物概述
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 查看实时进度 | /om:status |
+| 开始任务 | /om:start |
+| 调查问题 | /om:debug |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "生成报告" | 报告意图 | 触发 ✓ |
+| "执行总结" | 总结意图 | 触发 ✓ |
+| "查看统计" | 统计意图 | 触发 ✓ |
+| "当前进度" | 实时状态 | /om:status |
+| "为什么失败" | 调查意图 | /om:debug |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。

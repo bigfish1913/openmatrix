@@ -1,8 +1,39 @@
 ---
 name: om:test
-description: "Use when generating tests for untested code, discovering test coverage gaps, or setting up test infrastructure. Use for ANY test generation task: 生成测试, 测试覆盖, 补测试, 写单元测试, E2E测试, UI测试, 测试缺失. Use ESPECIALLY when: new code without tests, low test coverage detected, need to verify functionality before commit, starting a new project without test setup. Don't skip when: code looks simple (simple code needs tests too), rushing to deploy (tests prevent regression), existing tests exist (may need updates for new features)."
+description: "Use when user wants to GENERATE or IMPROVE tests. Triggers on TEST-CREATION intent: user wants new test files, better coverage, or test infrastructure setup. DO NOT trigger on: test execution (running tests), test debugging (why test fails), or test questions (how to write tests). Intent signals: user asks to generate/add/write tests, mentions coverage gaps, wants test setup."
 priority: high
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（测试创建意图）
+
+- 用户想生成测试文件
+- 用户想改进测试覆盖
+- 用户想设置测试框架
+- 用户提到"没测试"、"需要测试"
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 运行测试 | 直接执行 npm test |
+| 测试失败想修复 | /om:debug |
+| 询问测试写法 | 直接回答 |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "给这个文件补测试" | 创建测试意图 | 触发 ✓ |
+| "生成单元测试" | 创建意图明确 | 触发 ✓ |
+| "测试覆盖率太低" | 改进覆盖意图 | 触发 ✓ |
+| "运行测试看看" | 执行意图 | 直接运行 |
+| "测试失败了为什么" | 排查意图 | /om:debug |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 **绝对禁止**调用以下技能：

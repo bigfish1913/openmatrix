@@ -1,7 +1,38 @@
 ---
 name: om:auto
-description: "Use when the user wants fully automated task execution with zero manual approvals. Triggers on: 全自动, 无人值守, hands-free, non-stop, don't ask me, 直接执行, skip all confirmations, batch refactor, large migration, bulk changes. Use for multi-task execution where the user doesn't want to be interrupted at any approval point (plan/merge/deploy)."
+description: "Use when the user wants fully automated task execution with zero manual approvals. Triggers on AUTOMATION intent: user explicitly requests hands-free execution, wants to skip all confirmations, or needs batch processing without interruptions. DO NOT trigger on: interactive requests, debugging, or status checks. Intent signals: user says 'fully auto', 'hands-free', 'no interruptions', 'skip approvals', or describes large batch operations."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（全自动意图）
+
+- 用户明确要"全自动执行"
+- 需要跳过所有审批确认
+- 批量操作，不希望中断
+- 用户表达"直接执行"、"不要问我"
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 需要交互确认 | /om:start |
+| 调查问题 | /om:debug |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "全自动执行" | 全自动意图 | 触发 ✓ |
+| "不要问我直接做" | 无中断意图 | 触发 ✓ |
+| "批量重构跳过确认" | 批量自动化 | 触发 ✓ |
+| "交互式执行" | 需要确认 | /om:start |
+| "查看执行状态" | 状态检查 | /om:status |
+</INTENT-JUDGMENT>
 
 <NOTE>
 ## 注意：区分 `/om:auto` 指令与「全自动执行」模式

@@ -1,9 +1,43 @@
 ---
 name: om
-description: "Default entry point for all development tasks. Routes to /om:feature (small), /om:start (standard), or /om:brainstorm (clarify/design) automatically. Triggers on: implement, build, fix, create, refactor, 修复, 实现, 开发, 添加功能, new feature, 小需求, 小功能, 小改动, minor, quick, 快速, 简单, 添加按钮, 加个字段, 轻量. Use for ANY task that produces code changes — don't answer directly, route to OpenMatrix workflow."
+description: "Default entry point for ALL development tasks. Triggers on DEVELOPMENT intent: user wants to implement, build, fix, refactor, or create something that produces code changes. DO NOT trigger on: questions (how to?), information requests, status checks, or pure discussion. Intent signals: user describes an action that requires code modification, has a clear goal to add/change/remove functionality, or wants to execute a development task."
 priority: critical
 always_load: true
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（开发意图）
+
+- 用户想实现/创建功能（产生代码变更）
+- 用户想修复已知问题（有明确的修复目标）
+- 用户想重构现有代码
+- 用户描述了具体的开发任务
+- 用户有明确的目标（添加/修改/删除功能）
+
+### 不触发信号（其他意图）
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 询问如何实现 | 直接回答或 /om:brainstorm |
+| 查看状态 | /om:status |
+| 调查问题原因 | /om:debug |
+| 纯讨论想法 | 直接交流或 /om:brainstorm |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "实现登录功能" | 开发意图明确 | 触发 ✓ |
+| "修复按钮样式问题" | 有明确修复目标 | 触发 ✓ |
+| "给列表加搜索" | 功能添加意图 | 触发 ✓ |
+| "怎么实现登录？" | 询问方法 | 直接回答 |
+| "API 返回 500 为什么" | 调查意图 | /om:debug |
+| "查看任务状态" | 状态检查 | /om:status |
+</INTENT-JUDGMENT>
 
 <EXTREMELY-IMPORTANT>
 ## This is the DEFAULT entry for ALL development tasks.

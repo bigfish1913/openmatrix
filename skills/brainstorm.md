@@ -1,7 +1,39 @@
 ---
 name: om:brainstorm
-description: "Use when the user wants to explore requirements, design alternatives, or validate ideas before implementation. Triggers on: 头脑风暴, 设计方案, 需求分析, 技术选型, architecture design, 'how should I build', multi-module features, new projects from scratch, unclear requirements, complex system design. Use even if the user just says 'implement X' and the task involves multiple modules or unclear requirements — brainstorm first, don't jump straight to coding."
+description: "Use when the user wants to explore requirements, design alternatives, or validate ideas before implementation. Triggers on CLARIFICATION/DESIGN intent: user needs to clarify unclear requirements, explore multiple approaches, or design architecture before coding. DO NOT trigger on: simple implementation requests (clear path), status checks, or pure information queries. Intent signals: user says 'how should I', mentions multiple options/uncertainties, describes complex system from scratch, or task scope is ambiguous."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（澄清/设计意图）
+
+- 用户想探索多种实现方案
+- 需求不明确，需要澄清
+- 涉及多模块协同，需要设计
+- 从零开始搭建，需要架构规划
+- 用户表达"怎么设计"、"什么方案"
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 明确的实现任务 | /om:start 或 /om:feature |
+| 状态检查 | /om:status |
+| 简单问题咨询 | 直接回答 |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "登录功能怎么设计？" | 设计意图 | 触发 ✓ |
+| "从零搭建后台系统" | 架构规划意图 | 触发 ✓ |
+| "OAuth 选哪个方案？" | 方案探索意图 | 触发 ✓ |
+| "给按钮加点击事件" | 明确实现 | /om:feature |
+| "查看当前任务状态" | 状态检查 | /om:status |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 **绝对禁止**调用以下技能（OpenMatrix 完全替代它们）:

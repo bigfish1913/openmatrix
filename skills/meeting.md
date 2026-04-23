@@ -1,7 +1,38 @@
 ---
 name: om:meeting
-description: "Use when handling blocked tasks, technical decisions, or workflow interruptions during OpenMatrix execution. Triggers on: 阻塞, blocked, 决策, decision needed, 技术选型, database connection failed, API key missing, merge conflict, dependency issue, task cannot proceed. Use when the user reports something is stuck, waiting for info, or needs to make a choice that blocks execution."
+description: "Use when handling blocked tasks, technical decisions, or workflow interruptions during OpenMatrix execution. Triggers on BLOCKED/DECISION intent: user reports task is stuck, needs to make a blocking choice, or something prevents progress. DO NOT trigger on: starting tasks, debugging root causes, or status checks. Intent signals: user says 'blocked', 'stuck', 'waiting', 'cannot proceed', or describes a blocker/dependency issue."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（阻塞处理意图）
+
+- 任务被阻塞无法继续
+- 需要做技术决策
+- 等待外部信息
+- 执行中断
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 开始新任务 | /om:start |
+| 调查失败原因 | /om:debug |
+| 查看进度 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "任务卡住了" | 阻塞意图 | 触发 ✓ |
+| "缺少 API key" | 阻塞问题 | 触发 ✓ |
+| "需要做技术决策" | 决策意图 | 触发 ✓ |
+| "为什么卡住" | 调查意图 | /om:debug |
+| "开始新功能" | 开发意图 | /om:start |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。

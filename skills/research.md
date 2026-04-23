@@ -1,7 +1,38 @@
 ---
 name: om:research
-description: "Use when conducting domain research before implementing vertical-domain tasks. Triggers on: 领域调研, research, game development, payment system, blockchain, AI application, 行业标准, tech stack exploration, domain analysis, unfamiliar vertical, need to understand the domain before building."
+description: "Use when conducting domain research before implementing vertical-domain tasks. Triggers on RESEARCH intent: user needs to understand an unfamiliar domain, explore tech stack, analyze industry standards, or gather knowledge before building. DO NOT trigger on: direct implementation, debugging, or status checks. Intent signals: user mentions 'research', 'understand domain', 'explore tech', or needs knowledge gathering before coding."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（调研意图）
+
+- 用户需要领域调研
+- 探索不熟悉的技术栈
+- 了解行业标准
+- 在实现前收集知识
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 直接实现 | /om:start |
+| 需求澄清 | /om:brainstorm |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "调研支付领域" | 调研意图 | 触发 ✓ |
+| "了解游戏开发" | 领域探索意图 | 触发 ✓ |
+| "研究区块链" | 技术调研意图 | 触发 ✓ |
+| "实现支付功能" | 实现意图 | /om:start |
+| "支付方案怎么设计" | 设计意图 | /om:brainstorm |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。

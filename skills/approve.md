@@ -1,7 +1,38 @@
 ---
 name: om:approve
-description: "Use when handling pending approvals including plan review, merge confirmation, deploy approval, and blocked task decisions during OpenMatrix execution. Triggers on: 审批, approve, 批准, plan review, merge conflict resolution, deploy confirmation, 阻塞处理, technical decision, pending approval, waiting for approval, 待确认."
+description: "Use when handling pending approvals including plan review, merge confirmation, deploy approval, and blocked task decisions during OpenMatrix execution. Triggers on APPROVAL intent: user wants to review and approve pending items, handle merge conflicts, or confirm deploy. DO NOT trigger on: starting tasks, debugging, or status checks. Intent signals: user mentions 'approve', 'review plan', 'confirm merge', 'approve deploy', or refers to pending approval actions."
 ---
+
+<INTENT-JUDGMENT>
+## 意图判断指南
+
+**AI 应根据用户语义判断意图：**
+
+### 触发信号（审批意图）
+
+- 用户要审批计划
+- 处理合并冲突
+- 确认部署
+- 处理待审批项
+
+### 不触发信号
+
+| 用户意图 | 应调用 |
+|---------|--------|
+| 开始任务 | /om:start |
+| 调查问题 | /om:debug |
+| 查看状态 | /om:status |
+
+### 示例判断
+
+| 用户消息 | 判断 | 结果 |
+|---------|------|------|
+| "审批这个计划" | 审批意图 | 触发 ✓ |
+| "确认合并" | 确认意图 | 触发 ✓ |
+| "批准部署" | 部署审批意图 | 触发 ✓ |
+| "为什么没通过审批" | 调查意图 | /om:debug |
+| "开始实现" | 开发意图 | /om:start |
+</INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
 执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
