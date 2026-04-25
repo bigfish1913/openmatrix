@@ -147,11 +147,30 @@ function generateTestContent(source: UncoveredSourceFile, config: TemplateConfig
   const importPath = source.path.replace(/\.(ts|tsx)$/, '').replace(/\.(js|jsx)$/, '');
   const imports = generateImports(source.exports, importPath, usesTypeScript);
 
+  // 需要生命周期钩子的文件类型
+  const needsLifecycle = ['service', 'util', 'api', 'module'].includes(source.fileType);
+
+  // 需要 vi 导入的测试类型（使用 Mock 验证副作用）
+  const needsViImport = ['service', 'util', 'api', 'component', 'module'].includes(source.fileType);
+
   // 测试块
-  const testBlocks = source.exports.map(exp => generateTestBlock(exp, framework, usesDescribeIt, source.fileType));
+  const testBlocks = source.exports.map(exp =>
+    generateTestBlock(exp, framework, usesDescribeIt, source.fileType)
+  );
 
   // 组装内容
-  const content = `${imports}\n\n${testBlocks.join('\n\n')}\n`;
+  const content = `${needsViImport ? `import { vi } from 'vitest';\n` : ''}${imports}
+${needsLifecycle ? `
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+` : ''}
+${testBlocks.join('\n\n')}
+`;
 
   return content;
 }
@@ -219,13 +238,15 @@ function generateBusinessTestCases(exportName: string, fileType: string): Busine
           name: 'should return valid result on successful execution',
           arrange: `// Arrange - 准备有效的输入参数
     const params = { id: 'test-id', data: {} };
-    const mockDependencies = {};`,
+    const spy = vi.spyOn({ ${exportName} }, '${exportName}');`,
           act: `// Act - 执行服务方法
     const result = await ${exportName}(params);`,
           assert: [
             'expect(result).toBeDefined();',
             'expect(result).toHaveProperty(\'data\');',
-            'expect(result.error).toBeUndefined();'
+            'expect(result.error).toBeUndefined();',
+            `expect(spy).toHaveBeenCalledWith(params);`,
+            'expect(spy).toHaveBeenCalledTimes(1);'
           ]
         },
         {
@@ -266,12 +287,15 @@ function generateBusinessTestCases(exportName: string, fileType: string): Busine
           name: 'should process valid input correctly',
           arrange: `// Arrange - 准备有效输入
     const input = 'test-value';
-    const expected = 'expected-result';`,
+    const expected = 'expected-result';
+    const spy = vi.spyOn({ ${exportName} }, '${exportName}');`,
           act: `// Act
     const result = ${exportName}(input);`,
           assert: [
             'expect(result).toBeDefined();',
-            'expect(typeof result).toBe(\'string\');'
+            'expect(typeof result).toBe(\'string\');',
+            `expect(spy).toHaveBeenCalledWith(input);`,
+            'expect(spy).toHaveBeenCalledTimes(1);'
           ]
         },
         {
@@ -362,19 +386,25 @@ function generateBusinessTestCases(exportName: string, fileType: string): Busine
         {
           name: 'should return success response for valid request',
           arrange: `// Arrange - 准备有效的 API 请求参数
-    const request = { method: \'GET\', path: \'/api/test\' };`,
+    const request = { method: \'GET\', path: \'/api/test\' };
+    const mockResponse = { status: 200, data: { id: 1 } };
+    const spy = vi.spyOn({ ${exportName} }, '${exportName}').mockResolvedValue(mockResponse);`,
           act: `// Act - 执行 API 调用
     const response = await ${exportName}(request);`,
           assert: [
             'expect(response).toBeDefined();',
             'expect(response.status).toBe(200);',
-            'expect(response.data).toBeDefined();'
+            'expect(response.data).toBeDefined();',
+            `expect(spy).toHaveBeenCalledWith(request);`,
+            'expect(spy).toHaveBeenCalledTimes(1);'
           ]
         },
         {
           name: 'should handle 404 not found',
           arrange: `// Arrange - 准备不存在的资源请求
-    const request = { method: \'GET\', path: \'/api/nonexistent\' };`,
+    const request = { method: \'GET\', path: \'/api/nonexistent\' };
+    const mockResponse = { status: 404, error: \'Not Found\' };
+    vi.spyOn({ ${exportName} }, '${exportName}').mockResolvedValue(mockResponse);`,
           act: `// Act - 请求不存在的资源
     const response = await ${exportName}(request);`,
           assert: [
@@ -385,7 +415,9 @@ function generateBusinessTestCases(exportName: string, fileType: string): Busine
         {
           name: 'should handle invalid request body',
           arrange: `// Arrange - 准备无效的请求体
-    const request = { method: \'POST\', path: \'/api/test\', body: null };`,
+    const request = { method: \'POST\', path: \'/api/test\', body: null };
+    const mockResponse = { status: 400, error: \'invalid request\' };
+    vi.spyOn({ ${exportName} }, '${exportName}').mockResolvedValue(mockResponse);`,
           act: `// Act - 发送无效请求
     const response = await ${exportName}(request);`,
           assert: [
@@ -397,10 +429,10 @@ function generateBusinessTestCases(exportName: string, fileType: string): Busine
           name: 'should handle network errors gracefully',
           arrange: `// Arrange - 模拟网络错误
     const request = { method: \'GET\', path: \'/api/error\' };
-    // Mock network failure`,
+    vi.spyOn({ ${exportName} }, '${exportName}').mockRejectedValue(new Error('Network Error'));`,
           act: `// Act - 处理错误响应`,
           assert: [
-            `await expect(${exportName}(request)).resolves.toBeDefined();`,
+            `await expect(${exportName}(request)).rejects.toThrow('Network Error');`,
             '// 应该返回错误对象而非抛出异常'
           ]
         }
