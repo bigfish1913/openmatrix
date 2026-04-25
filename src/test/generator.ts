@@ -172,7 +172,7 @@ function generateImports(exports: string[], importPath: string, usesTypeScript: 
 }
 
 /**
- * 生成测试块
+ * 生成测试块 - 根据文件类型生成有意义的业务测试
  */
 function generateTestBlock(
   exportName: string,
@@ -181,28 +181,14 @@ function generateTestBlock(
   fileType: string
 ): string {
   const useDescribe = usesDescribeIt ?? true;
-  const describeOrTest = usesDescribeIt ? 'describe' : 'test';
 
   if (useDescribe) {
+    // 根据文件类型生成不同的测试场景
+    const testCases = generateBusinessTestCases(exportName, fileType);
+    const testBlocks = testCases.map(tc => generateTestCaseBlock(tc, exportName));
+
     return `describe('${getDescribeTitle(exportName, fileType)}', () => {
-  it('should work correctly', () => {
-    // Arrange
-    const input = {};
-
-    // Act
-    const result = ${exportName}(input);
-
-    // Assert
-    expect(result).toBeDefined();
-  });
-
-  it('should handle edge cases', () => {
-    // Arrange
-    const input = null;
-
-    // Act & Assert
-    expect(() => ${exportName}(input)).not.toThrow();
-  });
+${testBlocks.join('\n\n')}
 });`;
   } else {
     return `test('${exportName}', () => {
@@ -210,6 +196,262 @@ function generateTestBlock(
   expect(${exportName}(null)).toBeDefined();
 });`;
   }
+}
+
+/**
+ * 测试用例定义
+ */
+interface BusinessTestCase {
+  name: string;
+  arrange: string;
+  act: string;
+  assert: string[];
+}
+
+/**
+ * 根据文件类型生成业务测试用例
+ */
+function generateBusinessTestCases(exportName: string, fileType: string): BusinessTestCase[] {
+  switch (fileType) {
+    case 'service':
+      return [
+        {
+          name: 'should return valid result on successful execution',
+          arrange: `// Arrange - 准备有效的输入参数
+    const params = { id: 'test-id', data: {} };
+    const mockDependencies = {};`,
+          act: `// Act - 执行服务方法
+    const result = await ${exportName}(params);`,
+          assert: [
+            'expect(result).toBeDefined();',
+            'expect(result).toHaveProperty(\'data\');',
+            'expect(result.error).toBeUndefined();'
+          ]
+        },
+        {
+          name: 'should handle invalid input gracefully',
+          arrange: `// Arrange - 准备无效输入
+    const invalidParams = { id: null, data: undefined };`,
+          act: `// Act - 使用无效参数调用
+    const result = await ${exportName}(invalidParams);`,
+          assert: [
+            'expect(result).toBeDefined();',
+            'expect(result).toHaveProperty(\'error\');'
+          ]
+        },
+        {
+          name: 'should handle empty parameters',
+          arrange: `// Arrange - 空参数测试`,
+          act: `// Act & Assert - 验证空参数处理
+    const result = await ${exportName}({});`,
+          assert: [
+            'expect(result).toBeDefined();',
+            '// 应该返回默认值或错误信息，而非崩溃'
+          ]
+        },
+        {
+          name: 'should handle missing required fields',
+          arrange: `// Arrange - 缺少必填字段`,
+          act: `// Act`,
+          assert: [
+            `expect(() => ${exportName}(null)).not.toThrow();`,
+            'expect(() => ${exportName}(undefined)).not.toThrow();'
+          ]
+        }
+      ];
+
+    case 'util':
+      return [
+        {
+          name: 'should process valid input correctly',
+          arrange: `// Arrange - 准备有效输入
+    const input = 'test-value';
+    const expected = 'expected-result';`,
+          act: `// Act
+    const result = ${exportName}(input);`,
+          assert: [
+            'expect(result).toBeDefined();',
+            'expect(typeof result).toBe(\'string\');'
+          ]
+        },
+        {
+          name: 'should handle null input',
+          arrange: `// Arrange - null 输入`,
+          act: `// Act & Assert`,
+          assert: [
+            `expect(() => ${exportName}(null)).not.toThrow();`,
+            'const result = ${exportName}(null);',
+            'expect(result).toBeDefined();'
+          ]
+        },
+        {
+          name: 'should handle empty string input',
+          arrange: `// Arrange - 空字符串输入`,
+          act: `// Act
+    const result = ${exportName}('');`,
+          assert: [
+            'expect(result).toBeDefined();',
+            '// 验证空字符串的预期行为'
+          ]
+        },
+        {
+          name: 'should handle various input types',
+          arrange: `// Arrange - 多种输入类型测试`,
+          act: `// Act - 测试不同类型`,
+          assert: [
+            'const numResult = ${exportName}(123);',
+            'const boolResult = ${exportName}(true);',
+            'const objResult = ${exportName}({ key: \'value\' });',
+            'expect(numResult).toBeDefined();',
+            'expect(boolResult).toBeDefined();',
+            'expect(objResult).toBeDefined();'
+          ]
+        }
+      ];
+
+    case 'component':
+      return [
+        {
+          name: 'should render without crashing',
+          arrange: `// Arrange - 准备组件 props
+    const props = { title: \'Test Title\', onClick: vi.fn() };`,
+          act: `// Act - 渲染组件
+    const { container } = render(<${exportName} {...props} />);`,
+          assert: [
+            'expect(container).toBeDefined();',
+            'expect(container.firstChild).toBeInTheDocument();'
+          ]
+        },
+        {
+          name: 'should handle user interaction',
+          arrange: `// Arrange - 准备交互测试
+    const handleClick = vi.fn();
+    const props = { onClick: handleClick };`,
+          act: `// Act - 模拟用户点击
+    const { getByRole } = render(<${exportName} {...props} />);
+    fireEvent.click(getByRole(\'button\'));`,
+          assert: [
+            'expect(handleClick).toHaveBeenCalledTimes(1);'
+          ]
+        },
+        {
+          name: 'should display correct content with props',
+          arrange: `// Arrange - 准备显示内容测试
+    const testContent = \'Hello World\';
+    const props = { children: testContent };`,
+          act: `// Act - 渲染并检查内容
+    const { getByText } = render(<${exportName} {...props} />);`,
+          assert: [
+            'expect(getByText(testContent)).toBeInTheDocument();'
+          ]
+        },
+        {
+          name: 'should handle missing optional props',
+          arrange: `// Arrange - 无可选 props`,
+          act: `// Act - 仅传递必需 props
+    const { container } = render(<${exportName} />);`,
+          assert: [
+            'expect(container).toBeDefined();',
+            '// 组件应使用默认值正常渲染'
+          ]
+        }
+      ];
+
+    case 'api':
+      return [
+        {
+          name: 'should return success response for valid request',
+          arrange: `// Arrange - 准备有效的 API 请求参数
+    const request = { method: \'GET\', path: \'/api/test\' };`,
+          act: `// Act - 执行 API 调用
+    const response = await ${exportName}(request);`,
+          assert: [
+            'expect(response).toBeDefined();',
+            'expect(response.status).toBe(200);',
+            'expect(response.data).toBeDefined();'
+          ]
+        },
+        {
+          name: 'should handle 404 not found',
+          arrange: `// Arrange - 准备不存在的资源请求
+    const request = { method: \'GET\', path: \'/api/nonexistent\' };`,
+          act: `// Act - 请求不存在的资源
+    const response = await ${exportName}(request);`,
+          assert: [
+            'expect(response.status).toBe(404);',
+            'expect(response.error).toBeDefined();'
+          ]
+        },
+        {
+          name: 'should handle invalid request body',
+          arrange: `// Arrange - 准备无效的请求体
+    const request = { method: \'POST\', path: \'/api/test\', body: null };`,
+          act: `// Act - 发送无效请求
+    const response = await ${exportName}(request);`,
+          assert: [
+            'expect(response.status).toBe(400);',
+            'expect(response.error).toContain(\'invalid\');'
+          ]
+        },
+        {
+          name: 'should handle network errors gracefully',
+          arrange: `// Arrange - 模拟网络错误
+    const request = { method: \'GET\', path: \'/api/error\' };
+    // Mock network failure`,
+          act: `// Act - 处理错误响应`,
+          assert: [
+            `await expect(${exportName}(request)).resolves.toBeDefined();`,
+            '// 应该返回错误对象而非抛出异常'
+          ]
+        }
+      ];
+
+    default:
+      // 通用模块测试
+      return [
+        {
+          name: 'should return defined result for valid input',
+          arrange: `// Arrange - 准备有效输入
+    const input = {};`,
+          act: `// Act - 执行函数
+    const result = ${exportName}(input);`,
+          assert: [
+            'expect(result).toBeDefined();'
+          ]
+        },
+        {
+          name: 'should handle null input',
+          arrange: `// Arrange - null 输入`,
+          act: `// Act`,
+          assert: [
+            `expect(() => ${exportName}(null)).not.toThrow();`
+          ]
+        },
+        {
+          name: 'should handle undefined input',
+          arrange: `// Arrange - undefined 输入`,
+          act: `// Act`,
+          assert: [
+            `expect(() => ${exportName}(undefined)).not.toThrow();`
+          ]
+        }
+      ];
+  }
+}
+
+/**
+ * 生成单个测试用例块
+ */
+function generateTestCaseBlock(tc: BusinessTestCase, exportName: string): string {
+  const indent = '  ';
+  const actIndent = tc.act.includes('\n') ? indent : indent + '  ';
+  const assertLines = tc.assert.map(a => `${indent}  ${a}`).join('\n');
+
+  return `${indent}it('${tc.name}', () => {
+${indent}  ${tc.arrange}
+${actIndent}${tc.act}
+${assertLines}
+${indent}});`;
 }
 
 /**
