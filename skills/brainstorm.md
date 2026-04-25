@@ -42,7 +42,7 @@ description: "Use when the user wants to explore requirements, design alternativ
 - ❌ gsd:* → 全部被 OpenMatrix 替代
 - ❌ 任何其他任务编排相关的技能
 
-**相关技能**: `/om:research` (领域调研) | `/om:start` (任务执行) | `/om:auto` (全自动)
+**相关技能**: `/om:research` (领域调研) | `/om:plan` (方案生成) | `/om:start` (任务执行) | `/om:auto` (全自动)
 </NO-OTHER-SKILLS>
 
 <HARD-GATE>
@@ -341,12 +341,14 @@ AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 
 | label | description |
 |-------|-------------|
-| 开始执行 (推荐) | 写入 tasks-input.json 并调用 /om:start |
+| 开始执行 (推荐) | 调用 /om:plan 生成技术方案后执行 |
 | 修改设计 | 需要调整设计方案 |
 
-## 步骤 8: 写入任务文件并调用对应 Skill
+## 步骤 8: 路由到 plan 或直接执行
 
-用户选择"确认并执行"后：
+用户选择"确认并执行"后，根据路由判断结果进入不同流程：
+
+**路由为 feature 时**（小任务，不需要 plan）：
 
 1. **检测状态:**
 ```bash
@@ -358,9 +360,9 @@ ls .openmatrix/state.json 2>/dev/null
 openmatrix start --init-only
 ```
 
-3. **根据路由判断结果写入不同文件：**
+3. **写入 feature-session.json 并直接调用 feature：**
 
-**路由为 feature 时**，写入 `.openmatrix/feature-session.json`：
+写入 `.openmatrix/feature-session.json`：
 ```json
 {
   "taskDescription": "任务描述",
@@ -369,31 +371,27 @@ openmatrix start --init-only
 }
 ```
 
-**路由为 start 时**，写入 `.openmatrix/tasks-input.json`：
-```json
-{
-  "title": "任务标题",
-  "description": "基于头脑风暴的整体描述",
-  "goals": ["目标1: 独立功能模块", "目标2: 独立功能模块"],
-  "constraints": ["约束"],
-  "deliverables": ["交付物"],
-  "plan": "## 技术方案\n..."
-}
+4. **调用 Skill：**
+```
+Skill 工具: skill = "om:feature"
 ```
 
-> **注意**: `quality`、`mode`、`e2eTests` 不在此写入，由对应 Skill 的必选问题决定。
+**路由为 start 时**（标准任务，需要先生成 plan）：
 
-4. **⚠️ 必须执行（不可跳过）：根据路由调用对应 Skill**
-
+1. **调用 /om:plan 生成技术方案和任务元数据：**
 ```
-Skill 工具:
-  - feature → skill = "om:feature"
-  - start → skill = "om:start"
+Skill 工具: skill = "om:plan", args = "基于头脑风暴的设计文档生成方案"
 ```
 
-这不是可选的 — 如果不调用对应 Skill，任务不会开始执行。
-- `/om:feature` 会检测已存在的 `feature-session.json`，快速进入执行
-- `/om:start` 会检测已存在的 `tasks-input.json`，询问必选问题（质量等级、E2E、执行模式）
+`/om:plan` 会：
+- 读取 brainstorm 设计文档
+- 生成 `.openmatrix/plan.md`
+- 提取 goals/goalTypes/goalComplexity 写入 `.openmatrix/tasks-input.json`
+- 自动路由到 `/om:start`
+
+> **注意**: brainstorm 不再直接写入 tasks-input.json，而是通过 /om:plan 生成。这确保 plan 和 tasks-input.json 的质量。
+
+> **路由为 start 时不直接调用 /om:start** — 先经过 /om:plan 生成方案，plan 完成后自动路由到 start。
 
 </process>
 
@@ -422,8 +420,8 @@ $ARGUMENTS
 ## 路由判断（澄清完成后自动判断）
 
 brainstorm 澄清完成后，自动判断下一步路由：
-- **feature**: 单一改动点 + 实现路径清晰 → 写入 feature-session.json，调用 /om:feature
-- **start**: 任务明确但需完整追踪 → 写入 tasks-input.json，调用 /om:start
+- **feature**: 单一改动点 + 实现路径清晰 → 写入 feature-session.json，直接调用 /om:feature
+- **start**: 任务明确但需完整追踪 → 调用 /om:plan 生成方案，plan 完成后自动路由到 /om:start
 
 不再让用户二次选择流程，根据澄清结果直接进入对应执行流程。
 
@@ -438,7 +436,7 @@ brainstorm 澄清完成后，自动判断下一步路由：
 
 - 每次头脑风暴都会输出设计文档到 `docs/openmatrix/YYYY-MM-DD-<topic>-design.md`
 - 文档包含：核心目标、架构、数据模型、接口、技术方案、错误处理、测试策略、风险、验收标准
-- 设计文档是 `/om:start` 执行时的重要参考
+- 设计文档是 `/om:plan` 生成技术方案时的重要参考
 - 文档内容来自步骤 5 逐节确认的设计
 
 ## 在已有代码库中工作
@@ -522,7 +520,7 @@ brainstorm 澄清完成后，自动判断下一步路由：
          │      │          │
          ▼      ▼          ▼
 ┌─────────┐ ┌─────────┐   完成
-│/om:feature│ │/om:start │
+│/om:feature│ │/om:plan  │──→ /om:start
 └─────────┘ └─────────┘
 ```
 </notes>

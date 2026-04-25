@@ -3,48 +3,6 @@ import type { ParsedTask, QualityConfig } from '../types/index.js';
 import type { Task } from '../types/index.js';
 import { translateBrainstormAnswers } from './answer-mapper.js';
 
-/**
- * 从 plan 中解析出的结构化模块信息
- */
-export interface PlanModule {
-  /** 模块名称，如 "用户域" */
-  name: string;
-  /** 模块描述 */
-  description: string;
-  /** 关联的表，如 ["users", "user_profiles"] */
-  tables: string[];
-  /** 模块类型 */
-  type: 'domain' | 'feature' | 'infra' | 'system';
-  /** 依赖的其他模块名称 */
-  dependsOn: string[];
-  /** 预估复杂度 */
-  complexity: 'low' | 'medium' | 'high';
-}
-
-/**
- * 从 plan 中解析出的结构化信息
- */
-export interface ParsedPlan {
-  /** 核心模块列表 */
-  modules: PlanModule[];
-  /** 技术栈摘要 */
-  techStack: string[];
-  /** 原始 plan 文本 */
-  raw: string;
-}
-
-/** 从 plan 中提取的结构化信息（用于 fallback 时注入任务描述） */
-export interface PlanMetadata {
-  /** 技术栈 */
-  techStack: string[];
-  /** 接口/API 定义 */
-  interfaces: string[];
-  /** 数据模型/表 */
-  dataModels: string[];
-  /** 关键决策 */
-  keyDecisions: string[];
-}
-
 export interface TaskBreakdown {
   taskId: string;
   title: string;
@@ -75,14 +33,8 @@ export interface UserAnswers {
 /**
  * TaskPlanner - 任务拆解器
  *
- * 增强版特性:
- * 1. 更细粒度的任务拆分 (每个目标拆分为设计+实现+测试)
- * 2. 测试任务配对 (每个开发任务自动生成对应测试任务)
- * 3. 验收标准注入 (从用户回答中提取)
- * 4. 用户上下文注入 (将用户回答注入任务描述)
- * 5. 依赖关系分析 (自动分析任务间依赖)
- * 6. 并行执行 (独立任务互不依赖)
- * 7. 质量级别感知 (根据配置调整测试覆盖率)
+ * Plan 原文作为原始上下文透传给 AI Agent，由 AI 自行理解和提取
+ * 技术栈、数据模型、依赖关系等信息。CLI 层不做语义解析。
  */
 export class TaskPlanner {
   private userAnswers: UserAnswers;
@@ -101,734 +53,25 @@ export class TaskPlanner {
   }
 
   /**
-   * 解析 plan 文本，提取模块、技术栈、数据模型等结构化信息
+   * 任务拆解 — 唯一路径：按目标拆分，plan 作为原始上下文透传
    */
-  parsePlan(planText: string): ParsedPlan {
-    const modules: PlanModule[] = [];
-    const techStack: string[] = [];
-
-    // 1. 提取技术栈
-    const techStackMatch = planText.match(/(?:技术栈|Technology)[\s\S]*?((?:- .+\n?)+)/i);
-    if (techStackMatch) {
-      techStackMatch[1].split('\n').forEach(line => {
-        const trimmed = line.replace(/^- /, '').trim();
-        if (trimmed) techStack.push(trimmed);
-      });
-    }
-
-    // 2. 提取模块定义
-    // 模式1: "N领域模块: A、B、C..." 或 "N个领域模块: A, B, C"
-    const moduleListMatch = planText.match(/(\d+)\s*(?:个)?领域模块\s*[:：]\s*(.+)/i);
-    if (moduleListMatch) {
-      const moduleNames = moduleListMatch[2]
-        .split(/[,，、]/)
-        .map(s => s.trim().replace(/域$/, ''))
-        .filter(s => s.length > 0 && s.length < 30);
-
-      // 从 plan 中的 "数据模型" 部分提取表信息
-      // 通用方式：查找以 "- " 开头的表名/实体名列表，不在模块列表中
-      const moduleNamesSet = new Set(moduleNames.map(n => n.toLowerCase()));
-      const allTables: string[] = [];
-      const tableSections = planText.match(/(?:数据模型|database|tables?|schema|实体|模型)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/gi);
-      if (tableSections) {
-        for (const section of tableSections) {
-          const tableLines = section.split('\n')
-            .map(l => l.replace(/^[-*]\s*/, '').trim())
-            .filter(l => l.length > 0 && l.length < 50);
-          for (const t of tableLines) {
-            // 跳过看起来像模块名的条目
-            const tLower = t.toLowerCase();
-            if (!moduleNamesSet.has(tLower) && !t.includes(':') && !t.includes('—')) {
-              allTables.push(t);
-            }
-          }
-        }
-      }
-
-      for (const modName of moduleNames) {
-        // 通用方式：从 plan 中查找该模块相关的表（包含模块名的行附近）
-        const modLower = modName.toLowerCase();
-        const modTables = allTables.filter(t =>
-          t.toLowerCase().includes(modLower) ||
-          modLower.includes(t.split(/[_\s]/)[0]?.toLowerCase() || '')
-        );
-
-        modules.push({
-          name: modName,
-          description: `${modName}模块`,
-          tables: modTables,
-          type: 'domain',
-          dependsOn: [],
-          complexity: this.estimateModuleComplexity(modName, modTables)
-        });
-      }
-
-      // 分析模块间依赖
-      this.analyzeModuleDependencies(modules, planText);
-    }
-
-    // 模式2: 架构设计部分的编号列表 "1. 用户域：描述"
-    if (modules.length === 0) {
-      const archMatch = planText.match(/架构设计[\s\S]*?((?:\d+\.\s*.+(?:\n|$))+)/i);
-      if (archMatch) {
-        const lines = archMatch[1].split('\n').filter(l => l.trim());
-        for (const line of lines) {
-          const modMatch = line.match(/\d+\.\s*(.+?)[：:\s](.*)/);
-          if (modMatch) {
-            const name = modMatch[1].replace(/域$/, '').trim();
-            modules.push({
-              name,
-              description: modMatch[2].trim(),
-              tables: [],
-              type: 'domain',
-              dependsOn: [],
-              complexity: this.estimateModuleComplexity(name, [])
-            });
-          }
-        }
-        this.analyzeModuleDependencies(modules, planText);
-      }
-    }
-
-    // 模式3: 英文格式 "N modules: A, B, C" 或 "N components: A, B, C"
-    if (modules.length === 0) {
-      const enModuleMatch = planText.match(/(\d+)\s*(?:modules?|components?|domains?|features?)\s*[:：]\s*(.+)/i);
-      if (enModuleMatch) {
-        const moduleNames = enModuleMatch[2]
-          .split(/[,，、]/)
-          .map(s => s.trim())
-          .filter(s => s.length > 0 && s.length < 30);
-
-        for (const modName of moduleNames) {
-          modules.push({
-            name: modName,
-            description: `${modName} module`,
-            tables: [],
-            type: 'domain',
-            dependsOn: [],
-            complexity: this.estimateModuleComplexity(modName, [])
-          });
-        }
-        this.analyzeModuleDependencies(modules, planText);
-      }
-    }
-
-    // 模式4: Markdown 标题下的列表 "## Modules\n- A\n- B" 或 "## Architecture\n1. A\n2. B"
-    if (modules.length === 0) {
-      const mdPatterns = [
-        /##\s*(?:模块|Modules?|架构|Architecture|领域|Domains?|功能|Features?)[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
-        /##\s*(?:实现|Implementation|开发|Development)[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
-      ];
-
-      for (const pattern of mdPatterns) {
-        const mdMatch = planText.match(pattern);
-        if (mdMatch) {
-          const lines = mdMatch[1].split('\n').filter(l => l.trim());
-          for (const line of lines) {
-            // 匹配 "- Name" 或 "1. Name" 或 "1. Name: Description"
-            const itemMatch = line.match(/[-*\d]+\.\s*(.+?)(?:[：:\s](.*))?/);
-            if (itemMatch) {
-              const name = itemMatch[1].trim();
-              const desc = itemMatch[2]?.trim() || `${name} module`;
-              if (name.length > 0 && name.length < 30 && !modules.some(m => m.name === name)) {
-                modules.push({
-                  name,
-                  description: desc,
-                  tables: [],
-                  type: 'domain',
-                  dependsOn: [],
-                  complexity: this.estimateModuleComplexity(name, [])
-                });
-              }
-            }
-          }
-        }
-        if (modules.length > 0) {
-          this.analyzeModuleDependencies(modules, planText);
-          break;
-        }
-      }
-    }
-
-    return { modules, techStack, raw: planText };
-  }
-
-  /**
-   * 从 plan 中提取结构化信息（用于 fallback 时注入任务描述）
-   * 即使无法解析模块，也能保留关键技术信息
-   */
-  extractPlanMetadata(plan: string): PlanMetadata {
-    const techStack: string[] = [];
-    const interfaces: string[] = [];
-    const dataModels: string[] = [];
-    const keyDecisions: string[] = [];
-
-    // 1. 提取技术栈
-    const techMatch = plan.match(/(?:技术栈|Technology|Tech Stack)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i);
-    if (techMatch) {
-      techMatch[1].split('\n').forEach(line => {
-        const trimmed = line.replace(/^[-*]\s*/, '').trim();
-        if (trimmed && trimmed.length < 50) techStack.push(trimmed);
-      });
-    }
-
-    // 2. 提取接口/API
-    const interfacePatterns = [
-      /(?:接口|API|Endpoints?|接口定义)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
-      /(?:##\s*(?:接口|API|Endpoints?))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
-    ];
-    for (const pattern of interfacePatterns) {
-      const match = plan.match(pattern);
-      if (match) {
-        match[1].split('\n').forEach(line => {
-          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
-          if (trimmed && trimmed.length < 80 && !interfaces.includes(trimmed)) {
-            interfaces.push(trimmed);
-          }
-        });
-        if (interfaces.length > 0) break;
-      }
-    }
-
-    // 3. 提取数据模型/表
-    const dataPatterns = [
-      /(?:数据模型|Database|Tables?|Schema|实体|模型)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
-      /(?:##\s*(?:数据模型|Database|实体))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
-    ];
-    for (const pattern of dataPatterns) {
-      const match = plan.match(pattern);
-      if (match) {
-        match[1].split('\n').forEach(line => {
-          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
-          if (trimmed && trimmed.length < 50 && !dataModels.includes(trimmed)) {
-            dataModels.push(trimmed);
-          }
-        });
-        if (dataModels.length > 0) break;
-      }
-    }
-
-    // 4. 提取关键决策
-    const decisionPatterns = [
-      /(?:关键决策|Key Decisions|重要决策|决策点)[\s\S]*?((?:[-*]\s*.+(?:\n|$))+)/i,
-      /(?:##\s*(?:关键决策|Key Decisions|决策))[\s\S]*?((?:[-*\d]+\.\s*.+(?:\n|$))+)/i,
-    ];
-    for (const pattern of decisionPatterns) {
-      const match = plan.match(pattern);
-      if (match) {
-        match[1].split('\n').forEach(line => {
-          const trimmed = line.replace(/^[-*\d]+\.\s*/, '').trim();
-          if (trimmed && trimmed.length < 100 && !keyDecisions.includes(trimmed)) {
-            keyDecisions.push(trimmed);
-          }
-        });
-        if (keyDecisions.length > 0) break;
-      }
-    }
-
-    return { techStack, interfaces, dataModels, keyDecisions };
-  }
-
-  /**
-   * 从 goals 推断模块结构（当 plan 无法解析模块时使用）
-   */
-  inferModulesFromGoals(parsedTask: ParsedTask): PlanModule[] {
-    const modules: PlanModule[] = [];
-
-    if (!parsedTask.goalTypes || parsedTask.goals.length < 3) {
-      return modules;
-    }
-
-    for (let i = 0; i < parsedTask.goals.length; i++) {
-      const goal = parsedTask.goals[i];
-      const goalType = parsedTask.goalTypes[i];
-
-      // 只将 development 类型的 goal 作为模块
-      if (goalType === 'development') {
-        modules.push({
-          name: goal.replace(/^(实现|开发|完成|Develop|Implement)\s*:?\s*/i, '').trim(),
-          description: goal,
-          tables: [],
-          type: 'domain',
-          dependsOn: [],
-          complexity: this.estimateComplexity(goal)
-        });
-      }
-    }
-
-    // 添加基础依赖：第一个模块无依赖，后续模块依赖前一模块
-    for (let i = 1; i < modules.length; i++) {
-      // 默认并行，除非 goal 描述中明确提到依赖
-      if (parsedTask.goals[i].toLowerCase().includes('基于') ||
-          parsedTask.goals[i].toLowerCase().includes('依赖') ||
-          parsedTask.goals[i].toLowerCase().includes('需要') ||
-          parsedTask.goals[i].toLowerCase().includes('after')) {
-        modules[i].dependsOn.push(modules[i - 1].name);
-      }
-    }
-
-    return modules;
-  }
-
-  /**
-   * 分析模块间依赖关系
-   *
-   * 策略：从 plan 文本中提取 AI 明确写的依赖信息，不做架构猜测。
-   * 如果 plan 中没有指定依赖，模块之间并行执行。
-   */
-  private analyzeModuleDependencies(modules: PlanModule[], planText: string): void {
-    for (let i = 0; i < modules.length; i++) {
-      const mod = modules[i];
-      if (mod.dependsOn.length > 0) continue; // parsePlan 中已提取的显式依赖，保留
-
-      // 从 plan 文本中查找该模块是否提到依赖其他模块
-      // 匹配模式："X 依赖 Y", "X 基于 Y", "X 使用 Y", "after X", "depends on X"
-      const modContext = this.extractModuleContext(planText, mod.name);
-      if (modContext) {
-        for (const other of modules) {
-          if (other.name === mod.name) continue;
-          // 如果上下文中提到其他模块且暗示依赖关系
-          const depPatterns = [
-            new RegExp(`${other.name}.*(?:依赖|基于|需要|使用|after|depends)`, 'i'),
-            new RegExp(`(?:依赖|基于|需要|使用|after|depends).*${other.name}`, 'i'),
-          ];
-          for (const pattern of depPatterns) {
-            if (pattern.test(modContext)) {
-              mod.dependsOn.push(other.name);
-              break;
-            }
-          }
-        }
-      }
-
-      // 如果 plan 中模块是按顺序编号的，后面编号的模块依赖前面的
-      // 这只在模块名称是编号格式时适用（如 "1. 基础架构" → "2. 用户模块"）
-      // 不做自动推断，保持模块间独立
-    }
-  }
-
-  /**
-   * 从 plan 文本中提取某个模块相关的上下文段落
-   */
-  private extractModuleContext(planText: string, moduleName: string): string | null {
-    const lines = planText.split('\n');
-    const startIdx = lines.findIndex(l => l.includes(moduleName));
-    if (startIdx === -1) return null;
-
-    // 从匹配行开始，收集到下一个编号标题或空行为止
-    const contextLines: string[] = [];
-    for (let i = startIdx; i < lines.length && i < startIdx + 20; i++) {
-      const line = lines[i];
-      if (contextLines.length > 0 && line.trim() === '') break;
-      if (contextLines.length > 0 && /^\d+\./.test(line.trim())) break;
-      contextLines.push(line);
-    }
-    return contextLines.join('\n');
-  }
-
-  /**
-   * 预估模块复杂度 — 基于通用架构特征，不依赖具体业务领域
-   */
-  private estimateModuleComplexity(name: string, tables: string[]): 'low' | 'medium' | 'high' {
-    // 表数量是最直接的复杂度指标
-    if (tables.length >= 5) return 'high';
-    if (tables.length >= 3) return 'medium';
-
-    // 通用架构关键词
-    const highKws = ['核心', '基础', '架构', '主循环', '引擎', '框架', '平台', '系统', 'orchestrator', 'engine', 'core', 'framework'];
-    const mediumKws = ['管理', '服务', 'api', '接口', '控制器', '处理器', '管理器', 'manager', 'service', 'handler', 'processor', 'controller'];
-    const lowKws = ['工具', '脚本', '配置', '样式', '工具', 'helper', 'util', 'config', 'style', 'theme'];
-
-    const n = name.toLowerCase();
-    if (highKws.some(kw => n.includes(kw))) return 'high';
-    if (lowKws.some(kw => n.includes(kw))) return 'low';
-    if (mediumKws.some(kw => n.includes(kw))) return 'medium';
-
-    // 默认 medium（比默认 low 更保守，避免并行执行冲突）
-    return 'medium';
-  }
   breakdown(
     parsedTask: ParsedTask,
     answers: Record<string, string>,
     qualityConfig?: QualityConfig,
     plan?: string
   ): TaskBreakdown[] {
-    // 如果提供了 plan，尝试解析模块
-    if (plan) {
-      const parsed = this.parsePlan(plan);
-      if (parsed.modules.length > 0) {
-        return this.breakdownByModules(parsedTask, answers, qualityConfig, parsed, plan);
-      }
-
-      // plan 无法解析模块时，尝试从 goals 推断
-      const inferredModules = this.inferModulesFromGoals(parsedTask);
-      if (inferredModules.length > 0) {
-        const inferredPlan: ParsedPlan = {
-          modules: inferredModules,
-          techStack: parsed.techStack,
-          raw: plan
-        };
-        return this.breakdownByModules(parsedTask, answers, qualityConfig, inferredPlan, plan);
-      }
-    }
-
-    // fallback: 按目标拆分，但保留 plan metadata
-    const planMetadata = plan ? this.extractPlanMetadata(plan) : undefined;
-    return this.breakdownByGoals(parsedTask, answers, qualityConfig, plan, planMetadata);
+    return this.breakdownByGoals(parsedTask, answers, qualityConfig, plan);
   }
 
   /**
-   * 基于 plan 解析出的模块做细粒度任务拆分
-   */
-  private breakdownByModules(
-    parsedTask: ParsedTask,
-    answers: Record<string, string>,
-    qualityConfig: QualityConfig | undefined,
-    parsedPlan: ParsedPlan,
-    plan: string
-  ): TaskBreakdown[] {
-    const breakdowns: TaskBreakdown[] = [];
-    const userContext = this.extractUserContext(answers);
-
-    if (qualityConfig?.e2eTests) {
-      userContext.e2eTests = true;
-      if (!userContext.e2eType) {
-        userContext.e2eType = 'web';
-      }
-    }
-
-    const coverageTarget = this.getCoverageTarget(qualityConfig, userContext);
-    const globalContext = this.buildGlobalContext(parsedTask, userContext, plan);
-
-    // 提取 planMetadata 用于测试任务描述注入
-    const planMetadata = this.extractPlanMetadata(plan);
-
-    // 1. 为每个模块创建开发 + 测试任务对
-    const devTaskIds: string[] = [];
-    const moduleIdToTaskIds = new Map<string, string[]>();
-
-    for (const mod of parsedPlan.modules) {
-      const modTaskId = this.generateTaskId();
-      devTaskIds.push(modTaskId);
-      moduleIdToTaskIds.set(mod.name, [modTaskId]);
-
-      // 构建模块描述 — 包含表名、依赖等具体信息
-      let modDescription = `## 模块实现: ${mod.name}\n\n${mod.description}\n\n${globalContext}`;
-
-      if (mod.tables.length > 0) {
-        modDescription += `\n\n## 数据模型\n需要实现以下数据库表:\n${mod.tables.map(t => `- \`${t}\``).join('\n')}`;
-      }
-
-      if (mod.dependsOn.length > 0) {
-        modDescription += `\n\n## 模块依赖\n本模块依赖以下模块: ${mod.dependsOn.join(', ')}\n请确保依赖模块的接口已定义并可调用。`;
-      }
-
-      modDescription += `\n\n## 输出要求\n- 完成模块实现\n- 代码可编译\n- 遵循项目规范\n- 添加必要注释`;
-
-      // 计算模块任务的实际依赖（转换为 taskId）
-      const modDeps: string[] = [];
-      for (const depName of mod.dependsOn) {
-        const depTaskIds = moduleIdToTaskIds.get(depName);
-        if (depTaskIds) {
-          modDeps.push(...depTaskIds);
-        }
-      }
-      // 同时保留 phase 级别的依赖
-      this.enforcePhaseDependenciesForModule(breakdowns, parsedTask, mod, modDeps);
-
-      const complexity = this.estimateModuleComplexity(mod.name, mod.tables);
-
-      breakdowns.push({
-        taskId: modTaskId,
-        title: `实现: ${mod.name}`,
-        description: modDescription,
-        priority: this.determineModulePriority(mod, parsedPlan.modules.indexOf(mod)),
-        dependencies: modDeps,
-        estimatedComplexity: complexity,
-        assignedAgent: 'coder',
-        phase: 'develop',
-        acceptanceCriteria: this.generateModuleAcceptanceCriteria(mod, coverageTarget, userContext),
-        testTaskId: undefined
-      });
-
-      // 配对的测试任务
-      const testTaskId = this.generateTaskId();
-      breakdowns.push({
-        taskId: testTaskId,
-        title: `测试: ${mod.name}`,
-        description: this.buildTestDescription(mod.name, modTaskId, coverageTarget, globalContext, planMetadata),
-        priority: this.determineModulePriority(mod, parsedPlan.modules.indexOf(mod)),
-        dependencies: [modTaskId],
-        estimatedComplexity: 'medium',
-        assignedAgent: 'tester',
-        phase: 'verify',
-        acceptanceCriteria: [
-          `单元测试覆盖率 >= ${coverageTarget}%`,
-          '边界情况已测试',
-          '异常处理已验证',
-          '所有测试通过'
-        ]
-      });
-
-      breakdowns[breakdowns.length - 2].testTaskId = testTaskId;
-      moduleIdToTaskIds.get(mod.name)!.push(testTaskId);
-    }
-
-    // 2. 系统集成任务
-    let integrationTaskId: string | undefined;
-    if (devTaskIds.length > 1) {
-      integrationTaskId = this.generateTaskId();
-      breakdowns.push({
-        taskId: integrationTaskId,
-        title: '系统集成: 将所有模块组装到主入口，确保可运行',
-        description: `将前面所有模块连接在一起，使应用可以完整运行
-
-${globalContext}
-
-## 集成要求
-- 确定项目的主入口文件并实例化所有核心模块
-- 建立模块间通信和数据流
-- 确保应用可以启动并正常运行
-
-## 已完成的模块
-${parsedPlan.modules.map(m => `- ${m.name} (${m.tables.length > 0 ? '表: ' + m.tables.join(', ') : '无数据模型'})`).join('\n')}
-
-## 输出
-- 更新后的主入口文件
-- 模块连接正确，应用可运行
-- 无运行时错误`,
-        priority: 'P0',
-        dependencies: [...devTaskIds],
-        estimatedComplexity: 'high',
-        assignedAgent: 'coder',
-        phase: 'develop',
-        acceptanceCriteria: [
-          '主入口文件已更新',
-          '所有核心模块已实例化并连接',
-          '应用可以正常启动',
-          '无运行时错误',
-          '模块间通信正常'
-        ]
-      });
-    }
-
-    // 3. 代码审查任务
-    if (devTaskIds.length > 0) {
-      const reviewDeps = integrationTaskId
-        ? [...devTaskIds, integrationTaskId]
-        : [...devTaskIds];
-      breakdowns.push({
-        taskId: this.generateTaskId(),
-        title: '代码审查',
-        description: `对所有开发任务进行代码审查
-
-${globalContext}
-
-## 审查范围
-${parsedPlan.modules.map(m => `- ${m.name}: ${m.description}`).join('\n')}
-
-## 审查要点
-- 代码质量
-- 安全性
-- 性能
-- 最佳实践`,
-        priority: 'P1',
-        dependencies: reviewDeps,
-        estimatedComplexity: 'medium',
-        assignedAgent: 'reviewer',
-        phase: 'verify',
-        acceptanceCriteria: [
-          '无严重代码问题',
-          '无安全隐患',
-          '代码符合规范',
-          '审查报告已生成'
-        ]
-      });
-    }
-
-    // 4. 集成测试任务 (如果有多个交付物)
-    if (parsedTask.deliverables.length > 1) {
-      const integrationTestDeps = integrationTaskId
-        ? [...devTaskIds, integrationTaskId]
-        : [...devTaskIds];
-      breakdowns.push({
-        taskId: this.generateTaskId(),
-        title: '集成测试',
-        description: `验证所有交付物正确集成
-
-${globalContext}
-
-## 测试范围
-- 模块间接口
-- 端到端流程
-- 数据流验证`,
-        priority: 'P1',
-        dependencies: integrationTestDeps,
-        estimatedComplexity: 'medium',
-        assignedAgent: 'tester',
-        phase: 'verify',
-        acceptanceCriteria: [
-          '所有模块正确集成',
-          '端到端流程通过',
-          '接口兼容性验证',
-          '集成测试报告完整'
-        ]
-      });
-    }
-
-    // 5. E2E 测试任务
-    if (userContext.e2eTests) {
-      const e2eTaskId = this.generateTaskId();
-      const e2eType = userContext.e2eType || 'web';
-      const allTestDeps = [...devTaskIds];
-      breakdowns.forEach(b => {
-        if (b.phase === 'verify' && b.title.startsWith('测试:')) {
-          allTestDeps.push(b.taskId);
-        }
-      });
-
-      breakdowns.push({
-        taskId: e2eTaskId,
-        title: '端到端(E2E)测试',
-        description: this.buildE2ETestDescription(e2eType, parsedTask, userContext),
-        priority: 'P0',
-        dependencies: allTestDeps,
-        estimatedComplexity: 'high',
-        assignedAgent: 'tester',
-        phase: 'verify',
-        acceptanceCriteria: [
-          '所有 E2E 测试用例通过',
-          '关键用户流程验证完成',
-          '跨浏览器/设备兼容性验证',
-          'E2E 测试报告已生成',
-          '无阻塞级别的缺陷'
-        ]
-      });
-    }
-
-    // 6. 文档任务
-    if (userContext.documentationLevel && userContext.documentationLevel !== '无需文档') {
-      breakdowns.push({
-        taskId: this.generateTaskId(),
-        title: '文档编写',
-        description: `编写项目文档
-
-## 文档级别
-${userContext.documentationLevel}
-
-## 文档内容
-- README 更新
-- API 文档
-- 使用说明`,
-        priority: 'P2',
-        dependencies: devTaskIds,
-        estimatedComplexity: 'low',
-        assignedAgent: 'executor',
-        phase: 'accept',
-        acceptanceCriteria: [
-          'README 已更新',
-          'API 文档完整',
-          '使用说明清晰'
-        ]
-      });
-    }
-
-    return breakdowns;
-  }
-
-  /**
-   * 为模块任务添加 phase 级别的跨阶段依赖
-   */
-  private enforcePhaseDependenciesForModule(
-    breakdowns: TaskBreakdown[],
-    parsedTask: ParsedTask,
-    mod: PlanModule,
-    modDeps: string[]
-  ): void {
-    // 检测是否有顺序阶段，如果有则添加跨阶段依赖
-    const phaseIndices = this.detectSequentialPhases(parsedTask.goals);
-    if (phaseIndices.length < 2) return;
-
-    // 找出当前模块属于哪个 phase goal
-    let currentPhaseIndex = -1;
-    for (let pi = 0; pi < phaseIndices.length; pi++) {
-      const goalIndex = phaseIndices[pi];
-      const goal = parsedTask.goals[goalIndex];
-      if (mod.name.toLowerCase().includes(goal.toLowerCase().slice(0, 10)) ||
-          goal.toLowerCase().includes(mod.name.toLowerCase().slice(0, 6))) {
-        currentPhaseIndex = pi;
-        break;
-      }
-    }
-
-    if (currentPhaseIndex <= 0) return;
-
-    // 添加对前一阶段所有模块任务的依赖
-    const prevGoalIndex = phaseIndices[currentPhaseIndex - 1];
-    for (const b of breakdowns) {
-      if (b.phase === 'develop' && b.title.startsWith('实现: ')) {
-        // 检查这个任务是否属于前一阶段
-        const prevGoal = parsedTask.goals[prevGoalIndex];
-        if (b.description.includes(prevGoal)) {
-          if (!modDeps.includes(b.taskId)) {
-            modDeps.push(b.taskId);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * 确定模块任务优先级
-   */
-  private determineModulePriority(mod: PlanModule, index: number): 'P0' | 'P1' | 'P2' | 'P3' {
-    // 基础设施模块优先级更高
-    if (mod.type === 'infra') return 'P0';
-    // 有依赖的模块通常更核心
-    if (mod.dependsOn.length === 0 && index === 0) return 'P0';
-    if (mod.complexity === 'high') return 'P1';
-    return 'P2';
-  }
-
-  /**
-   * 为模块生成验收标准
-   */
-  private generateModuleAcceptanceCriteria(
-    mod: PlanModule,
-    coverageTarget: number,
-    userContext: UserAnswers
-  ): string[] {
-    const criteria: string[] = [
-      `模块 "${mod.name}" 功能已实现`,
-      '代码可编译，无错误',
-      '代码符合项目规范'
-    ];
-
-    if (mod.tables.length > 0) {
-      criteria.push(`数据库表 ${mod.tables.join(', ')} 已实现并可访问`);
-    }
-
-    criteria.push(`测试覆盖率 >= ${coverageTarget}%`);
-    criteria.push('必要的注释已添加');
-    criteria.push('无安全隐患');
-    criteria.push('边界情况已处理');
-
-    if (userContext.techStack?.length) {
-      criteria.push(`使用指定技术栈: ${userContext.techStack.join(', ')}`);
-    }
-
-    return criteria;
-  }
-
-  /**
-   * 按目标拆分的传统方式（fallback）
+   * 按目标拆分子任务
    */
   private breakdownByGoals(
     parsedTask: ParsedTask,
     answers: Record<string, string>,
     qualityConfig: QualityConfig | undefined,
-    plan: string | undefined,
-    planMetadata?: PlanMetadata
+    plan: string | undefined
   ): TaskBreakdown[] {
     const breakdowns: TaskBreakdown[] = [];
     const seenTitles = new Set<string>();
@@ -837,7 +80,6 @@ ${userContext.documentationLevel}
     // qualityConfig 中的 e2eTests 优先级高于 answers 中的推断
     if (qualityConfig?.e2eTests) {
       userContext.e2eTests = true;
-      // 如果 e2eType 未指定，从质量配置推断
       if (!userContext.e2eType) {
         userContext.e2eType = 'web';
       }
@@ -885,15 +127,12 @@ ${globalContext}
     for (let i = 0; i < parsedTask.goals.length; i++) {
       const goal = parsedTask.goals[i];
 
-      // 跳过重复项
-      if (seenTitles.has(goal)) {
-        continue;
-      }
+      if (seenTitles.has(goal)) continue;
       seenTitles.add(goal);
 
-      // 优先使用 AI 标注的类型，fallback 到关键词检测
+      // goalTypes 由 AI 在 tasks-input.json 中必填
       const goalType: 'development' | 'testing' | 'documentation' | 'other' =
-        parsedTask.goalTypes?.[i] ?? this.classifyGoal(goal);
+        parsedTask.goalTypes?.[i] ?? 'development';
       const deps = designTaskId ? [designTaskId] : [];
 
       if (goalType === 'development') {
@@ -906,10 +145,10 @@ ${globalContext}
         breakdowns.push({
           taskId: devTaskId,
           title: `实现: ${goal}`,
-          description: this.buildTaskDescription(goal, globalContext, planMetadata),
+          description: this.buildTaskDescription(goal, globalContext),
           priority: this.determinePriority(i),
           dependencies: deps,
-          estimatedComplexity: this.estimateComplexity(goal),
+          estimatedComplexity: this.estimateComplexity(goal, i, parsedTask),
           assignedAgent: 'coder',
           phase: 'develop',
           acceptanceCriteria,
@@ -921,7 +160,7 @@ ${globalContext}
         breakdowns.push({
           taskId: testTaskId,
           title: `测试: ${goal}`,
-          description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext, planMetadata),
+          description: this.buildTestDescription(goal, devTaskId, coverageTarget, globalContext),
           priority: this.determinePriority(i),
           dependencies: [devTaskId],
           estimatedComplexity: 'medium',
@@ -942,7 +181,21 @@ ${globalContext}
         breakdowns.push({
           taskId,
           title: goal,
-          description: `## 测试目标\n${goal}\n\n${globalContext}\n\n## 测试要求\n- 单元测试覆盖率 >= ${coverageTarget}%\n- 测试正常流程\n- 测试边界情况\n- 测试异常处理\n\n## 输出\n- 测试文件\n- 测试报告\n- 覆盖率报告`,
+          description: `## 测试目标
+${goal}
+
+${globalContext}
+
+## 测试要求
+- 单元测试覆盖率 >= ${coverageTarget}%
+- 测试正常流程
+- 测试边界情况
+- 测试异常处理
+
+## 输出
+- 测试文件
+- 测试报告
+- 覆盖率报告`,
           priority: this.determinePriority(i),
           dependencies: deps,
           estimatedComplexity: 'medium',
@@ -961,7 +214,15 @@ ${globalContext}
         breakdowns.push({
           taskId,
           title: goal,
-          description: `## 文档目标\n${goal}\n\n${globalContext}\n\n## 输出要求\n- 文档内容完整\n- 格式清晰\n- 示例代码可运行`,
+          description: `## 文档目标
+${goal}
+
+${globalContext}
+
+## 输出要求
+- 文档内容完整
+- 格式清晰
+- 示例代码可运行`,
           priority: this.determinePriority(i),
           dependencies: deps,
           estimatedComplexity: 'low',
@@ -979,10 +240,17 @@ ${globalContext}
         breakdowns.push({
           taskId,
           title: goal,
-          description: `## 目标\n${goal}\n\n${globalContext}\n\n## 输出要求\n- 完成目标\n- 验证结果正确`,
+          description: `## 目标
+${goal}
+
+${globalContext}
+
+## 输出要求
+- 完成目标
+- 验证结果正确`,
           priority: this.determinePriority(i),
           dependencies: deps,
-          estimatedComplexity: this.estimateComplexity(goal),
+          estimatedComplexity: this.estimateComplexity(goal, i, parsedTask),
           assignedAgent: 'coder',
           phase: 'develop',
           acceptanceCriteria: [
@@ -1034,7 +302,6 @@ ${devTaskIds.map(id => `- ${id}: ${breakdowns.find(b => b.taskId === id)?.title 
 
     // 3. 代码审查任务 (仅在有开发任务时创建)
     if (devTaskIds.length > 0) {
-      // 审查依赖所有开发任务 + 系统集成任务（如果有）
       const reviewDeps = integrationTaskId
         ? [...devTaskIds, integrationTaskId]
         : [...devTaskIds];
@@ -1067,7 +334,7 @@ ${devTaskIds.map(id => `- ${id}`).join('\n')}
       });
     }
 
-    // 3. 集成测试任务 (如果有多个交付物)
+    // 4. 集成测试任务 (如果有多个交付物)
     if (parsedTask.deliverables.length > 1) {
       const integrationTestDeps = integrationTaskId
         ? [...devTaskIds, integrationTaskId]
@@ -1097,7 +364,7 @@ ${globalContext}
       });
     }
 
-    // 4. E2E 测试任务 (如果启用)
+    // 5. E2E 测试任务 (如果启用)
     if (userContext.e2eTests) {
       const e2eTaskId = this.generateTaskId();
       const e2eType = userContext.e2eType || 'web';
@@ -1128,8 +395,8 @@ ${globalContext}
       });
     }
 
-    // 5. 文档任务 (如果需要)
-    if (userContext.documentationLevel && userContext.documentationLevel !== '无需文档') {
+    // 6. 文档任务 (如果需要)
+    if (userContext.documentationLevel && userContext.documentationLevel !== '无需') {
       breakdowns.push({
         taskId: this.generateTaskId(),
         title: '文档编写',
@@ -1155,29 +422,14 @@ ${userContext.documentationLevel}
       });
     }
 
-    // 6. 检测顺序阶段并建立跨阶段依赖（Phase 1 → Phase 2 → Phase 3 → ...）
+    // 7. 检测顺序阶段并建立跨阶段依赖（Phase 1 → Phase 2 → Phase 3 → ...）
     this.enforcePhaseDependencies(breakdowns, parsedTask);
 
     return breakdowns;
   }
 
-  /**
-   * 判断是否需要设计阶段
-   *
-   * 条件: 多个 goal，或 goal 包含复杂关键词
-   */
   private needsDesignPhase(parsedTask: ParsedTask): boolean {
-    if (parsedTask.goals.length > 1) return true;
-
-    // 单 goal 但包含复杂关键词
-    const complexKeywords = [
-      '系统', '架构', '模块', '集成', '完整', '平台',
-      '体系', '框架', '全栈', '端到端', '多个', '一系列',
-      'system', 'architecture', 'framework', 'fullstack', 'integration'
-    ];
-
-    const allText = `${parsedTask.title} ${parsedTask.goals.join(' ')} ${parsedTask.description}`.toLowerCase();
-    return complexKeywords.some(kw => allText.includes(kw.toLowerCase()));
+    return parsedTask.goals.length > 1;
   }
 
   /**
@@ -1198,28 +450,30 @@ ${userContext.documentationLevel}
   }
 
   /**
-   * 提取用户上下文
+   * 提取用户上下文 — 使用 translateBrainstormAnswers 映射后的规范化键
    */
   private extractUserContext(answers: Record<string, string>): UserAnswers {
-    // 先翻译 brainstorm 规范键为 planner 期望的键
     const translated = translateBrainstormAnswers(answers);
     const merged = { ...answers, ...translated };
 
-    // 辅助函数：提取字符串值（处理 string[] 情况）
     const str = (v: string | string[] | undefined): string | undefined =>
       Array.isArray(v) ? v.join(', ') : v;
 
-    const e2eAnswer = str(merged['E2E测试'] || merged['e2eTests'] || merged['e2e']);
-    const e2eTypeAnswer = str(merged['E2E类型'] || merged['e2eType']);
+    const e2eAnswer = str(merged['e2e_tests'] || merged['e2eTests']);
+    const e2eTypeAnswer = str(merged['e2e_type'] || merged['e2eType']);
 
-    const isE2EEnabled = e2eAnswer === 'true' || e2eAnswer === 'functional' || e2eAnswer === 'visual' || e2eAnswer === '✅ 启用 E2E 测试' || e2eAnswer === '是';
-    let e2eTypeValue: 'web' | 'mobile' | 'gui' | 'visual' = e2eAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'visual' ? 'visual' : e2eTypeAnswer === 'mobile' ? 'mobile' : e2eTypeAnswer === 'gui' ? 'gui' : 'web';
+    const isE2EEnabled = e2eAnswer === 'functional' || e2eAnswer === 'visual' || e2eAnswer === 'true';
+    const e2eTypeValue: 'web' | 'mobile' | 'gui' | 'visual' =
+      e2eAnswer === 'visual' ? 'visual' :
+      e2eTypeAnswer === 'visual' ? 'visual' :
+      e2eTypeAnswer === 'mobile' ? 'mobile' :
+      e2eTypeAnswer === 'gui' ? 'gui' : 'web';
 
     return {
-      objective: str(merged['目标'] || merged['objective']),
-      techStack: this.parseArrayAnswer(str(merged['技术栈'] || merged['techStack']) || ''),
-      testCoverage: str(merged['测试'] || merged['testCoverage']),
-      documentationLevel: str(merged['文档'] || merged['documentationLevel']),
+      objective: str(merged['objective']),
+      techStack: this.parseArrayAnswer(str(merged['tech_stack'] || merged['techStack'])),
+      testCoverage: str(merged['test_coverage'] || merged['testCoverage']),
+      documentationLevel: str(merged['documentation_level'] || merged['documentationLevel']),
       e2eTests: isE2EEnabled,
       e2eType: e2eTypeValue,
       additionalContext: merged
@@ -1242,39 +496,49 @@ ${userContext.documentationLevel}
     const parts: string[] = [];
 
     if (parsedTask.title) {
-      parts.push(`## 整体任务\n${parsedTask.title}`);
+      parts.push(`## 整体任务
+${parsedTask.title}`);
     }
 
     if (parsedTask.description) {
-      parts.push(`## 任务描述\n${parsedTask.description}`);
+      parts.push(`## 任务描述
+${parsedTask.description}`);
     }
 
+    // Plan 原文完整透传，由 AI Agent 自行理解提取
     if (plan) {
-      parts.push(`## 执行计划\n${plan}`);
+      parts.push(`## 执行计划
+${plan}`);
     }
 
     if (parsedTask.goals.length > 0) {
-      parts.push(`## 所有目标\n${parsedTask.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}`);
+      parts.push(`## 所有目标
+${parsedTask.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}`);
     }
 
     if (parsedTask.constraints.length > 0) {
-      parts.push(`## 约束条件\n${parsedTask.constraints.map(c => `- ${c}`).join('\n')}`);
+      parts.push(`## 约束条件
+${parsedTask.constraints.map(c => `- ${c}`).join('\n')}`);
     }
 
     if (parsedTask.deliverables.length > 0) {
-      parts.push(`## 交付物\n${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}`);
+      parts.push(`## 交付物
+${parsedTask.deliverables.map(d => `- ${d}`).join('\n')}`);
     }
 
     if (userContext.techStack && userContext.techStack.length > 0) {
-      parts.push(`## 技术栈\n${userContext.techStack.map(t => `- ${t}`).join('\n')}`);
+      parts.push(`## 技术栈
+${userContext.techStack.map(t => `- ${t}`).join('\n')}`);
     }
 
     if (userContext.additionalContext) {
+      const skipKeys = new Set(['objective', 'tech_stack', 'test_coverage', 'documentation_level', 'e2e_tests', 'e2e_type', 'quality_level', 'execution_mode']);
       const relevantAnswers = Object.entries(userContext.additionalContext).filter(
-        ([key]) => !['目标', '技术栈', '测试', '文档', 'objective', 'techStack', 'testCoverage', 'documentationLevel'].includes(key)
+        ([key]) => !skipKeys.has(key)
       );
       if (relevantAnswers.length > 0) {
-        parts.push(`## 其他要求\n${relevantAnswers.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`);
+        parts.push(`## 其他要求
+${relevantAnswers.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`);
       }
     }
 
@@ -1284,30 +548,17 @@ ${userContext.documentationLevel}
   private buildTaskDescription(
     goal: string,
     globalContext: string,
-    planMetadata?: PlanMetadata
   ): string {
-    let desc = `## 当前子任务目标\n${goal}\n\n${globalContext}`;
+    return `## 当前子任务目标
+${goal}
 
-    // 注入 plan 提取的关键信息
-    if (planMetadata && planMetadata.interfaces.length > 0) {
-      desc += `\n\n## 相关接口/API\n${planMetadata.interfaces.slice(0, 10).map(i => `- ${i}`).join('\n')}`;
-    }
+${globalContext}
 
-    if (planMetadata && planMetadata.dataModels.length > 0) {
-      desc += `\n\n## 相关数据模型\n${planMetadata.dataModels.slice(0, 10).map(d => `- ${d}`).join('\n')}`;
-    }
-
-    if (planMetadata && planMetadata.keyDecisions.length > 0) {
-      desc += `\n\n## 关键决策参考\n${planMetadata.keyDecisions.slice(0, 5).map(d => `- ${d}`).join('\n')}`;
-    }
-
-    desc += `\n\n## 输出要求
+## 输出要求
 - 完成功能实现
 - 代码可编译
 - 遵循项目规范
 - 添加必要注释`;
-
-    return desc;
   }
 
   private buildTestDescription(
@@ -1315,30 +566,16 @@ ${userContext.documentationLevel}
     devTaskId: string,
     coverageTarget: number,
     globalContext: string,
-    planMetadata?: PlanMetadata
   ): string {
-    let desc = `## 测试目标
+    return `## 测试目标
 为 "${goal}" 编写测试用例
 
 ${globalContext}
 
 ## 关联开发任务
-${devTaskId}`;
+${devTaskId}
 
-    // 注入 plan 提取的关键信息（参考 buildTaskDescription）
-    if (planMetadata && planMetadata.interfaces.length > 0) {
-      desc += `\n\n## 相关接口/API\n${planMetadata.interfaces.slice(0, 10).map(i => `- ${i}`).join('\n')}`;
-    }
-
-    if (planMetadata && planMetadata.dataModels.length > 0) {
-      desc += `\n\n## 相关数据模型\n${planMetadata.dataModels.slice(0, 10).map(d => `- ${d}`).join('\n')}`;
-    }
-
-    if (planMetadata && planMetadata.keyDecisions.length > 0) {
-      desc += `\n\n## 关键决策参考\n${planMetadata.keyDecisions.slice(0, 5).map(d => `- ${d}`).join('\n')}`;
-    }
-
-    desc += `\n\n## 测试要求
+## 测试要求
 - 单元测试覆盖率 >= ${coverageTarget}%
 - 测试正常流程
 - 测试边界情况
@@ -1352,8 +589,6 @@ ${devTaskId}`;
 - 测试文件
 - 测试报告
 - 覆盖率报告`;
-
-    return desc;
   }
 
   private buildE2ETestDescription(
@@ -1373,7 +608,7 @@ ${devTaskId}`;
 ` : '';
 
     return `## E2E 测试目标
-执行完整的端到端测试，验证关键用户流程
+执行完整的端到端测试，验证完整用户流程
 ${e2eType === 'visual' ? '（需可视化验证，检查页面样式和布局）' : ''}
 
 ## 应用类型
@@ -1504,62 +739,12 @@ ${typeConfig.runCommand}
     return 'P2';
   }
 
-  private estimateComplexity(goal: string): 'low' | 'medium' | 'high' {
-    if (goal.includes('测试')) return 'medium';
-    if (goal.includes('实现') || goal.includes('开发')) return 'medium';
-    if (goal.includes('设计') || goal.includes('研究')) return 'high';
-    if (goal.includes('文档') || goal.includes('说明')) return 'low';
+  private estimateComplexity(_goal: string, goalIndex: number, task: ParsedTask): 'low' | 'medium' | 'high' {
+    // 优先使用 AI 标注的复杂度
+    if (task.goalComplexity?.[goalIndex]) return task.goalComplexity[goalIndex];
     return 'medium';
   }
 
-  /**
-   * 分类目标类型
-   * - development: 需要编写代码的功能实现 → 拆分为实现+测试对
-   * - testing: 已明确是测试任务 → 单个测试任务
-   * - documentation: 文档编写 → 单个文档任务
-   * - other: 其他类型（配置、优化、部署等） → 单个任务
-   */
-  private classifyGoal(goal: string): 'development' | 'testing' | 'documentation' | 'other' {
-    const g = goal.toLowerCase();
-
-    // 测试类关键词
-    const testKeywords = [
-      '测试', 'test', 'testing', 'tdd', 'e2e', 'e2e测试',
-      '单元测试', '集成测试', '端到端', '覆盖率', 'coverage',
-      'vitest', 'jest', 'mocha', 'playwright', 'cypress',
-    ];
-    if (testKeywords.some(kw => g.includes(kw))) {
-      return 'testing';
-    }
-
-    // 文档类关键词
-    const docKeywords = [
-      '文档', 'document', 'documentation', 'readme', '说明',
-      '指南', 'guide', 'tutorial', 'api文档',
-    ];
-    if (docKeywords.some(kw => g.includes(kw))) {
-      return 'documentation';
-    }
-
-    // 非开发类关键词（配置、部署等）
-    const nonDevKeywords = [
-      '配置', 'config', 'deploy', '部署', 'ci/cd', '发布',
-      'release', '优化', '监控', 'monitor', '日志',
-    ];
-
-    // 如果只包含非开发关键词而不包含开发关键词，归为 other
-    const devKeywords = [
-      '实现', '开发', '编写', '创建', '构建', '添加', '修复',
-      'implement', 'develop', 'build', 'create', 'add', 'fix',
-      '功能', 'feature', '模块', '组件', 'component', '系统',
-    ];
-    if (nonDevKeywords.some(kw => g.includes(kw)) && !devKeywords.some(kw => g.includes(kw))) {
-      return 'other';
-    }
-
-    // 默认为开发类
-    return 'development';
-  }
 
   /**
    * 检测顺序阶段目标（如 "Phase 1 基础架构"、"Phase 2 AI创作核心"）
@@ -1595,7 +780,6 @@ ${typeConfig.runCommand}
     if (phaseIndices.length < 2) return; // 少于 2 个阶段，不需要建立依赖
 
     // 收集每个阶段的开发任务 ID 和集成任务 ID
-    // 按阶段索引在 goals 中的原始位置分组
     const phaseTaskMap = new Map<number, { devTaskIds: string[]; integrationTaskId?: string }>();
 
     for (let pi = 0; pi < phaseIndices.length; pi++) {
@@ -1613,7 +797,6 @@ ${typeConfig.runCommand}
         }
         // 集成任务标题包含 "系统集成"
         if (b.title.startsWith('系统集成:') && devTaskIds.length > 0) {
-          // 集成任务依赖当前阶段的所有开发任务
           const currentDeps = b.dependencies;
           if (currentDeps.length === 0 || currentDeps.some(d => devTaskIds.includes(d))) {
             integrationTaskId = b.taskId;
@@ -1621,7 +804,6 @@ ${typeConfig.runCommand}
         }
       }
 
-      // 如果没有集成任务，使用最后一个开发任务 ID
       phaseTaskMap.set(goalIndex, { devTaskIds, integrationTaskId });
     }
 
@@ -1633,19 +815,15 @@ ${typeConfig.runCommand}
 
       if (!prevPhase || prevPhase.devTaskIds.length === 0) continue;
 
-      // 前一阶段的核心依赖点（优先集成任务，其次最后开发任务）
       const prevAnchor = prevPhase.integrationTaskId || prevPhase.devTaskIds[prevPhase.devTaskIds.length - 1];
 
-      // 找出当前阶段的所有开发任务和集成任务
       for (const b of breakdowns) {
         const isCurrentPhaseDev = b.title.startsWith('实现: ') &&
           parsedTask.goals[currentGoalIndex] &&
           b.description.includes(parsedTask.goals[currentGoalIndex]);
         const isCurrentPhaseIntegration = b.title.startsWith('系统集成:');
-        // 简化判断：通过依赖关系推断——集成任务依赖当前阶段开发任务
         const isCurrentPhaseTest = b.title.startsWith('测试: ') &&
           b.dependencies.some(dep => {
-            // 测试任务依赖的开发任务属于当前阶段
             const depTask = breakdowns.find(x => x.taskId === dep);
             return depTask && depTask.title.startsWith('实现: ') &&
               parsedTask.goals[currentGoalIndex] &&

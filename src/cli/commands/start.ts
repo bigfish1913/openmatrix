@@ -22,14 +22,14 @@ interface AIParsedInput {
   goals: string[];
   /** 每个 goal 的类型标注 (由 AI 在提取时标注)，与 goals 数组一一对应 */
   goalTypes?: import('../../types/index.js').GoalType[];
+  /** 每个 goal 的复杂度标注 (由 AI 在提取时标注)，与 goals 数组一一对应 */
+  goalComplexity?: ('low' | 'medium' | 'high')[];
   constraints?: string[];
   deliverables?: string[];
   /** 额外上下文（如技术栈、文档要求等） */
   answers?: Record<string, string>;
   quality?: 'strict' | 'balanced' | 'fast';
   mode?: 'confirm-all' | 'confirm-key' | 'auto';
-  /** AI 生成的执行计划，供 TaskPlanner 和 agent 参考 */
-  plan?: string;
   /** 是否启用 E2E 测试 */
   e2eTests?: boolean;
   /** E2E 测试类型 (functional/visual) */
@@ -207,8 +207,7 @@ async function loadResearchContext(
  */
 function mergeResearchContext(
   tasksInput: AIParsedInput,
-  researchContext: ResearchContext,
-  researchReport: string | null
+  researchContext: ResearchContext
 ): AIParsedInput {
   const merged = { ...tasksInput };
 
@@ -234,14 +233,6 @@ function mergeResearchContext(
   const mergedDeliverables = [...new Set([...baseDeliverables, ...aiDeliverables])];
   if (mergedDeliverables.length > 0) {
     merged.deliverables = mergedDeliverables;
-  }
-
-  // plan: 如果 AI 未提供 plan，使用研究报告内容
-  if (!merged.plan && researchReport) {
-    merged.plan = `# 领域研究: ${researchContext.domain}\n\n## 研究主题\n${researchContext.topic}\n\n${researchReport}`;
-  } else if (researchReport) {
-    // AI 已有 plan，将研究作为附录追加
-    merged.plan = `${merged.plan}\n\n---\n\n# 领域研究背景: ${researchContext.domain}\n\n## 研究主题\n${researchContext.topic}\n\n${researchReport}`;
   }
 
   return merged;
@@ -292,26 +283,29 @@ async function handleTasksJson(
   }
 
   // 加载并合并研究上下文
-  const { context: researchContext, report: researchReport } = await loadResearchContext(
+  const { context: researchContext } = await loadResearchContext(
     options.researchContext,
     basePath,
     omPath
   );
   let resolvedInput = tasksInput;
   if (researchContext) {
-    resolvedInput = mergeResearchContext(tasksInput, researchContext, researchReport);
+    resolvedInput = mergeResearchContext(tasksInput, researchContext);
     if (!options.json) {
       console.log(`🔬 已加载研究领域: ${researchContext.domain}`);
     }
   }
 
-  // 保存 AI 生成的执行计划
-  if (resolvedInput.plan) {
-    await fs.writeFile(
-      path.join(omPath, 'plan.md'),
-      resolvedInput.plan,
-      'utf-8'
-    );
+  // 读取独立的技术方案文档（plan.md）
+  let planContent: string | undefined;
+  const planPath = path.join(omPath, 'plan.md');
+  try {
+    planContent = await fs.readFile(planPath, 'utf-8');
+    if (!options.json) {
+      console.log(`📄 已加载技术方案: plan.md`);
+    }
+  } catch {
+    // plan.md 不存在时继续（可能由 AI 后续生成或无 plan）
   }
 
   // 构建 ParsedTask
@@ -320,6 +314,7 @@ async function handleTasksJson(
     description: resolvedInput.description || '',
     goals: resolvedInput.goals,
     goalTypes: resolvedInput.goalTypes,
+    goalComplexity: resolvedInput.goalComplexity,
     constraints: resolvedInput.constraints || [],
     deliverables: resolvedInput.deliverables || [],
     rawContent: ''
@@ -350,7 +345,7 @@ async function handleTasksJson(
 
   // 使用 TaskPlanner 拆分（保持原有拆分逻辑）
   const planner = new TaskPlanner();
-  const subTasks = planner.breakdown(parsedTask, extraAnswers, qualityConfig, resolvedInput.plan);
+  const subTasks = planner.breakdown(parsedTask, extraAnswers, qualityConfig, planContent);
 
   // 创建任务到状态管理器，并建立 ID 映射
   // TaskPlanner 生成的 taskId 和 StateManager 创建的 id 不同，
