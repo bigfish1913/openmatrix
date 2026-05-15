@@ -53,6 +53,13 @@ describe('AgentRunner', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStateManager.getState.mockResolvedValue({
+      runId: 'run-20260514-test',
+      status: 'running',
+      currentPhase: 'execution',
+      config: {},
+      statistics: { totalTasks: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, scheduled: 0, blocked: 0, waiting: 0, verify: 0, accept: 0, retry_queue: 0 }
+    });
     agentRunner = new AgentRunner(
       mockStateManager as any,
       mockApprovalManager as any,

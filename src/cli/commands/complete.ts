@@ -77,7 +77,16 @@ export const completeCommand = new Command('complete')
 
     // 5. 追加写入全局 context.md (Agent Memory)
     if (isSuccess) {
-      const contextFile = path.join(omPath, 'context.md');
+      // 读取 current.json 获取当前 runId，context.md 写入运行目录
+      let contextDir = omPath;
+      try {
+        const currentJson = await fs.readFile(path.join(omPath, 'current.json'), 'utf-8');
+        const { runId } = JSON.parse(currentJson);
+        if (runId) contextDir = path.join(omPath, runId);
+      } catch {
+        // fallback to omPath
+      }
+      const contextFile = path.join(contextDir, 'context.md');
       const timestamp = new Date().toISOString();
 
       // 构建上下文内容
@@ -89,6 +98,7 @@ export const completeCommand = new Command('complete')
 `;
 
       try {
+        await fs.mkdir(contextDir, { recursive: true });
         // 原子追加写入全局 context.md（O_APPEND flag 保证并发安全）
         await fs.appendFile(contextFile, contextEntry, 'utf-8');
       } catch (error) {

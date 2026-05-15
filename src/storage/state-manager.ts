@@ -12,13 +12,22 @@ const DEFAULT_CONFIG: AppConfig = {
   model: 'claude-sonnet-4-6'
 };
 
+interface CurrentRunIndex {
+  runId: string;
+}
+
 export class StateManager {
-  private store: FileStore;
+  private rootStore: FileStore;
+  private store!: FileStore;
+  private basePath: string;
   private stateCache: GlobalState | null = null;
-  private lockDepth = 0;  // 可重入：同一进程内嵌套调用不阻塞
+  private lockDepth = 0;
 
   constructor(basePath: string) {
-    this.store = new FileStore(basePath);
+    this.basePath = basePath;
+    this.rootStore = new FileStore(basePath);
+    // store will be set in initialize() or reset() to point to {basePath}/{runId}/
+    this.store = this.rootStore;
   }
 
   /**
@@ -86,48 +95,107 @@ export class StateManager {
   }
 
   async initialize(): Promise<void> {
-    const existing = await this.store.readJson<GlobalState>('state.json');
-    if (!existing) {
-      const initialState: GlobalState = {
-        version: '1.0',
-        runId: this.generateRunId(),
-        status: 'initialized',
-        currentPhase: 'planning',
-        startedAt: new Date().toISOString(),
-        config: DEFAULT_CONFIG,
-        statistics: {
-          totalTasks: 0,
-          completed: 0,
-          inProgress: 0,
-          failed: 0,
-          pending: 0,
-          scheduled: 0,
-          blocked: 0,
-          waiting: 0,
-          verify: 0,
-          accept: 0,
-          retry_queue: 0
-        }
-      };
-      await this.store.writeJson('state.json', initialState);
-      this.stateCache = initialState;
-    } else {
-      // 合并旧状态的统计字段（兼容旧版本，statistics 可能不存在）
-      existing.statistics = {
-        totalTasks: existing.statistics?.totalTasks ?? 0,
-        completed: existing.statistics?.completed ?? 0,
-        inProgress: existing.statistics?.inProgress ?? 0,
-        failed: existing.statistics?.failed ?? 0,
-        pending: existing.statistics?.pending ?? 0,
-        scheduled: existing.statistics?.scheduled ?? 0,
-        blocked: existing.statistics?.blocked ?? 0,
-        waiting: existing.statistics?.waiting ?? 0,
-        verify: existing.statistics?.verify ?? 0,
-        accept: existing.statistics?.accept ?? 0,
-        retry_queue: existing.statistics?.retry_queue ?? 0
-      };
-      this.stateCache = existing;
+    // 读取根索引，确定当前 runId
+    const current = await this.rootStore.readJson<CurrentRunIndex>('current.json');
+
+    if (current?.runId) {
+      // 切换 store 到当前运行目录
+      this.store = new FileStore(join(this.basePath, current.runId));
+      const existing = await this.store.readJson<GlobalState>('state.json');
+      if (existing) {
+        existing.statistics = {
+          totalTasks: existing.statistics?.totalTasks ?? 0,
+          completed: existing.statistics?.completed ?? 0,
+          inProgress: existing.statistics?.inProgress ?? 0,
+          failed: existing.statistics?.failed ?? 0,
+          pending: existing.statistics?.pending ?? 0,
+          scheduled: existing.statistics?.scheduled ?? 0,
+          blocked: existing.statistics?.blocked ?? 0,
+          waiting: existing.statistics?.waiting ?? 0,
+          verify: existing.statistics?.verify ?? 0,
+          accept: existing.statistics?.accept ?? 0,
+          retry_queue: existing.statistics?.retry_queue ?? 0
+        };
+        this.stateCache = existing;
+        return;
+      }
     }
+
+    // 没有 current.json 或 state.json 不存在 — 创建新运行
+    const runId = this.generateRunId();
+    this.store = new FileStore(join(this.basePath, runId));
+    await this.rootStore.writeJson('current.json', { runId });
+
+    const initialState: GlobalState = {
+      version: '1.0',
+      runId,
+      status: 'initialized',
+      currentPhase: 'planning',
+      startedAt: new Date().toISOString(),
+      config: DEFAULT_CONFIG,
+      statistics: {
+        totalTasks: 0,
+        completed: 0,
+        inProgress: 0,
+        failed: 0,
+        pending: 0,
+        scheduled: 0,
+        blocked: 0,
+        waiting: 0,
+        verify: 0,
+        accept: 0,
+        retry_queue: 0
+      }
+    };
+    await this.store.writeJson('state.json', initialState);
+    this.stateCache = initialState;
+  }
+
+  /**
+   * 重置状态 — 清理旧运行数据，为新运行做准备
+   * 删除旧 runId 目录，生成新 runId，更新 current.json
+   */
+  async reset(): Promise<void> {
+    // 清理旧 runId 目录
+    const oldRunId = this.stateCache?.runId;
+    if (oldRunId) {
+      await this.rootStore.removeDir(oldRunId);
+    }
+    // 兼容旧版本的目录
+    await this.rootStore.removeDir('tasks');
+    await this.rootStore.removeDir('approvals');
+    await this.rootStore.removeDir('meetings');
+    await this.rootStore.removeDir('runs');
+    await this.rootStore.removeFile('context.md');
+
+    // 创建新运行
+    const runId = this.generateRunId();
+    this.store = new FileStore(join(this.basePath, runId));
+    await this.rootStore.writeJson('current.json', { runId });
+
+    const freshState: GlobalState = {
+      version: '1.0',
+      runId,
+      status: 'initialized',
+      currentPhase: 'planning',
+      startedAt: new Date().toISOString(),
+      config: DEFAULT_CONFIG,
+      statistics: {
+        totalTasks: 0,
+        completed: 0,
+        inProgress: 0,
+        failed: 0,
+        pending: 0,
+        scheduled: 0,
+        blocked: 0,
+        waiting: 0,
+        verify: 0,
+        accept: 0,
+        retry_queue: 0
+      }
+    };
+    await this.store.writeJson('state.json', freshState);
+    this.stateCache = freshState;
   }
 
   async getState(): Promise<GlobalState> {
@@ -228,7 +296,6 @@ export class StateManager {
   }
 
   async getTask(taskId: string): Promise<Task | null> {
-    // Try subdirectory structure first, fall back to flat file
     let task = await this.store.readJson<Task>(`tasks/${taskId}/task.json`);
     if (!task) {
       task = await this.store.readJson<Task>(`tasks/${taskId}.json`);
@@ -248,7 +315,7 @@ export class StateManager {
         updatedAt: new Date().toISOString()
       };
 
-      // Always write to subdirectory structure
+      // Always write to current run directory
       await this.store.writeJson(`tasks/${taskId}/task.json`, updatedTask);
 
       // Update statistics if status changed
@@ -274,7 +341,6 @@ export class StateManager {
       if (!file.endsWith('.json')) continue;
       const task = await this.store.readJson<Task>(`tasks/${file}`);
       if (task) {
-        // Avoid duplicate if already found in subdirectory
         if (!tasks.some(t => t.id === task.id)) {
           tasks.push(task);
         }

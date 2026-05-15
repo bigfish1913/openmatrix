@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, readdir, access, appendFile as fsAppendFile } from 'fs/promises';
+import { readFile, writeFile, mkdir, readdir, access, appendFile as fsAppendFile, rm, unlink } from 'fs/promises';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { constants } from 'fs';
@@ -106,6 +106,36 @@ export class FileStore {
     } catch (error) {
       logError(error, { operation: 'listDirs', file: fullPath });
       return [];
+    }
+  }
+
+  /**
+   * 递归删除目录
+   */
+  async removeDir(dir: string): Promise<void> {
+    const fullPath = join(this.basePath, dir);
+    try {
+      await rm(fullPath, { recursive: true, force: true });
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * 删除文件
+   */
+  async removeFile(filePath: string): Promise<void> {
+    const fullPath = join(this.basePath, filePath);
+    try {
+      await unlink(fullPath);
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') {
+        throw error;
+      }
     }
   }
 

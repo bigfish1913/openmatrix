@@ -44,7 +44,13 @@
       "Bash(node dist/cli/index.js debug \"用户选择了 strict 模式。这只是一个 skill 文件的修改，不涉及代码逻辑，所以 E2E 测试应该不需要。让我确认执行计划。但是还是弹出了问题\" --json)",
       "Bash(node -e \"require\\('./tests/cli/deploy.test.ts'\\)\")",
       "Bash(node -e \"import\\('./dist/tests/cli/deploy.test.js'\\)\")",
-      "Bash(node dist/cli/index.js deploy --json --show-dev --recommend)"
+      "Bash(node dist/cli/index.js deploy --json --show-dev --recommend)",
+      "Bash(node dist/cli/index.js debug \"om:test 没有完整的走业务测试，测试不完全\" --json)",
+      "Bash(npm config *)",
+      "Bash(node dist/cli/index.js debug \"om:test 生成的测试缺少对副作用的验证（如 fetchCreations 调用）\" --json)",
+      "Bash(npx tsc *)",
+      "Bash(git -C c:/Users/bigfish/Projects/openmatrix status --porcelain)",
+      "Bash(node dist/cli/index.js debug \"debug 指令很少会自动触发\" --json)"
     ]
   }
 }

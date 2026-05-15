@@ -390,6 +390,53 @@ AskUserQuestion: `header: "歧义确认"`, `multiSelect: false`
 
 #### 9.3 执行 Agent 任务
 
+**Skill 感知执行：**
+
+执行每个任务前，AI 应根据任务内容判断是否需要调用相关 skill 来增强执行质量。
+
+可用 skill 列表（AI 自行判断是否适用）：
+- `om:test` — 测试生成与验证循环
+- `frontend-design` — 前端/UI 设计与实现
+- `om:research` — 领域研究
+- 其他已安装的 skill
+
+**判断流程：**
+1. 读取任务的 `agentType`、`title`、`description`
+2. AI 自行判断该任务是否匹配某个 skill 的触发条件
+3. 如果匹配，在 Agent prompt 中注入该 skill 的核心指令或先调用对应 CLI 获取上下文数据
+4. 如果不匹配任何 skill，直接执行
+
+**tester 任务验证循环（om:test 逻辑）：**
+
+当 AI 判断任务需要 om:test 流程时：
+
+1. 先调用 CLI 获取项目测试配置：
+```bash
+openmatrix test --json
+```
+
+2. 调用 Agent 生成测试（prompt 中已包含原始扫描数据）：
+```typescript
+Agent({
+  subagent_type: task.subagent_type,
+  description: task.description,
+  prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议\n\n🚫 **禁止执行以下 Git 命令**：\n- ❌ git commit\n- ❌ git checkout/merge/pull/push/rebase/branch\n\n✅ 允许：git status, git diff, git log",
+  run_in_background: true
+})
+```
+
+3. Agent 完成后，自动验证测试：
+```bash
+npm test -- --run 2>&1
+```
+
+4. 验证失败时自动重试（最多 3 次）：
+   - 将失败输出传给新 Agent 修复测试
+   - 重新验证
+   - 3 次失败后标记为 blocked，创建 Meeting
+
+**默认执行方式（无特殊 skill 匹配时）：**
+
 ```typescript
 Agent({
   subagent_type: task.subagent_type,

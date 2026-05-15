@@ -80,7 +80,6 @@ export const startCommand = new Command('start')
 
     // 确保目录存在
     await fs.mkdir(omPath, { recursive: true });
-    await fs.mkdir(path.join(omPath, 'tasks'), { recursive: true });
     await fs.mkdir(path.join(omPath, 'approvals'), { recursive: true });
 
     // 确保 .openmatrix 被 git 忽略
@@ -105,6 +104,11 @@ export const startCommand = new Command('start')
     await stateManager.initialize();
 
     const state = await stateManager.getState();
+
+    // 如果上次运行已结束（completed/failed），自动清理旧数据开始新运行
+    if (state.status === 'completed' || state.status === 'failed') {
+      await stateManager.reset();
+    }
 
     // 检查是否已有运行中的任务
     if (state.status === 'running') {

@@ -1,5 +1,5 @@
 // src/agents/agent-runner.ts
-import type { Task, AgentType, AgentResult, AgentStatus, SubagentTask, ClaudeCodeSubagentType } from '../types/index.js';
+import type { Task, AgentType, AgentResult, AgentStatus, SubagentTask, ClaudeCodeSubagentType, TestScanResult } from '../types/index.js';
 import { StateManager } from '../storage/state-manager.js';
 import { ApprovalManager } from '../orchestrator/approval-manager.js';
 import * as fs from 'fs/promises';
@@ -144,6 +144,9 @@ export class AgentRunner {
     const phaseContext = this.buildPhaseContext(task);
     const accumulatedContext = await this.buildAccumulatedContext(task);
     const ambiguityInstruction = this.buildAmbiguityDetectionInstruction(task);
+    const testContext = task.assignedAgent === 'tester' ? await this.buildTestContext() : '';
+    const state = await this.stateManager.getState();
+    const runId = state.runId;
 
     return `# 任务执行
 
@@ -156,6 +159,15 @@ ${ambiguityInstruction}
 - 优先级: ${task.priority}
 - 超时: ${task.timeout / 1000} 秒
 
+## 工作目录隔离
+
+本次运行 ID: ${runId}
+所有中间产物必须写入运行专属目录: \`.openmatrix/${runId}/tasks/${task.id}/artifacts/\`
+- 中间产物: \`.openmatrix/${runId}/tasks/${task.id}/artifacts/\`
+- 结果报告: \`.openmatrix/${runId}/tasks/${task.id}/artifacts/result.md\`
+
+**注意**: 业务代码（src/、tests/ 等）写入项目正常目录，仅中间产物和报告写入运行目录。
+
 ## 当前阶段
 ${phaseContext}
 
@@ -165,6 +177,7 @@ ${task.dependencies.length > 0
   : '无依赖'}
 
 ${accumulatedContext}
+${testContext}
 
 ---
 
@@ -176,7 +189,7 @@ ${agentPrompt.instructions}
 
 ## 完成要求
 
-1. 将执行结果写入: \`.openmatrix/tasks/${task.id}/artifacts/result.md\`
+1. 将执行结果写入: \`.openmatrix/${runId}/tasks/${task.id}/artifacts/result.md\`
    （任务状态由 openmatrix complete 命令管理，请勿直接修改 task.json）
 2. 如需审批，创建审批请求: \`.openmatrix/approvals/\` 目录
 
@@ -270,11 +283,20 @@ ${agentPrompt.instructions}
   }
 
   /**
-   * 构建累积上下文 - 从全局 context.md 读取前序 Agent 的决策和知识
+   * 构建累积上下文 - 从当前运行的 context.md 读取前序 Agent 的决策和知识
    */
   private async buildAccumulatedContext(currentTask: Task): Promise<string> {
     const omPath = path.join(process.cwd(), '.openmatrix');
-    const contextFile = path.join(omPath, 'context.md');
+
+    // 读取 current.json 获取当前 runId
+    let contextFile = path.join(omPath, 'context.md');
+    try {
+      const currentJson = await fs.readFile(path.join(omPath, 'current.json'), 'utf-8');
+      const { runId } = JSON.parse(currentJson);
+      if (runId) contextFile = path.join(omPath, runId, 'context.md');
+    } catch {
+      // fallback to root context.md
+    }
 
     try {
       const content = await fs.readFile(contextFile, 'utf-8');
@@ -288,6 +310,34 @@ ${agentPrompt.instructions}
 你应该基于这些信息来工作，避免重复犯错或与已有决策冲突。
 
 ${trimmed}
+`;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * 构建测试项目上下文 — 注入原始扫描数据供 AI 自行分析
+   */
+  private async buildTestContext(): Promise<string> {
+    try {
+      const { performFullScan } = await import('../test/context-analyzer.js');
+      const scanResult: TestScanResult = performFullScan(process.cwd());
+
+      return `
+## 项目测试扫描数据（原始数据，由 AI 自行分析决策）
+
+\`\`\`json
+${JSON.stringify({
+  frameworks: scanResult.frameworks,
+  testStyle: scanResult.testStyle,
+  existingTests: scanResult.existingTests.slice(0, 10),
+  projectType: scanResult.projectType,
+  isFrontend: scanResult.isFrontend,
+  hasUIComponents: scanResult.hasUIComponents,
+  summary: scanResult.summary
+}, null, 2)}
+\`\`\`
 `;
     } catch {
       return '';
