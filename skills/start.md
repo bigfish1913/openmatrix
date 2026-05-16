@@ -152,12 +152,26 @@ git init
 
 ### Step 2: 验证前置条件
 
-**检查 plan.md 和 tasks-input.json 是否已存在：**
+**先获取当前 runId：**
+```bash
+cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
+```
+
+从返回结果提取 `runId`，后续文件检测和读取都使用 `.openmatrix/{runId}/` 目录。
+
+**检查 plan.md 和 tasks-input.json 是否已存在（使用 runId）：**
 
 ```bash
-cat .openmatrix/tasks-input.json 2>/dev/null || echo "NOT_FOUND"
-cat .openmatrix/plan.md 2>/dev/null || echo "NOT_FOUND"
+cat .openmatrix/${runId}/tasks-input.json 2>/dev/null || echo "NOT_FOUND"
+cat .openmatrix/${runId}/plan.md 2>/dev/null || echo "NOT_FOUND"
 ```
+
+**或通过 CLI 检查（推荐）：**
+```bash
+openmatrix status --json | jq '.files'
+```
+
+返回 `{hasPlan: true, hasTasksInput: true, hasResearchContext: false}` 等。
 
 | 情况 | 处理方式 |
 |------|---------|
@@ -170,7 +184,7 @@ cat .openmatrix/plan.md 2>/dev/null || echo "NOT_FOUND"
 **如果都存在，读取 tasks-input.json：**
 
 ```bash
-cat .openmatrix/tasks-input.json
+cat .openmatrix/${runId}/tasks-input.json
 ```
 
 提取关键字段：`title`、`goals`、`goalTypes`、`goalComplexity`。
@@ -178,7 +192,7 @@ cat .openmatrix/tasks-input.json
 **检测研究上下文：**
 
 ```bash
-cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
+cat .openmatrix/${runId}/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 ```
 
 如果检测到研究上下文，告知用户并将 `--research-context` 参数传递给 CLI。
@@ -314,10 +328,12 @@ Goals:
   Goals: N 个（将生成 N个开发 + N个测试 + 审查）
   质量级别: xxx
   E2E 测试: 功能测试 / 视觉验证 / 不启用
-  技术方案: .openmatrix/plan.md
+  技术方案: .openmatrix/{runId}/plan.md
 ```
 
 ### Step 7: 调用 CLI 创建任务（不可跳过）
+
+**CLI 自动从当前 runId 目录读取 tasks-input.json 和 plan.md。**
 
 **根据质量等级自动设置执行参数：**
 
@@ -329,28 +345,30 @@ Goals:
 
 **开发任务**（有质量等级选择）：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode auto --json
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --json
 ```
 
-如果存在 `.openmatrix/research/context.json`，增加 `--research-context` 参数：
+如果存在研究上下文（`.openmatrix/{runId}/research/context.json`），增加 `--research-context` 参数：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --research-context @.openmatrix/research/context.json --quality <质量等级> --mode auto --json
+openmatrix start --tasks-json @tasks-input.json --research-context @research/context.json --quality <质量等级> --mode auto --json
 ```
 
 如果启用了 E2E 测试（功能测试），加上 `--e2e-tests`：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality strict --mode auto --e2e-tests --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --json
 ```
 
 如果选择了视觉验证，加上 `--e2e-tests --e2e-type visual`：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality strict --mode auto --e2e-tests --e2e-type visual --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --e2e-type visual --json
 ```
 
 **非开发任务**（无质量等级，默认全自动执行）：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --mode auto --json
+openmatrix start --tasks-json @tasks-input.json --mode auto --json
 ```
+
+**注意**: `@tasks-input.json` 表示 CLI 自动从当前 runId 目录读取。CLI 会自动检测 `current.json` 定位 runId。
 
 此命令返回 JSON 包含 `subagentTasks` 列表。
 
@@ -608,8 +626,10 @@ $ARGUMENTS
 ```
 
 start 和 auto 在同一位置，区别在于 start 有交互审批，auto 零交互。前置条件：
-- `.openmatrix/plan.md` — 技术方案（由 /om:plan 生成）
-- `.openmatrix/tasks-input.json` — 结构化元数据（由 /om:plan 生成）
+- `.openmatrix/{runId}/plan.md` — 技术方案（由 /om:plan 生成）
+- `.openmatrix/{runId}/tasks-input.json` — 结构化元数据（由 /om:plan 生成）
+
+CLI 自动通过 `current.json` 定位当前 runId。
 
 如果前置条件不满足，引导用户执行 `/om:plan`。
 

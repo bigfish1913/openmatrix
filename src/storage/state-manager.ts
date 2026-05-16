@@ -117,6 +117,10 @@ export class StateManager {
           retry_queue: existing.statistics?.retry_queue ?? 0
         };
         this.stateCache = existing;
+
+        // 迁移旧版本文件到 runId 目录
+        await this.migrateFromLegacy();
+
         return;
       }
     }
@@ -161,12 +165,17 @@ export class StateManager {
     if (oldRunId) {
       await this.rootStore.removeDir(oldRunId);
     }
-    // 兼容旧版本的目录
+    // 兼容旧版本的目录和文件（根目录）
     await this.rootStore.removeDir('tasks');
     await this.rootStore.removeDir('approvals');
     await this.rootStore.removeDir('meetings');
     await this.rootStore.removeDir('runs');
+    await this.rootStore.removeDir('research');
+    await this.rootStore.removeDir('brainstorm');
     await this.rootStore.removeFile('context.md');
+    await this.rootStore.removeFile('plan.md');
+    await this.rootStore.removeFile('tasks-input.json');
+    await this.rootStore.removeFile('state.json');
 
     // 创建新运行
     const runId = this.generateRunId();
@@ -481,6 +490,247 @@ export class StateManager {
     }
 
     return approvals.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  // ============ Plan Methods ============
+
+  /**
+   * 保存技术方案文档 (plan.md)
+   * 路径: .openmatrix/{runId}/plan.md
+   */
+  async savePlan(content: string): Promise<void> {
+    await this.store.writeMarkdown('plan.md', content);
+  }
+
+  /**
+   * 读取技术方案文档
+   * @returns plan.md 内容，不存在返回 null
+   */
+  async getPlan(): Promise<string | null> {
+    return await this.store.readMarkdown('plan.md');
+  }
+
+  /**
+   * 检查 plan.md 是否存在
+   */
+  async hasPlan(): Promise<boolean> {
+    return await this.store.exists('plan.md');
+  }
+
+  // ============ TasksInput Methods ============
+
+  /**
+   * 保存任务输入元数据
+   * 路径: .openmatrix/{runId}/tasks-input.json
+   */
+  async saveTasksInput(data: {
+    title: string;
+    description?: string;
+    goals: string[];
+    goalTypes?: string[];
+    goalComplexity?: ('low' | 'medium' | 'high')[];
+    constraints?: string[];
+    deliverables?: string[];
+    answers?: Record<string, string>;
+  }): Promise<void> {
+    await this.store.writeJson('tasks-input.json', data);
+  }
+
+  /**
+   * 读取任务输入元数据
+   * @returns tasks-input.json 数据，不存在返回 null
+   */
+  async getTasksInput(): Promise<{
+    title: string;
+    description?: string;
+    goals: string[];
+    goalTypes?: string[];
+    goalComplexity?: ('low' | 'medium' | 'high')[];
+    constraints?: string[];
+    deliverables?: string[];
+    answers?: Record<string, string>;
+  } | null> {
+    return await this.store.readJson<{
+      title: string;
+      description?: string;
+      goals: string[];
+      goalTypes?: string[];
+      goalComplexity?: ('low' | 'medium' | 'high')[];
+      constraints?: string[];
+      deliverables?: string[];
+      answers?: Record<string, string>;
+    }>('tasks-input.json');
+  }
+
+  /**
+   * 检查 tasks-input.json 是否存在
+   */
+  async hasTasksInput(): Promise<boolean> {
+    return await this.store.exists('tasks-input.json');
+  }
+
+  // ============ Research Methods ============
+
+  /**
+   * 保存研究会话
+   * 路径: .openmatrix/{runId}/research/session.json
+   */
+  async saveResearchSession(session: Record<string, unknown>): Promise<void> {
+    await this.store.ensureDir('research');
+    await this.store.writeJson('research/session.json', session);
+  }
+
+  /**
+   * 读取研究会话
+   */
+  async getResearchSession(): Promise<Record<string, unknown> | null> {
+    return await this.store.readJson<Record<string, unknown>>('research/session.json');
+  }
+
+  /**
+   * 保存研究报告
+   */
+  async saveResearchReport(content: string): Promise<void> {
+    await this.store.ensureDir('research');
+    await this.store.writeMarkdown('research/RESEARCH.md', content);
+  }
+
+  /**
+   * 读取研究报告
+   */
+  async getResearchReport(): Promise<string | null> {
+    return await this.store.readMarkdown('research/RESEARCH.md');
+  }
+
+  /**
+   * 保存研究上下文 (供 start 使用)
+   */
+  async saveResearchContext(context: {
+    topic: string;
+    domain: string;
+    goals?: string[];
+    constraints?: string[];
+    deliverables?: string[];
+    reportPath?: string;
+    knowledgePath?: string;
+  }): Promise<void> {
+    await this.store.ensureDir('research');
+    await this.store.writeJson('research/context.json', context);
+  }
+
+  /**
+   * 读取研究上下文
+   */
+  async getResearchContext(): Promise<{
+    topic: string;
+    domain: string;
+    goals?: string[];
+    constraints?: string[];
+    deliverables?: string[];
+    reportPath?: string;
+    knowledgePath?: string;
+  } | null> {
+    return await this.store.readJson<{
+      topic: string;
+      domain: string;
+      goals?: string[];
+      constraints?: string[];
+      deliverables?: string[];
+      reportPath?: string;
+      knowledgePath?: string;
+    }>('research/context.json');
+  }
+
+  /**
+   * 检查研究上下文是否存在
+   */
+  async hasResearchContext(): Promise<boolean> {
+    return await this.store.exists('research/context.json');
+  }
+
+  /**
+   * 保存知识条目
+   */
+  async saveKnowledgeFinding(index: number, content: string): Promise<void> {
+    await this.store.ensureDir('research/knowledge');
+    await this.store.writeMarkdown(`research/knowledge/finding-${index}.md`, content);
+  }
+
+  // ============ Brainstorm Methods ============
+
+  /**
+   * 保存头脑风暴会话
+   */
+  async saveBrainstormSession(session: Record<string, unknown>): Promise<void> {
+    await this.store.ensureDir('brainstorm');
+    await this.store.writeJson('brainstorm/session.json', session);
+  }
+
+  /**
+   * 读取头脑风暴会话
+   */
+  async getBrainstormSession(): Promise<Record<string, unknown> | null> {
+    return await this.store.readJson<Record<string, unknown>>('brainstorm/session.json');
+  }
+
+  // ============ Legacy Migration Methods ============
+
+  /**
+   * 迁移旧版本文件到 runId 目录
+   * 只在首次检测到旧文件时执行
+   */
+  async migrateFromLegacy(): Promise<void> {
+    // Check if migration already done
+    if (await this.store.exists('plan.md')) {
+      return; // Already migrated
+    }
+
+    // Move plan.md from root to runId
+    const rootPlan = await this.rootStore.readMarkdown('plan.md');
+    if (rootPlan) {
+      await this.store.writeMarkdown('plan.md', rootPlan);
+      await this.rootStore.removeFile('plan.md');
+    }
+
+    // Move tasks-input.json from root to runId
+    const rootTasksInput = await this.rootStore.readJson<{
+      title: string;
+      goals: string[];
+    }>('tasks-input.json');
+    if (rootTasksInput) {
+      await this.store.writeJson('tasks-input.json', rootTasksInput);
+      await this.rootStore.removeFile('tasks-input.json');
+    }
+
+    // Move research directory from root to runId
+    const rootResearchSession = await this.rootStore.readJson<Record<string, unknown>>('research/session.json');
+    if (rootResearchSession) {
+      await this.store.ensureDir('research/knowledge');
+      // Copy session.json
+      if (rootResearchSession) {
+        await this.store.writeJson('research/session.json', rootResearchSession);
+      }
+      // Copy context.json
+      const rootContext = await this.rootStore.readJson<Record<string, unknown>>('research/context.json');
+      if (rootContext) {
+        await this.store.writeJson('research/context.json', rootContext);
+      }
+      // Copy RESEARCH.md
+      const rootReport = await this.rootStore.readMarkdown('research/RESEARCH.md');
+      if (rootReport) {
+        await this.store.writeMarkdown('research/RESEARCH.md', rootReport);
+      }
+      // Remove old directory
+      await this.rootStore.removeDir('research');
+    }
+
+    // Move brainstorm directory from root to runId
+    const rootBrainstormSession = await this.rootStore.readJson<Record<string, unknown>>('brainstorm/session.json');
+    if (rootBrainstormSession) {
+      await this.store.ensureDir('brainstorm');
+      await this.store.writeJson('brainstorm/session.json', rootBrainstormSession);
+      await this.rootStore.removeDir('brainstorm');
+    }
   }
 
   // ============ Meeting Methods ============

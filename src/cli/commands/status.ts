@@ -43,7 +43,20 @@ async function showStatus(
     const tasks = await manager.listTasks();
 
     if (options.json) {
-      console.log(JSON.stringify({ state, tasks }, null, 2));
+      // 添加文件状态字段
+      const hasPlan = await manager.hasPlan();
+      const hasTasksInput = await manager.hasTasksInput();
+      const hasResearchContext = await manager.hasResearchContext();
+
+      console.log(JSON.stringify({
+        state,
+        tasks,
+        files: {
+          hasPlan,
+          hasTasksInput,
+          hasResearchContext
+        }
+      }, null, 2));
       return;
     }
 

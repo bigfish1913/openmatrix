@@ -44,15 +44,17 @@ description: "Use when user needs to generate a technical plan before task execu
 ## 执行顺序 - 必须严格按此顺序，不得跳过任何步骤
 
 ```
+Step 0:  获取当前 runId（读取 .openmatrix/current.json）
 Step 1:  读取输入（brainstorm 设计文档 / 用户描述 / 研究上下文）
-Step 2:  生成技术方案，写入 .openmatrix/plan.md              <- 独立阶段
+Step 2:  生成技术方案，写入 .openmatrix/{runId}/plan.md     <- 独立阶段
 Step 3:  提取结构化元数据（goals/goalTypes/goalComplexity）
-Step 4:  写入 .openmatrix/tasks-input.json                     <- 必须完成
+Step 4:  写入 .openmatrix/{runId}/tasks-input.json           <- 必须完成
 Step 5:  展示执行计划，确认后路由到 start/feature
 ```
 
 **违反以下任一规则将导致方案质量下降：**
 
+- **禁止跳过 Step 0** - runId 是文件隔离的关键
 - **禁止跳过 Step 2** - plan.md 是 Agent 执行的核心参考
 - **禁止跳过 Step 3** - goalTypes/goalComplexity 决定任务拆分策略
 - **禁止在 plan 阶段写任何业务代码** - 代码在 start/feature 阶段由 Agent 执行
@@ -62,29 +64,42 @@ Step 5:  展示执行计划，确认后路由到 start/feature
 基于需求分析（brainstorm 产出或用户描述），生成完整的技术方案（plan.md）和结构化元数据（tasks-input.json），为后续执行提供可操作的输入。
 
 plan 阶段只做方案设计和元数据提取，不写任何业务代码。
+
+**文件隔离**: 所有文件写入 `.openmatrix/{runId}/` 目录，通过 current.json 获取 runId。
 </objective>
 
 <process>
 
+## Step 0: 获取当前 runId
+
+**读取 current.json 获取当前运行 ID：**
+```bash
+cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
+```
+
+从返回结果提取 `runId`，后续所有文件写入 `.openmatrix/{runId}/` 目录。
+
+**如果没有 runId 或目录不存在：**
+```bash
+openmatrix start --init-only --json
+```
+
+CLI 返回当前 runId。
+
 ## Step 1: 读取输入
 
-**按优先级检测输入来源：**
+**按优先级检测输入来源（从 {runId} 目录读取）：**
 
 | 来源 | 检测方式 | 处理 |
 |------|---------|------|
 | brainstorm 设计文档 | `docs/openmatrix/YYYY-MM-DD-*-design.md` | 读取最新设计文档 |
-| 研究上下文 | `.openmatrix/research/context.json` | 读取研究目标和报告 |
+| 研究上下文 | `.openmatrix/{runId}/research/context.json` | 读取研究目标和报告 |
 | `$ARGUMENTS` 直接描述 | 参数非空 | 直接使用 |
 | 无输入 | 以上都不存在 | AskUserQuestion 询问 |
 
-**检测 brainstorm 设计文档：**
+**检测研究上下文（使用 runId）：**
 ```bash
-ls -t docs/openmatrix/*-design.md 2>/dev/null | head -1
-```
-
-**检测研究上下文：**
-```bash
-cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
+cat .openmatrix/${runId}/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 ```
 
 如果检测到研究上下文，同时读取研究报告作为领域知识。
@@ -93,7 +108,13 @@ cat .openmatrix/research/context.json 2>/dev/null || echo "NO_RESEARCH"
 
 **独立阶段 — 产出供 Agent 执行时参考的技术方案文档。**
 
-AI 分析需求，生成完整的技术方案，用 Write 工具写入 `.openmatrix/plan.md`：
+**写入路径: `.openmatrix/{runId}/plan.md`（使用 Step 0 获取的 runId）**
+
+AI 分析需求，生成完整的技术方案，用 Write 工具写入：
+
+```
+.openmatrix/{runId}/plan.md
+```
 
 ```markdown
 # 技术方案: 任务标题
@@ -151,7 +172,9 @@ AI 分析需求，生成完整的技术方案，用 Write 工具写入 `.openmat
 
 ## Step 4: 写入 tasks-input.json
 
-用 Write 工具写入 `.openmatrix/tasks-input.json`：
+**写入路径: `.openmatrix/{runId}/tasks-input.json`（使用 Step 0 获取的 runId）**
+
+用 Write 工具写入：
 
 ```json
 {
@@ -186,7 +209,8 @@ Goals:
 
 质量配置、E2E、执行模式 将在执行阶段选择。
 
-技术方案已写入: .openmatrix/plan.md
+技术方案已写入: .openmatrix/{runId}/plan.md
+任务输入已写入: .openmatrix/{runId}/tasks-input.json
 ```
 
 **路由判断：**
@@ -235,6 +259,15 @@ plan 是连接需求和执行的桥梁：
 - 输入: brainstorm 产出的设计文档 / 用户描述
 - 输出: plan.md (AI Agent 参考) + tasks-input.json (CLI 解析)
 
+## 文件隔离
+
+所有 plan 相关文件写入 `.openmatrix/{runId}/` 目录：
+- `.openmatrix/{runId}/plan.md` - 技术方案
+- `.openmatrix/{runId}/tasks-input.json` - 任务输入元数据
+- `.openmatrix/{runId}/research/context.json` - 研究上下文（如果有）
+
+runId 通过 `current.json` 获取，确保不同运行之间数据隔离。
+
 ## 与其他 Skill 的关系
 
 | Skill | plan 的角色 |
@@ -252,7 +285,12 @@ plan 是连接需求和执行的桥梁：
 
 ## 检测已有 plan
 
-如果 `.openmatrix/plan.md` 已存在：
+如果 `.openmatrix/{runId}/plan.md` 已存在：
 - 询问用户：使用已有方案 / 重新生成
 - 使用已有方案时，跳过 Step 2，直接进入 Step 3 提取元数据
+
+通过 CLI 检查：
+```bash
+openmatrix status --json | jq '.files.hasPlan'
+```
 </notes>

@@ -112,11 +112,21 @@ openmatrix start --init-only
 
 ### Step 2: 验证前置条件
 
-**检查 plan.md 和 tasks-input.json 是否已存在：**
+**先获取当前 runId：**
+```bash
+cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
+```
+
+**检查 plan.md 和 tasks-input.json 是否已存在（使用 runId）：**
 
 ```bash
-cat .openmatrix/tasks-input.json 2>/dev/null || echo "NOT_FOUND"
-cat .openmatrix/plan.md 2>/dev/null || echo "NOT_FOUND"
+cat .openmatrix/${runId}/tasks-input.json 2>/dev/null || echo "NOT_FOUND"
+cat .openmatrix/${runId}/plan.md 2>/dev/null || echo "NOT_FOUND"
+```
+
+**或通过 CLI 检查（推荐）：**
+```bash
+openmatrix status --json | jq '.files'
 ```
 
 | 情况 | 处理方式 |
@@ -130,15 +140,17 @@ cat .openmatrix/plan.md 2>/dev/null || echo "NOT_FOUND"
 
 ### Step 3: 调用 CLI 创建任务 ⚠️ 不可跳过
 
+**CLI 自动从当前 runId 目录读取 tasks-input.json 和 plan.md。**
+
 **这是最关键的步骤。必须执行以下命令，不能跳过：**
 
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode auto --json
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --json
 ```
 
 如果启用了 E2E 测试，加上 `--e2e-tests`：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality strict --mode auto --e2e-tests --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --json
 ```
 
 此命令会:
@@ -357,8 +369,10 @@ auto 和 start 在同一位置，区别在于：
 - **auto**: 零交互，不询问任何问题，无审批节点，质量通过 --quality 指定
 
 前置条件（同 start）：
-- `.openmatrix/plan.md` — 技术方案（由 /om:plan 生成）
-- `.openmatrix/tasks-input.json` — 结构化元数据（由 /om:plan 生成）
+- `.openmatrix/{runId}/plan.md` — 技术方案（由 /om:plan 生成）
+- `.openmatrix/{runId}/tasks-input.json` — 结构化元数据（由 /om:plan 生成）
+
+CLI 自动通过 `current.json` 定位当前 runId。
 
 如果前置条件不满足，自动调用 /om:plan 生成。
 

@@ -260,9 +260,24 @@ async function handleTasksJson(
     let jsonStr = options.tasksJson!;
     if (jsonStr.startsWith('@')) {
       const filePath = jsonStr.slice(1);
+
       // 如果是相对路径，转换为绝对路径
-      const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(basePath, filePath);
-      jsonStr = await fs.readFile(resolvedPath, 'utf-8');
+      let resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(basePath, filePath);
+
+      // 特殊处理：如果文件名是 tasks-input.json 且不带路径，尝试从 runId 目录读取
+      if (filePath === 'tasks-input.json' || filePath.endsWith('/tasks-input.json')) {
+        // 先尝试从 runId 目录读取
+        const state = await stateManager.getState();
+        const runIdPath = path.join(omPath, state.runId, 'tasks-input.json');
+        try {
+          jsonStr = await fs.readFile(runIdPath, 'utf-8');
+        } catch {
+          // 如果 runId 目录不存在，尝试原有路径
+          jsonStr = await fs.readFile(resolvedPath, 'utf-8');
+        }
+      } else {
+        jsonStr = await fs.readFile(resolvedPath, 'utf-8');
+      }
     }
     tasksInput = JSON.parse(jsonStr);
   } catch (e) {
@@ -300,17 +315,15 @@ async function handleTasksJson(
     }
   }
 
-  // 读取独立的技术方案文档（plan.md）
-  let planContent: string | undefined;
-  const planPath = path.join(omPath, 'plan.md');
-  try {
-    planContent = await fs.readFile(planPath, 'utf-8');
-    if (!options.json) {
-      console.log(`📄 已加载技术方案: plan.md`);
-    }
-  } catch {
-    // plan.md 不存在时继续（可能由 AI 后续生成或无 plan）
+  // 读取独立的技术方案文档（从当前 runId 目录）
+  let planContent: string | null;
+  planContent = await stateManager.getPlan();
+  if (planContent && !options.json) {
+    console.log(`📄 已加载技术方案: plan.md`);
   }
+
+  // 转换为 string | undefined（供 TaskPlanner 使用）
+  const planContentForPlanner = planContent || undefined;
 
   // 构建 ParsedTask
   const parsedTask: import('../../types/index.js').ParsedTask = {
@@ -349,7 +362,7 @@ async function handleTasksJson(
 
   // 使用 TaskPlanner 拆分（保持原有拆分逻辑）
   const planner = new TaskPlanner();
-  const subTasks = planner.breakdown(parsedTask, extraAnswers, qualityConfig, planContent);
+  const subTasks = planner.breakdown(parsedTask, extraAnswers, qualityConfig, planContentForPlanner);
 
   // 创建任务到状态管理器，并建立 ID 映射
   // TaskPlanner 生成的 taskId 和 StateManager 创建的 id 不同，
