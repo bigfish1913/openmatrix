@@ -59,16 +59,12 @@ When a development task is simple (bug fix, small change, clear requirement), us
 </EXTREMELY-IMPORTANT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下技能（OpenMatrix 完全替代它们）:
-- ❌ superpowers:brainstorming → 用 /om:brainstorm 代替
-- ❌ superpowers:write-plan → OpenMatrix 有自己的任务拆分
-- ❌ superpowers:execute-plan → OpenMatrix 有自己的执行流程
-- ❌ superpowers:* → 全部被 OpenMatrix 替代
-- ❌ gsd:* → 全部被 OpenMatrix 替代
-- ❌ 任何其他任务编排相关的技能
+OpenMatrix 有自己的任务编排流程，本 skill 与以下技能功能重叠：
+- superpowers:brainstorming → 使用 /om:brainstorm
+- superpowers:write-plan / execute-plan → OpenMatrix 有自己的流程
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
 
-**重要**: 当 OpenMatrix 技能可用时，`superpowers:brainstorming` 不再适用。
-OpenMatrix 有自己的 brainstorm 流程 (`/om:brainstorm`)，不需要 superpowers。
+当 OpenMatrix 可用时，使用 /om:brainstorm 进行需求探索。
 </NO-OTHER-SKILLS>
 
 <objective>

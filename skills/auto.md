@@ -37,14 +37,11 @@ description: "Use when the user wants fully automated task execution with zero m
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下任何技能或工具：
-- gsd-executor、gsd:* 等 GSD 相关技能
-- superpowers:* 等 superpowers 相关技能
-- 任何其他任务编排相关的 Agent 或工具
+OpenMatrix 有自己的全自动执行流程，本 skill 与以下技能功能重叠：
+- gsd-executor、gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+- superpowers:* → 使用 OpenMatrix 对应的 /om:* 命令
 
-**Step 5 只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
-
-违规调用将导致执行失败。
+**Step 5 使用 Agent 工具执行子任务。**
 
 **相关技能**: `/om:brainstorm` (需求探索) | `/om:plan` (方案生成) | `/om:start` (交互式执行) | `/om:status` (状态查看) | `/om:report` (报告)
 </NO-OTHER-SKILLS>

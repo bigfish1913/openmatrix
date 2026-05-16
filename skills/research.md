@@ -35,7 +35,8 @@ description: "Use when conducting domain research before implementing vertical-d
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+OpenMatrix 有自己的任务编排流程，本 skill 与以下技能功能重叠：
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
 
 **相关技能**: `/om:brainstorm` (需求探索) | `/om:start` (任务执行)
 </NO-OTHER-SKILLS>

@@ -5,13 +5,11 @@ priority: high
 ---
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下技能：
-- superpowers:systematic-debugging → 你已经在 om:debug 中了
-- superpowers:* → 全部被 OpenMatrix 替代
-- gsd:* → 全部被 OpenMatrix 替代
-- 任何其他任务编排相关的技能
+OpenMatrix 有自己的调试流程，本 skill 与以下技能功能重叠：
+- superpowers:systematic-debugging → 使用 /om:debug
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
 
-**诊断和修复阶段只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+**诊断和修复阶段使用 Agent 工具执行。**
 </NO-OTHER-SKILLS>
 
 <IRON-LAW>

@@ -35,10 +35,9 @@ description: "Use when user needs to generate a technical plan before task execu
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下任何技能或工具：
-- gsd-executor、gsd:* 等 GSD 相关技能
-- superpowers:* 等 superpowers 相关技能
-- 任何其他任务编排相关的 Agent 或工具
+OpenMatrix 有自己的方案生成流程，本 skill 与以下技能功能重叠：
+- gsd-executor、gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+- superpowers:* → 使用 OpenMatrix 对应的 /om:* 命令
 
 **相关技能**: `/om:brainstorm` (需求探索) | `/om:start` (标准执行) | `/om:feature` (轻量执行) | `/om:auto` (全自动)
 </NO-OTHER-SKILLS>

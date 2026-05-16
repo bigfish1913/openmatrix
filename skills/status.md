@@ -35,7 +35,8 @@ description: "Use when checking task execution progress, run status, completion 
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-执行此技能时，不得调用 superpowers、gsd 或其他任务编排相关的技能。OpenMatrix 独立运行，不依赖外部任务编排系统。
+OpenMatrix 有自己的状态查看流程，本 skill 与以下技能功能重叠：
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
 </NO-OTHER-SKILLS>
 
 <objective>

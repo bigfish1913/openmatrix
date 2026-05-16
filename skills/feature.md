@@ -36,13 +36,13 @@ priority: high
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下技能：
-- ❌ superpowers:brainstorming → 用 /om:brainstorm 代替
-- ❌ superpowers:* → 全部被 OpenMatrix 替代
-- ❌ gsd:* → 全部被 OpenMatrix 替代
-- ❌ /om:start / /om:auto → 本 skill 是轻量版，不调用完整流程
+OpenMatrix 有自己的轻量流程，本 skill 与以下技能功能重叠：
+- superpowers:brainstorming → 使用 /om:brainstorm
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
 
-**任务执行阶段只能使用 Agent 工具** — 直接调用 Agent，不通过任何中间层。
+本 skill 是轻量版，不调用 /om:start 或 /om:auto 完整流程。
+
+**任务执行阶段使用 Agent 工具。**
 
 **相关技能**: `/om` (主入口) | `/om:start` (标准任务) | `/om:brainstorm` (复杂任务)
 </NO-OTHER-SKILLS>

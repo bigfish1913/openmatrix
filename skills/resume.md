@@ -35,11 +35,10 @@ priority: high
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-**绝对禁止**调用以下技能：
-- ❌ superpowers:brainstorming → 用 /om:brainstorm 代替
-- ❌ superpowers:* → 全部被 OpenMatrix 替代
-- ❌ gsd:* → 全部被 OpenMatrix 替代
-- ❌ /om:start / /om:auto → 本 skill 是恢复流程，不调用完整流程
+OpenMatrix 有自己的恢复流程，本 skill 与以下技能功能重叠：
+- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+
+本 skill 是恢复流程，不调用 /om:start 或 /om:auto 完整流程。
 </NO-OTHER-SKILLS>
 
 <objective>
