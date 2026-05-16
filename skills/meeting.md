@@ -35,8 +35,7 @@ description: "Use when handling blocked tasks, technical decisions, or workflow 
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-OpenMatrix 有自己的阻塞处理流程，本 skill 与以下技能功能重叠：
-- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+本 skill 与其他任务编排技能功能重叠，请勿同时使用。
 
 **相关技能**: `/om:start` (任务执行) | `/om:approve` (审批处理) | `/om:status` (状态查看)
 </NO-OTHER-SKILLS>

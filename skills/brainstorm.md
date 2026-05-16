@@ -36,9 +36,7 @@ description: "Use when the user wants to explore requirements, design alternativ
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-OpenMatrix 有自己的需求探索流程，本 skill 与以下技能功能重叠：
-- superpowers:brainstorming → 使用 /om:brainstorm
-- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+本 skill 与其他任务编排技能功能重叠，请勿同时使用。
 
 **相关技能**: `/om:research` (领域调研) | `/om:plan` (方案生成) | `/om:start` (任务执行) | `/om:auto` (全自动)
 </NO-OTHER-SKILLS>

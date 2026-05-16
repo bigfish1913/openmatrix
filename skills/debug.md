@@ -5,9 +5,7 @@ priority: high
 ---
 
 <NO-OTHER-SKILLS>
-OpenMatrix 有自己的调试流程，本 skill 与以下技能功能重叠：
-- superpowers:systematic-debugging → 使用 /om:debug
-- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+本 skill 与其他任务编排技能功能重叠，请勿同时使用。
 
 **诊断和修复阶段使用 Agent 工具执行。**
 </NO-OTHER-SKILLS>

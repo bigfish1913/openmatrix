@@ -35,8 +35,7 @@ priority: high
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-OpenMatrix 有自己的恢复流程，本 skill 与以下技能功能重叠：
-- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+本 skill 与其他任务编排技能功能重叠，请勿同时使用。
 
 本 skill 是恢复流程，不调用 /om:start 或 /om:auto 完整流程。
 </NO-OTHER-SKILLS>

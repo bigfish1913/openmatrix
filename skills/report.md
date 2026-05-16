@@ -35,8 +35,7 @@ description: "Use when generating a task execution report with statistics, task 
 </INTENT-JUDGMENT>
 
 <NO-OTHER-SKILLS>
-OpenMatrix 有自己的报告流程，本 skill 与以下技能功能重叠：
-- superpowers:* / gsd:* → 使用 OpenMatrix 对应的 /om:* 命令
+本 skill 与其他任务编排技能功能重叠，请勿同时使用。
 </NO-OTHER-SKILLS>
 
 <objective>
