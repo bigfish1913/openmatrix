@@ -530,7 +530,69 @@ Agent({
 ```
 
 每个 Agent 完成后（收到后台完成通知时）:
-1. **标记完成并更新统计（必须执行）:**
+
+<VERIFICATION-BEFORE-COMPLETION>
+## ⛔ 铁律：证据优先于声明
+
+**NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE**
+
+在调用 `openmatrix complete` 之前，必须：
+1. **运行验证命令** — 测试、构建、lint 等
+2. **读取完整输出** — 检查退出码、错误信息
+3. **确认验证通过** — 只有通过才能标记完成
+
+**验证命令（根据任务类型选择）：**
+
+| 任务类型 | 验证命令 |
+|---------|---------|
+| coder 任务 | `npm run build 2>&1 && npm test -- --run 2>&1` |
+| tester 任务 | `npm test -- --run 2>&1` |
+| reviewer 任务 | 无需验证（审查本身即是验证） |
+| 文档任务 | `npm run build 2>&1`（验证无破坏） |
+
+**验证流程：**
+```bash
+# 1. 运行验证（自动判断退出码）
+VERIFY_EXIT=0
+npm test -- --run > /tmp/verify-output.txt 2>&1 || VERIFY_EXIT=1
+
+# 2. 检查结果
+if [ $VERIFY_EXIT -eq 0 ]; then
+  echo "✅ 验证通过"
+else
+  echo "❌ 验证失败"
+  cat /tmp/verify-output.txt | tail -30
+  # 不调用 openmatrix complete，而是让 Agent 修复后重新验证
+fi
+
+# 3. 只有通过才标记完成
+if [ $VERIFY_EXIT -eq 0 ]; then
+  openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 创建文件: xxx"
+fi
+```
+
+**红旗警告 — 停止并验证：**
+
+| 借口 | 真相 |
+|-----|------|
+| "应该能工作" | 运行验证，不要猜测 |
+| "测试看起来没问题" | 运行测试命令，读取输出 |
+| "Agent 说成功了" | Agent 的报告不是证据，运行验证 |
+| "只是简单改动" | 简单改动也要验证 |
+| "我会手动检查" | 手动检查不可重复 |
+| "跳过验证更快" | 跳过验证 = 虚假完成 |
+
+**常见失败处理：**
+
+验证失败时，不要调用 `openmatrix complete`，而是：
+1. 分析失败原因
+2. 让修复 Agent 处理（最多 3 次循环）
+3. 重新验证
+4. 3 次失败后创建 Meeting 记录阻塞问题
+
+</VERIFICATION-BEFORE-COMPLETION>
+
+**验证通过后，标记完成：**
 ```bash
 openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 创建文件: xxx"
 ```

@@ -53,7 +53,9 @@
       "Bash(node dist/cli/index.js debug \"debug 指令很少会自动触发\" --json)",
       "Skill(om:brainstorm)",
       "Skill(om:brainstorm:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(ls -la ~/.claude/skills/superpowers/ 2>/dev/null || echo \"superpowers not in ~/.claude/skills\")",
+      "Read(//c/Users/bigfish/.claude/skills/**)"
     ]
   }
 }
