@@ -154,9 +154,9 @@ Examples:
   /om 从零搭建后台系统            → AI 推荐设计流程
 
 Quality:
-  strict   - TDD + 80% coverage
-  balanced - 60% coverage
-  fast     - No gates
+  严格模式 - TDD + 80% coverage
+  平衡模式 - 60% coverage
+  快速模式 - No gates
 
 Commands:
   /om:status      - 查看执行状态
