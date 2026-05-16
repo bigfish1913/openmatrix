@@ -212,9 +212,9 @@ EOF
 
 | goalTypes | 需要询问 |
 |-----------|---------|
-| `development` | 5.1 质量等级 -> 5.2 E2E -> 5.3 执行模式 |
-| `testing` | 仅 5.3 执行模式 |
-| `documentation` / `other` | 仅 5.3 执行模式 |
+| `development` | 5.1 质量等级 -> 5.2 E2E（仅严格模式可选） |
+| `testing` | 无需问答，直接进入 Step 7 |
+| `documentation` / `other` | 无需问答，直接进入 Step 7 |
 
 #### 5.1 质量等级（仅 `goalTypes: development`）
 
@@ -224,11 +224,21 @@ AskUserQuestion: `header: "质量等级"`, `multiSelect: false`
 
 | label | description |
 |-------|-------------|
-| `strict` | TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码 |
-| `balanced (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
-| `fast` | 无质量门禁 — 快速原型/验证 |
+| `严格模式` | TDD + >80%覆盖率 + 严格Lint + 安全扫描 — 生产级代码 |
+| `平衡模式 (推荐)` | >60%覆盖率 + Lint + 安全扫描 — 日常开发 |
+| `快速模式` | 无质量门禁 — 快速原型/验证 |
 
-#### 5.2 E2E 测试（仅 `development` 且选 strict/balanced，选 `fast` 跳过）
+**质量等级选择后的自动推断规则：**
+
+| 模式 | E2E | AI 验收 | 执行方式 |
+|-----|-----|---------|---------|
+| 严格模式 | 可选问一句（Step 5.2） | 必须 | TDD（先测试后开发） |
+| 平衡模式 | 不需要（自动跳过） | 必须 | 先开发后测试 |
+| 快速模式 | 不需要（自动跳过） | 不需要 | 直接开发 |
+
+#### 5.2 E2E 测试（仅 `严格模式` 可选，其他模式自动跳过）
+
+**只有选择「严格模式」时才询问此问题，平衡模式和快速模式自动推断为「不需要」。**
 
 AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 
@@ -240,17 +250,15 @@ AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 | `视觉验证` | 需要浏览器可视化验证，可检查页面样式和布局 |
 | `不需要` | 仅进行单元测试和集成测试，节省时间 |
 
-#### 5.3 执行模式（所有任务必选）
+#### 执行模式自动推断
 
-AskUserQuestion: `header: "执行模式"`, `multiSelect: false`
+**执行模式不再通过问答选择，而是根据质量等级自动推断：**
 
-**question:** 选择执行模式（控制 AI 执行过程中的审批节点）
+- **严格模式** → 全自动执行 + TDD 流程
+- **平衡模式** → 全自动执行 + 先开发后测试
+- **快速模式** → 全自动执行 + 直接开发
 
-| label | description |
-|-------|-------------|
-| `全自动执行 (推荐)` | 全自动执行，无需人工审批，遇到阻塞自动 Meeting |
-| `关键节点确认` | plan/merge/deploy 时暂停确认 |
-| `每阶段确认` | 每个阶段（develop/verify/accept）完成后暂停 |
+**非开发任务**（testing/documentation/other）默认使用「全自动执行」。
 
 ### Step 6: 可选问题（仅复杂任务）
 
@@ -280,31 +288,37 @@ Goals:
 
 ### Step 7: 调用 CLI 创建任务（不可跳过）
 
-**根据任务类型选择正确的 CLI 调用：**
+**根据质量等级自动设置执行参数：**
+
+| 质量等级 | CLI 参数 | 执行方式 |
+|---------|---------|---------|
+| 严格模式 | `--quality strict --mode auto` | TDD 流程 |
+| 平衡模式 | `--quality balanced --mode auto` | 先开发后测试 |
+| 快速模式 | `--quality fast --mode auto` | 直接开发 |
 
 **开发任务**（有质量等级选择）：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode <执行模式> --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality <质量等级> --mode auto --json
 ```
 
 如果存在 `.openmatrix/research/context.json`，增加 `--research-context` 参数：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --research-context @.openmatrix/research/context.json --quality <质量等级> --mode <执行模式> --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --research-context @.openmatrix/research/context.json --quality <质量等级> --mode auto --json
 ```
 
 如果启用了 E2E 测试（功能测试），加上 `--e2e-tests`：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality strict --mode auto --e2e-tests --json
 ```
 
 如果选择了视觉验证，加上 `--e2e-tests --e2e-type visual`：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality balanced --mode auto --e2e-tests --e2e-type visual --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --quality strict --mode auto --e2e-tests --e2e-type visual --json
 ```
 
-**非开发任务**（无质量等级）：
+**非开发任务**（无质量等级，默认全自动执行）：
 ```bash
-openmatrix start --tasks-json @.openmatrix/tasks-input.json --mode <执行模式> --json
+openmatrix start --tasks-json @.openmatrix/tasks-input.json --mode auto --json
 ```
 
 此命令返回 JSON 包含 `subagentTasks` 列表。

@@ -50,7 +50,9 @@
       "Bash(node dist/cli/index.js debug \"om:test 生成的测试缺少对副作用的验证（如 fetchCreations 调用）\" --json)",
       "Bash(npx tsc *)",
       "Bash(git -C c:/Users/bigfish/Projects/openmatrix status --porcelain)",
-      "Bash(node dist/cli/index.js debug \"debug 指令很少会自动触发\" --json)"
+      "Bash(node dist/cli/index.js debug \"debug 指令很少会自动触发\" --json)",
+      "Skill(om:brainstorm)",
+      "Skill(om:brainstorm:*)"
     ]
   }
 }

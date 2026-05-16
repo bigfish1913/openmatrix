@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**The Only AI Task Orchestration with TDD + Quality Gates + 100% Automation**
+**Your code has no tests? OpenMatrix automatically adds them with >80% coverage**
 
 *Automation ≠ Sacrificing Quality | High Quality ≠ Manual Work*
 
@@ -10,10 +10,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/openmatrix.svg?color=green&label=downloads)](https://www.npmjs.com/package/openmatrix)
 [![GitHub stars](https://img.shields.io/github/stars/bigfish1913/openmatrix.svg?style=social&label=Star)](https://github.com/bigfish1913/openmatrix/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue.svg)](https://claude.ai/code)
-
-**[📚 Documentation](https://matrix.laofu.online/docs/)** | **[🚀 Quick Start](https://matrix.laofu.online/docs/getting-started/)** | **[💬 GitHub](https://github.com/bigfish1913/openmatrix)**
 
 **[中文](README.md)** | **[English](README_EN.md)**
 
@@ -21,489 +18,115 @@
 
 ---
 
-## One-Liner Introduction
-
-```bash
-/om Implement user login
-# Auto-starts task orchestration, first question selects quality level, then fully automatic
-```
-
-> `/om` is a shortcut for `/om:start` with identical functionality
-
-### 🪄 Auto-Invoke (No Command Needed)
-
-After installation, just type task descriptions directly:
+## 30-Second Demo
 
 ```
-User input: Implement user login feature
-     ↓
-Auto-invokes: /om:start Implement user login feature
+/om Implement user login feature
+
+# Auto-starts task orchestration → Select quality level → Full automation → Quality gates → AI acceptance → Done
 ```
 
-**Trigger Scenarios:**
-
-| User Input | Why Trigger |
-|------------|-------------|
-| `Implement user login` | Feature development |
-| `Login page is broken` | Bug fix |
-| `Performance is too slow` | Optimization |
-| `Write unit tests` | Testing |
-| `Build a complete user system` | Multi-component task |
-| `Set up a backend from scratch` | Multi-step project |
-| `Frontend + Backend + Database` | Full-stack work |
-
-**Keyword Triggers:**
-- `实现...` / `添加...` / `修复...` / `优化...` / `测试...` (Chinese)
-- `implement...` / `add...` / `fix...` / `build...` / `test...` (English)
-- `support...` / `need...` / `want to...`
-- Task file paths: `docs/task.md`
-
-**Won't Trigger:**
-- Questions: "How to implement login?" / "How to configure?"
-- Info requests: "Show config" / "List files"
-- Navigation: "Open directory" / "Go to folder"
+> `/om` is a shortcut for `/om:start`. Just type your task description to auto-trigger.
 
 ---
 
-## Execution Flow Overview
+## Three Quality Modes
 
-```
-User Input → Quality Selection → Task Planning → Execution → Quality Gates → AI Acceptance → Meeting Handling → Complete
-```
+| Mode | Coverage | Tests | Lint | Security | Use Case |
+|:----:|:--------:|:-----:|:----:|:--------:|----------|
+| **strict** | >80% | TDD write tests first | Strict | npm audit | Production code |
+| **balanced** | >60% | Add tests after | Standard | npm audit | Daily development |
+| **fast** | >20% | Optional | None | None | Quick prototypes |
 
-| Phase | Description | Key Point |
-|:-----:|-------------|-----------|
-| 0 | Interactive Q&A | **First question selects quality level** |
-| 1 | Task Planning | Planner Agent generates plan |
-| 2 | Task Execution | strict/balanced/fast modes |
-| 3 | Quality Gates | 7 quality gate validations |
-| 4 | AI Acceptance | Reviewer Agent final confirmation |
-| 5 | Meeting | Non-blocking, process at end and **re-execute** |
-| 6 | Final Report | Quality score + deliverables |
-
-📖 **Detailed Flow Diagrams**: [docs/FLOW.md](docs/FLOW.md) (with Mermaid diagrams)
-
----
-
-## Why Choose OpenMatrix?
-
-### Comparison with superpowers / gsd
-
-| Feature | OpenMatrix | superpowers | gsd |
-|---------|:----------:|:-----------:|:---:|
-| **100% Automation** | ✅ auto mode | ❌ 50% | ❌ 60% |
-| **Built-in TDD** | ✅ strict mode | ❌ Manual | ❌ None |
-| **Coverage Enforcement** | ✅ 60-80% | ❌ None | ❌ None |
-| **Security Scanning** | ✅ npm audit | ❌ None | ❌ None |
-| **AI Acceptance** | ✅ Reviewer Agent | ❌ None | Partial |
-| **Non-blocking** | ✅ Meeting mechanism | ❌ Stops | ❌ Stops |
-| **Quality Reports** | ✅ JSON + MD | ❌ None | Partial |
-| **Ease of Use** | ⚡ One-liner start | Medium | High |
+> E2E tests optional (Playwright/Cypress/Appium)
 
 ---
 
 ## Quick Start
 
-### Installation
-
-**Option 1: NPM Install (Recommended)**
-
 ```bash
-# Global install
+# Install
 npm install -g openmatrix
 
-# Skills are automatically installed to ~/.claude/commands/om/
-# If auto-install fails, run manually:
-openmatrix install-skills
-```
-
-**Option 2: Install from Source**
-
-```bash
-# Clone and install
-git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix && npm install && npm run build && npm link
-
-# Install Skills (if postinstall didn't run)
-openmatrix install-skills
-```
-
-### Verify Installation
-
-```bash
-# Check CLI is available
+# Verify
 openmatrix --version
 
-# Check Skills are installed
-openmatrix install-skills
-# Or check directly:
-ls ~/.claude/commands/om/
-# Should show: start.md  auto.md  status.md  approve.md  meeting.md  resume.md  retry.md  report.md
-```
-
-### First Use
-
-```bash
-/om:start Implement user login feature
-
-# System will ask first:
-┌─────────────────────────────────────────────────────────┐
-│ Question 0: Select Quality Level                        │
-├─────────────────────────────────────────────────────────┤
-│ 🚀 strict   → TDD + 80% coverage + AI acceptance (prod) │
-│ ⚖️ balanced  → 60% coverage + AI acceptance (daily)     │
-│ ⚡ fast      → No quality gates (prototypes)            │
-└─────────────────────────────────────────────────────────┘
+# Use
+/om Implement user login
 ```
 
 ---
 
-## Core Features
-
-### 1️⃣ Three-Level Quality Configuration (First Question)
-
-| Level | TDD | Coverage | Lint | Security | E2E Tests | AI Accept | Use Case |
-|:-----:|:---:|:--------:|:----:|:--------:|:---------:|:---------:|----------|
-| **strict** | ✅ | >80% | ✅ Strict | ✅ | ❓ Optional | ✅ | 🏭 **Production Code** |
-| **balanced** | ❌ | >60% | ✅ | ✅ | ❓ Optional | ✅ | 📦 Daily Development |
-| **fast** | ❌ | >20% | ❌ | ❌ | ❌ | ❌ | 🏃 Quick Prototypes |
-
-> E2E tests are time-consuming, so they are optional even in strict mode. strict can be configured to 100%. Default >80% covers core business logic.
-
-### 2️⃣ Seven Quality Gates (Verify Phase)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Verify Phase - Quality Gates              │
-├─────────────────────────────────────────────────────────────┤
-│  🚪 Gate 1: Build Check    npm run build     → Must pass    │
-│  🚪 Gate 2: Test Run       npm test         → Must pass    │
-│  🚪 Gate 3: Coverage Check >20%/60%/80%    → Configurable │
-│  🚪 Gate 4: Lint Check     No errors        → Configurable │
-│  🚪 Gate 5: Security Scan  npm audit        → No high-risk │
-│  🚪 Gate 6: E2E Tests      Playwright etc   → Optional     │
-│  🚪 Gate 7: Acceptance     User defined     → All must met │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 3️⃣ TDD Mode (strict Level)
-
-```
-Traditional:  Code → Test → Bug → Fix → Regression → ... (many cycles)
-
-OpenMatrix TDD (strict):
-  🧪 Test Phase:   Write tests first (RED - tests must fail)
-  ✨ Dev Phase:    Write code (GREEN - tests must pass)
-  ✅ Verify Phase: 7 quality gates
-  🎉 Accept Phase: AI Reviewer final confirmation
-
-Result: Right the first time, no rework
-```
-
-### 4️⃣ Meeting Mechanism (Non-blocking)
-
-```
-❌ Other solutions:
-   TASK-001 ✓ → TASK-002 blocked ⏸️ → Wait for user... (wasted time)
-
-✅ OpenMatrix:
-   TASK-001 ✓ → TASK-002 blocked → Create Meeting → Skip ↷
-   TASK-003 ✓ → TASK-004 ✓ → Done!
-   → User uses /om:meeting to handle all blockers at once
-```
-
-### 5️⃣ AI Acceptance (Accept Phase)
-
-```
-Accept Phase executed by Reviewer Agent:
-├── Check verify-report.md
-├── Validate all acceptance criteria
-├── Confirm code is merge-ready
-└── Generate accept-report.md
-```
-
----
-
-## Execution Flow
-
-### strict Mode (Recommended for Production)
-
-```
-┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
-│   TDD   │────▶│ Develop │────▶│  Verify │────▶│ Accept  │
-│ 🧪 RED  │     │ ✨ GREEN│     │ ✅ 7gate│     │ 🎉 AI   │
-└─────────┘     └─────────┘     └─────────┘     └─────────┘
-```
-
-### balanced Mode (Daily Development)
-
-```
-┌─────────┐     ┌─────────┐     ┌─────────┐
-│ Develop │────▶│  Verify │────▶│ Accept  │
-│ ✨ Code │     │ ✅ 4gate│     │ 🎉 AI   │
-└─────────┘     └─────────┘     └─────────┘
-```
-
----
-
-## Skills Commands
+## Core Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/om` | **Default entry** - Just type task description to start |
-| `/om:brainstorm` | 🧠 **Brainstorm** - Explore requirements and design before execution |
-| `/om:research` | 📚 **Research** - AI-driven domain research and problem exploration |
-| `/om:debug` | 🔧 **Systematic Debugging** - Four-phase root cause analysis + auto-fix verification loop |
-| `/om:feature` | ⚡ **Lightweight Feature** - Quick iteration for small features, no full task tracking |
-| `/om:start` | Start new task (first question selects quality level) |
-| `/om:auto` | 🚀 **Full auto execution** - No blocking, no confirmation, direct completion |
-| `/check` | 🔍 **Project check** - Auto-detect improvements and provide suggestions |
-| `/om:status` | View status |
-| `/om:approve` | Approve decisions |
-| `/om:meeting` | Handle blockers |
-| `/om:resume` | **Smart Resume** - Auto-detect lightweight/full flow and resume interrupted tasks |
-| `/om:retry` | Retry failures |
-| `/om:report` | Generate report |
-
-> `/om` is a shortcut for `/om:start` with identical functionality
-
-### `/om:debug` Systematic Debugging
-
-**Use Cases**: Bug fixes, test failures, unexpected behavior, build failures
-
-```bash
-/om:debug                          # Interactive debugging
-/om:debug --task TASK-003          # Debug specific failed task
-/om:debug "API returns 500 error"  # Debug with problem description
-```
-
-**Four-Phase Process**:
-
-```
-Step 1: Receive problem
-    ↓
-Step 2: CLI initialize session
-    ↓
-Step 3: Root cause investigation (read-only, Explore Agent)
-    ↓
-Step 4: Pattern analysis (read-only, Explore Agent)
-    ↓
-Step 5: Display diagnosis report
-    ↓
-    ⛔ Must wait for user confirmation before fixing
-    ↓
-Step 6: User chooses whether to fix
-    ├─ "View report only" → Output report and end
-    ├─ "Continue investigation" → Back to Step 3
-    └─ "Need fix" ↓
-Step 7: Choose fix strategy (auto/manual)
-    ↓
-Step 8: Implement fix (Agent)
-    ↓
-Step 9: Auto-verify fix (no user confirmation needed)
-    ├─ Verify passed → Enter report phase ✅
-    └─ Verify failed → Auto-loop retry (max 3 times)
-        ├─ < 3 times → Auto back to Step 8 re-fix
-        └─ >= 3 times → Pause, question architecture ⚠️
-Step 10: Output Debug Report
-```
-
-**Iron Rules**:
-- No root cause investigation, no fix proposal allowed
-- Verify failure auto-loops, no manual user confirmation
-- Max 3 retries, must pause and question architecture if exceeded
-
-### `/om:feature` Lightweight Feature
-
-**Use Cases**: Small features, minor changes, quick iteration (≤100 chars description, single function point)
-
-```bash
-/om:feature Add search to user list page
-/om:feature Add an export button
-/om:feature docs/small-task.md
-```
-
-**Trigger Conditions** (auto-routed from `/om` main entry):
-- Task description ≤ 100 chars
-- Single function point (no multiple independent subsystems)
-- No architecture design/tech selection involved
-- Keyword match: minor, quick, add button, small feature
-
-**Comparison with Standard Flow**:
-
-| Feature | `/om:feature` | `/om:start` |
-|---------|---------------|-------------|
-| Task Files | ❌ No `.openmatrix/tasks/` | ✅ Full task tracking |
-| Q&A Confirm | Quality + E2E | Quality + E2E + Mode |
-| Task Split | AI auto-split 2-5 chunks | Planner Agent generates plan |
-| Git Commit | Step-by-step (after each chunk) | Final unified commit |
-| Resume Mechanism | `/om:resume` (auto-detect) | `/om:resume` |
-
-**Iron Rules**:
-- No verification, no commit; verify failure must stop
-- Only change one task chunk at a time, no parallel modification
-- Commit immediately after verification passes, no accumulating multiple chunks
-
-### `/om:start` Execution Flow (with Meeting Mechanism)
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                          Execution Phase                                  │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  TASK-001 ✅ ──→ TASK-002 ⚠️blocked ──→ Create Meeting ──→ Skip ↷       │
-│                      │                                                   │
-│                      ↓                                                   │
-│  TASK-003 ✅ ──→ TASK-004 ✅ ──→ TASK-005 ✅ ──→ All tasks done          │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        Meeting Auto Detection                            │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│                    ┌─────────────────────┐                               │
-│                    │ Pending Meetings?   │                               │
-│                    └──────────┬──────────┘                               │
-│                          ╱    \                                          │
-│                        No      Yes                                       │
-│                        │       │                                         │
-│                        ▼       ▼                                         │
-│                   ┌───────┐ ┌─────────────────────────────┐              │
-│                   │ Done! │ │  📋 Interactive Meeting     │              │
-│                   └───────┘ │  ┌─────────────────────────┐│              │
-│                             │  │ [1] TASK-002: DB conn   ││              │
-│                             │  │     💡Provide / ⏭️Skip   ││              │
-│                             │  │ [2] TASK-005: API choice ││              │
-│                             │  │     🤔Select option     ││              │
-│                             │  └─────────────────────────┘│              │
-│                             └──────────────┬──────────────┘              │
-│                                            │                              │
-│                                            ▼                              │
-│                             ┌─────────────────────────────┐              │
-│                             │   User provides info/choice │              │
-│                             │         ↓                   │              │
-│                             │   🔄 Re-execute blocked     │              │
-│                             │   TASK-002 ✅               │              │
-│                             └──────────────┬──────────────┘              │
-│                                            │                              │
-└────────────────────────────────────────────┼──────────────────────────────┘
-                                             │
-                                             ▼
-                                      ┌───────────┐
-                                      │  Done! 🎉  │
-                                      └───────────┘
-```
-
-### `/om:auto` Full Auto Mode
-
-**Use Cases**: CI/CD, automation scripts, tasks without human intervention
-
-```bash
-/om:auto Implement user login feature           # Default strict mode
-/om:auto --mode=balanced Add API endpoint       # Specify balanced mode
-/om:auto --fast Create CLI tool                 # Fast prototype mode
-```
-
-**Features**:
-- ❌ No approval confirmations
-- ❌ No phase pauses
-- ❌ Meetings auto-skipped (logged but non-blocking)
-- ✅ Default strict quality level
-- ✅ CI/CD integration ready
-
-**Comparison with `/om:start`**:
-
-| Feature | `/om:start` | `/om:auto` |
-|---------|-------------|------------|
-| Quality Level | Interactive selection | Parameter/default strict |
-| Approval Confirm | Per config | All skipped |
-| Meeting | Interactive handling | Auto-skipped |
-| Use Case | Daily development | CI/CD, automation |
+| `/om` | Default entry - just type task description |
+| `/om:test` | Auto-add tests - supplement tests for existing code |
+| `/om:debug` | Systematic debugging - four-phase root cause analysis + auto-fix |
+| `/om:feature` | Lightweight feature - quick iteration, no full task tracking |
+| `/om:brainstorm` | Brainstorm - explore requirements and design first |
+| `/om:auto` | Full auto execution - no blocking, no confirmation, CI/CD ready |
 
 ---
 
-## Quality Reports
-
-Generated after each task completion:
-
-```json
-{
-  "taskId": "TASK-001",
-  "overall": "pass",
-  "tests": { "passed": 15, "failed": 0, "coverage": 82 },
-  "build": { "success": true },
-  "lint": { "errors": 0, "warnings": 3 },
-  "security": { "vulnerabilities": [] },
-  "e2e": { "passed": 5, "failed": 0, "skipped": 0 },
-  "acceptance": { "met": 5, "total": 5 }
-}
-```
-
-## State Storage
-
-Task state is persisted in the `.openmatrix/` directory:
+## Seven Quality Gates
 
 ```
-.openmatrix/
-├── state.json              # Global state (runId, status, config, statistics)
-├── plan.md                 # AI-generated execution plan
-├── tasks-input.json        # Task input (goals, constraints, deliverables)
-├── tasks/
-│   └── TASK-001/
-│       ├── task.json       # Task definition + status + phase info
-│       ├── context.md      # Agent context (read by subsequent Agents)
-│       ├── develop.json    # Develop phase result
-│       ├── verify.json     # Verify phase result (quality gates)
-│       ├── accept.json     # Accept phase result
-│       └── artifacts/      # Outputs (result.md, quality-report.json, etc.)
-├── approvals/              # Approval records
-└── meetings/               # Meeting records
+Gate 1: Build Check    npm run build    → Must pass
+Gate 2: Test Run       npm test         → Must pass
+Gate 3: Coverage Check >20%/60%/80%    → Configurable
+Gate 4: Lint Check     No errors        → Configurable
+Gate 5: Security Scan  npm audit        → No high-risk vulnerabilities
+Gate 6: E2E Tests      Playwright etc   → Optional
+Gate 7: Acceptance     User defined     → All must be met
 ```
 
 ---
 
-## Multi-Language Support
+## Works with superpowers
 
-OpenMatrix **natively supports all mainstream programming languages** through Claude Code Agent:
+OpenMatrix auto-executes tasks + superpowers provides extra skills = Perfect combination
 
-| Language | Test Command | Build Command |
-|----------|--------------|---------------|
-| TypeScript/JavaScript | `npm test` / `vitest` | `npm run build` |
-| Python | `pytest` | `python -m build` |
-| Go | `go test ./...` | `go build` |
-| Java | `mvn test` | `mvn compile` |
-| Rust | `cargo test` | `cargo build` |
-| Others | Any CLI command | Any CLI command |
+```bash
+# superpowers writes code, OpenMatrix ensures quality
+/om Implement user login    # Auto TDD + quality gates + AI acceptance
+```
 
-**No extra configuration needed** — Agent executes any shell command, Claude understands all mainstream languages.
+---
+
+## Detailed Documentation
+
+| Doc | Content |
+|-----|---------|
+| [Flow Diagrams](docs/FLOW.md) | Complete flow charts and phase descriptions |
+| [Roadmap](docs/ROADMAP.md) | Feature planning and progress |
+| [Architecture](docs/ARCHITECTURE.md) | Core components and design |
+| [Terminology](docs/TERMINOLOGY.md) | Terminology reference |
 
 ---
 
 ## FAQ
 
-### Q: Which quality level is right for me?
+**Q: Which quality level is right for me?**
 
-| Your Scenario | Recommended Level |
-|---------------|-------------------|
-| 🏭 Production code, core features | **strict** |
-| 📦 Daily feature development | **balanced** |
-| 🏃 Quick prototypes, POC | **fast** |
+| Scenario | Recommended Mode |
+|----------|-----------------|
+| Production code, core features | strict |
+| Daily feature development | balanced |
+| Quick prototypes, POC | fast |
 
-### Q: Can OpenMatrix work with superpowers?
+**Q: What is Meeting?**
 
-**A**: Yes! OpenMatrix automates task execution, superpowers provides additional skills.
+A: When blocked, a record is created but **execution doesn't stop**. Use `/om:meeting` to handle all blockers at the end.
 
-### Q: What is Meeting?
+**Q: Which languages are supported?**
 
-**A**: When blocked, a record is created but **execution doesn't stop**. Use `/om:meeting` to handle all blockers at the end.
+A: Native support for TypeScript/JavaScript, Python, Go, Java, Rust, and all mainstream languages.
 
 ---
 
-## Configuration
-
-`.openmatrixrc.json`:
+## Configuration Example
 
 ```json
 {
@@ -521,50 +144,12 @@ OpenMatrix **natively supports all mainstream programming languages** through Cl
 
 ---
 
-## Development
-
-```bash
-git clone https://github.com/bigfish1913/openmatrix.git
-cd openmatrix && npm install && npm run build && npm test
-```
-
----
-
-## Roadmap
-
-- [x] TDD Mode
-- [x] 7 Quality Gates
-- [x] Meeting Mechanism
-- [x] Quality Reports
-- [x] AI Acceptance
-- [x] `/om:auto` Full Auto Mode
-- [x] `/om:brainstorm` Brainstorm Mode
-- [x] Multi-language Support (Python/Go/Java/TypeScript etc.)
-- [x] E2E Test Support (Web/Mobile/GUI)
-- [x] Agent Context Sharing (Agent Memory)
-- [x] Task Subdirectory Structure + Phase Result Persistence
-- [x] Execution Loop Persistence (`openmatrix step`/`complete` - survives context compression)
-- [x] `/om:research` AI-Driven Domain Research
-- [x] Git Auto-Commit (automatic commit after task completion)
-- [x] Brainstorm/Start Smart State Detection
-- [x] AI Goal Type Annotation (smart dev/test/doc task recognition)
-- [x] System Integration Task (auto module assembly)
-- [x] Smart Project Detection (gitignore auto-generated by tech stack)
-- [x] Git Parent Directory Support (works in subdirectories of git repos)
-- [x] `/om:debug` Systematic Debugging (four-phase root cause analysis + auto-fix verification loop)
-- [x] `/om:feature` Lightweight Feature (quick iteration, step-by-step Git commit)
-- [x] `/om:resume` Smart Resume (auto-detect lightweight/full flow)
-- [ ] VSCode Extension
-- [ ] CI/CD Integration
-
----
-
 <div align="center">
 
-**If you find this useful, please give it a ⭐ Star!**
+**If you find this useful, please give it a Star!**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=bigfish1913/openmatrix&type=Date)](https://star-history.com/#bigfish1913/openmatrix&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=bigfish1913/openmatrix&type=Date)](https://star-history.com/#/bigfish1913/openmatrix&Date)
 
-MIT © 2024 | Made by [bigfish1913](https://github.com/bigfish1913)
+MIT | Made by [bigfish1913](https://github.com/bigfish1913)
 
 </div>
