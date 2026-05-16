@@ -509,10 +509,17 @@ describe('AgentRunner', () => {
       // 创建临时 .openmatrix 目录和 context.md 文件
       const tempDir = path.join(process.cwd(), '.openmatrix');
       const contextFile = path.join(tempDir, 'context.md');
+      const currentJsonFile = path.join(tempDir, 'current.json');
 
       // 确保目录存在
       await fsPromises.mkdir(tempDir, { recursive: true });
-      await fsPromises.writeFile(contextFile, '前序 Agent 决策: 使用 Express 作为框架');
+      // 创建 current.json 指向测试 runId（与 mockStateManager 一致）
+      await fsPromises.writeFile(currentJsonFile, JSON.stringify({ runId: 'run-20260514-test' }));
+      // 创建运行目录下的 context.md
+      const runDir = path.join(tempDir, 'run-20260514-test');
+      await fsPromises.mkdir(runDir, { recursive: true });
+      const runContextFile = path.join(runDir, 'context.md');
+      await fsPromises.writeFile(runContextFile, '前序 Agent 决策: 使用 Express 作为框架');
 
       const task = createTestTask();
       const prompt = await agentRunner.buildExecutionPrompt(task);
@@ -521,15 +528,20 @@ describe('AgentRunner', () => {
       expect(prompt).toContain('使用 Express 作为框架');
 
       // 清理测试文件
-      await fsPromises.unlink(contextFile);
+      await fsPromises.unlink(runContextFile);
+      await fsPromises.unlink(currentJsonFile);
     });
 
     it('should not include accumulated context section when context.md is empty', async () => {
       const tempDir = path.join(process.cwd(), '.openmatrix');
-      const contextFile = path.join(tempDir, 'context.md');
+      const currentJsonFile = path.join(tempDir, 'current.json');
 
       await fsPromises.mkdir(tempDir, { recursive: true });
-      await fsPromises.writeFile(contextFile, '');
+      await fsPromises.writeFile(currentJsonFile, JSON.stringify({ runId: 'run-20260514-test' }));
+      const runDir = path.join(tempDir, 'run-20260514-test');
+      await fsPromises.mkdir(runDir, { recursive: true });
+      const runContextFile = path.join(runDir, 'context.md');
+      await fsPromises.writeFile(runContextFile, '');
 
       const task = createTestTask();
       const prompt = await agentRunner.buildExecutionPrompt(task);
@@ -537,16 +549,17 @@ describe('AgentRunner', () => {
       expect(prompt).not.toContain('前序 Agent 共享上下文');
 
       // 清理测试文件
-      await fsPromises.unlink(contextFile);
+      await fsPromises.unlink(runContextFile);
+      await fsPromises.unlink(currentJsonFile);
     });
 
     it('should handle missing context.md gracefully', async () => {
-      // 删除 context.md（如果存在）
+      // 删除 context.md 和 current.json（如果存在）
       const tempDir = path.join(process.cwd(), '.openmatrix');
-      const contextFile = path.join(tempDir, 'context.md');
+      const currentJsonFile = path.join(tempDir, 'current.json');
 
       try {
-        await fsPromises.unlink(contextFile);
+        await fsPromises.unlink(currentJsonFile);
       } catch {
         // 文件不存在，忽略
       }
