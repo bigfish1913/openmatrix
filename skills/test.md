@@ -67,6 +67,95 @@ Step 8:  输出测试报告
 **铁律：验证失败自动循环，最多 3 次，超过必须暂停**
 </MANDATORY-EXECUTION-ORDER>
 
+<IRON-LAW>
+## 铁律：没有失败的测试，不许写生产代码
+
+**NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST**
+
+在测试前写了代码？删除。重新开始。
+
+没有例外：
+- 不要保留作为"参考"
+- 不要"写测试时适应它"
+- 不要看它
+
+删除意味着删除。
+
+## Why Order Matters
+
+### "我会在实现后写测试来验证工作"
+
+实现后写的测试立即通过。立即通过什么也证明不了：
+- 可能测试错误的东西
+- 可能测试实现，不是行为
+- 可能遗漏你忘记的边界情况
+- 你从未看到它捕获 bug
+
+测试优先强制你看到测试失败，证明它确实测试某些东西。
+
+### "我手动测试了所有边界情况"
+
+手动测试是临时的。你以为测试了所有东西但：
+- 没有测试记录
+- 代码变化时无法重跑
+- 压力下容易忘记情况
+- "我试过了" ≠ 全面
+
+自动化测试是系统的。每次运行相同方式。
+
+### "删除 X 小时工作是浪费"
+
+沉没成本谬误。时间已经没了。现在选择：
+- 删除并用 TDD 重写（X+小时，高信心）
+- 保留并在后加测试（30分钟，低信心，可能 bug）
+
+"浪费"是保留不能信任的代码。无真实测试的工作代码是技术债务。
+
+## Good vs Bad Tests
+
+| 质量 | Good | Bad |
+|-----|------|-----|
+| **最小化** | 一件事。名字有"and"？拆分。 | `test('validates email and domain and whitespace')` |
+| **清晰** | 名字描述行为 | `test('test1')` |
+| **展示意图** | 展示期望 API | 模糊代码该做什么 |
+| **真实代码** | 无 mock（除非不可避免） | Mock 一切 |
+
+### Good Example
+
+```typescript
+test('重试失败操作 3 次', async () => {
+  let attempts = 0;
+  const operation = () => {
+    attempts++;
+    if (attempts < 3) throw new Error('fail');
+    return 'success';
+  };
+
+  const result = await retryOperation(operation);
+
+  expect(result).toBe('success');
+  expect(attempts).toBe(3);
+});
+```
+
+一件事，测试真实行为，清晰名字。
+
+### Bad Example
+
+```typescript
+test('retry works', async () => {
+  const mock = jest.fn()
+    .mockRejectedValueOnce(new Error())
+    .mockRejectedValueOnce(new Error())
+    .mockResolvedValueOnce('success');
+  await retryOperation(mock);
+  expect(mock).toHaveBeenCalledTimes(3);
+});
+```
+
+模糊名字，测试 mock 不是代码。
+</IRON-LAW>
+
 <objective>
 智能测试生成 - 从业务角度分析代码逻辑，发现测试缺失，自动生成并验证测试。遵循 OpenMatrix 分层原则：CLI 收集原始数据，AI 分析并生成测试。
 </objective>
@@ -682,6 +771,8 @@ Step 8: 输出测试报告
 
 **最大重试 3 次，超过必须暂停检查配置**
 
+**没有失败的测试，不许写生产代码（参见 IRON-LAW 区块）**
+
 ## 红线
 
 - 3 次生成失败 → 暂停，检查测试框架配置
@@ -703,8 +794,18 @@ Step 8: 输出测试报告
 - "跳过自动验证"
 - 只测试函数调用而不是业务场景
 - 生成的测试与项目风格不一致
+- "我先写实现，再补测试"
+- "这个测试一次就能过，不用看失败"
+- "测试代码不重要，能过就行"
+- "边界情况太多了，只测主流程"
+- "删除这个失败的测试用例算了"
+- "Mock 返回什么都行，只要测试通过"
+- 测试名字描述实现细节而非业务行为
+- 一个测试验证多个不相关的事情
+- 测试依赖执行顺序或共享状态
+- 使用 `any` 类型绕过类型检查
 
-**所有这些意味着：停止。回到 Step 2 或执行自动验证循环。**
+**这些都意味着：停止。回到 Step 2 或执行自动验证循环。**
 
 ## 测试生成原则
 
