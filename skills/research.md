@@ -40,6 +40,21 @@ description: "Use when conducting domain research before implementing vertical-d
 **相关技能**: `/om:brainstorm` (需求探索) | `/om:start` (任务执行)
 </NO-OTHER-SKILLS>
 
+<RED-FLAGS>
+## 红旗警告 - 停止并检查
+
+这些想法意味着你在找借口：
+
+| 想法 | 真相 |
+|-----|------|
+| "直接开始，不用调研" | 垂直领域需要知识基础 |
+| "我懂这个领域" | 领域知识 ≠ 实践细节 |
+| "问太多问题浪费时间" | 缺信息导致返工更慢 |
+| "研究报告不重要" | 报告是后续执行的参考 |
+| "跳过用户确认直接研究" | 确认防止研究方向偏离 |
+
+</RED-FLAGS>
+
 <objective>
 在执行垂直领域任务前，由 AI 分析主题、识别领域、引导用户补全信息、生成领域专属文档，为后续 start 提供扎实的知识基础。
 </objective>
