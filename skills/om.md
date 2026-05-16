@@ -216,7 +216,52 @@ $ARGUMENTS
 
 **推荐倾向：** 标准流程需要"任务足够明确"才推荐，不明确时先澄清。
 
-**brainstorm 后自动路由：** 澄清完成后，AI 根据澄清结果自动判断是 feature 还是 start，不再让用户二次选择。
+## brainstorm 后自动路由
+
+澄清完成后，AI 根据澄清结果的复杂度自动判断是 feature 还是 start，不再让用户二次选择。
+
+### 判断规则（基于澄清后的 goals 数量）
+
+| 条件 | 路由 | 理由 |
+|------|------|------|
+| goals ≤ 2 | **feature** | 任务块少，轻量追踪足够 |
+| goals > 2 | **start** | 需要完整追踪和质量门禁 |
+| 涉及多模块协同 | **start** | 需要任务文件管理 |
+| 需要架构设计 | **start** | 需要生成 plan.md |
+| 需要测试任务拆分 | **start** | tester/coder 任务对 |
+
+### 判断示例
+
+| 澄清后的任务描述 | goals 数量 | 路由 |
+|-----------------|-----------|------|
+| "添加搜索按钮到列表页" | 1-2 | feature |
+| "调整按钮颜色和字体" | 2 | feature |
+| "实现用户登录（JWT认证）" | 3+ | start |
+| "重构认证模块支持 OAuth" | 4+ | start |
+| "添加 API 接口返回用户列表" | 2-3 | start（需测试任务） |
+
+### 自动路由流程
+
+```
+brainstorm 完成
+    │
+    ├── AI 分析澄清结果
+    │   • goals 数量
+    │   • 模块边界
+    │   • 是否需要架构设计
+    │
+    ▼
+┌─────────────────┐
+│ 复杂度判断       │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+goals ≤ 2   goals > 2
+    │         │
+    ▼         ▼
+feature     start
+```
 
 可用命令: `/om:brainstorm`, `/om:start`, `/om:feature`, `/om:auto`, `/om:status`, `/om:meeting`, `/om:report`, `/om:resume`, `/om:retry`, `/om:research`, `/om:approve`, `/om:check`, `/om:debug`
 </notes>
