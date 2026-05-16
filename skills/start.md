@@ -226,7 +226,8 @@ git ls-files --others --exclude-standard | grep -E '\.md$|^docs/' 2>/dev/null
 如果有文档变更（未追踪或未提交），执行提交：
 
 ```bash
-git add docs/ .openmatrix/*.md CLAUDE.md README.md README_EN.md
+git add docs/ CLAUDE.md README.md README_EN.md
+# 注意：plan.md 和 tasks-input.json 在 .openmatrix/{runId}/ 目录，被 gitignore，不提交
 git commit -m "$(cat <<'EOF'
 docs: 更新项目文档
 
@@ -374,7 +375,25 @@ openmatrix start --tasks-json @tasks-input.json --mode auto --json
 
 ### Step 8: 读取 subagentTasks
 
-CLI 返回 JSON 中 `subagentTasks` 数组包含待执行任务。
+CLI 返回 JSON 中 `subagentTasks` 数组包含待执行任务：
+
+```json
+{
+  "status": "tasks_ready",
+  "subagentTasks": [
+    {
+      "taskId": "TASK-001",
+      "agentType": "coder",
+      "title": "实现登录功能",
+      "description": "...",
+      "prompt": "完整任务提示词...",
+      "timeout": 300000
+    }
+  ]
+}
+```
+
+提取每个任务的 `taskId`、`agentType`、`title`、`prompt`，供 Step 9 执行。
 
 ## === 执行阶段（只有此阶段才能写业务代码）===
 
@@ -516,7 +535,7 @@ Agent({
 openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 创建文件: xxx"
 ```
 
-2. **全局上下文文件** — 所有任务的上下文累积在 `.openmatrix/context.md`:
+2. **全局上下文文件** — 所有任务的上下文累积在 `.openmatrix/{runId}/context.md`:
    - 每次任务完成后，通过 `--summary` 参数追加写入
    - 后续 Agent 可读取此文件了解前序任务的决策和发现
 
