@@ -23,6 +23,19 @@ const targets = [
   },
 ];
 
+// Check for MatrixCode installation
+// MatrixCode uses ~/.matrix/ directory for configuration
+const matrixDir = path.join(os.homedir(), '.matrix');
+const matrixSkillsDir = path.join(matrixDir, 'skills', 'om');
+
+// If ~/.matrix/ exists, add MatrixCode as a target
+if (fs.existsSync(matrixDir)) {
+  targets.push({
+    name: 'MatrixCode',
+    dir: matrixSkillsDir,
+  });
+}
+
 if (!fs.existsSync(skillsDir)) {
   console.log('Skills directory not found, skipping installation.');
   process.exit(0);

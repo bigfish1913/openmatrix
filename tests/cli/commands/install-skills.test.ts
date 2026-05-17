@@ -136,7 +136,8 @@ describe('install-skills command', () => {
       const source = fs.readFileSync(sourcePath, 'utf-8');
 
       expect(source).toContain('om.md');
-      expect(source).toMatch(/default entry/);
+      // Should install om.md for Claude Code
+      expect(source).toMatch(/Claude Code/);
     });
 
     it('should install openmatrix.md for auto-detection', () => {
@@ -153,7 +154,8 @@ describe('install-skills command', () => {
 
       // Should check options.force
       expect(source).toMatch(/options\.force/);
-      expect(source).toMatch(/already exists/);
+      // Should check if file exists before copying
+      expect(source).toMatch(/fs\.existsSync/);
     });
   });
 

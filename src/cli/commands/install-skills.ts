@@ -5,12 +5,17 @@ import * as path from 'path';
 import * as os from 'os';
 
 export const installSkillsCommand = new Command('install-skills')
-  .description('Install OpenMatrix skills to ~/.claude/commands/om/')
+  .description('Install OpenMatrix skills to ~/.claude/commands/om/ and ~/.matrix/skills/om/ (if MatrixCode detected)')
   .option('-f, --force', 'Force overwrite existing skills', false)
   .action((options) => {
     const skillsDir = path.join(__dirname, '..', '..', '..', 'skills');
     const claudeDir = path.join(os.homedir(), '.claude');
-    const commandsDir = path.join(claudeDir, 'commands', 'om');
+    const claudeCommandsDir = path.join(claudeDir, 'commands', 'om');
+
+    // Check for MatrixCode installation
+    const matrixDir = path.join(os.homedir(), '.matrix');
+    const matrixSkillsDir = path.join(matrixDir, 'skills', 'om');
+    const hasMatrixCode = fs.existsSync(matrixDir);
 
     console.log('📦 OpenMatrix Skills Installer\n');
 
@@ -21,19 +26,13 @@ export const installSkillsCommand = new Command('install-skills')
       process.exit(1);
     }
 
-    // Create commands directory
-    try {
-      if (!fs.existsSync(commandsDir)) {
-        fs.mkdirSync(commandsDir, { recursive: true });
-        console.log('📁 Created directory:', commandsDir);
-      }
-    } catch (err: unknown) {
-      console.error('❌ Cannot create directory:', commandsDir);
-      console.error('   Error:', err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    }
+    // Define target directories
+    const targets = [
+      { name: 'Claude Code', dir: claudeCommandsDir, enabled: true },
+      { name: 'MatrixCode', dir: matrixSkillsDir, enabled: hasMatrixCode },
+    ];
 
-    // Get skill files (excluding om.md and openmatrix.md which are handled separately)
+    // Get skill files
     const files = fs.readdirSync(skillsDir).filter(f =>
       f.endsWith('.md') && f !== 'om.md' && f !== 'openmatrix.md'
     );
@@ -45,92 +44,124 @@ export const installSkillsCommand = new Command('install-skills')
 
     console.log(`📋 Found ${files.length} skill files\n`);
 
-    let installed = 0;
-    let skipped = 0;
-    let failed = 0;
+    let totalInstalled = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
 
-    // Install skill files to ~/.claude/commands/om/
-    files.forEach(file => {
-      const src = path.join(skillsDir, file);
-      const dest = path.join(commandsDir, file);
-
-      try {
-        // Check if file exists and not forcing
-        if (fs.existsSync(dest) && !options.force) {
-          console.log(`  ⏭️  Skipped: ${file} (already exists)`);
-          skipped++;
-          return;
-        }
-
-        fs.copyFileSync(src, dest);
-        const skillName = path.basename(file, '.md');
-        console.log(`  ✅ Installed: /om:${skillName}`);
-        installed++;
-      } catch (err: unknown) {
-        console.log(`  ❌ Failed: ${file} (${err instanceof Error ? err.message : String(err)})`);
-        failed++;
+    // Install to each target
+    for (const target of targets) {
+      if (!target.enabled) {
+        console.log(`⏭️  ${target.name}: skipped (not installed)`);
+        continue;
       }
-    });
 
-    // Install default /om command to ~/.claude/commands/om.md
-    const omSrc = path.join(skillsDir, 'om.md');
-    const omDest = path.join(claudeDir, 'commands', 'om.md');
+      console.log(`\n🔧 Installing to ${target.name}...`);
 
-    if (fs.existsSync(omSrc)) {
       try {
-        if (fs.existsSync(omDest) && !options.force) {
-          console.log(`  ⏭️  Skipped: om.md (already exists)`);
-          skipped++;
-        } else {
-          fs.copyFileSync(omSrc, omDest);
-          console.log(`  ✅ Installed: /om (default entry)`);
+        if (!fs.existsSync(target.dir)) {
+          fs.mkdirSync(target.dir, { recursive: true });
+          console.log(`📁 Created directory: ${target.dir}`);
+        }
+      } catch (err: unknown) {
+        console.error(`❌ Cannot create directory: ${target.dir}`);
+        console.error(`   Error: ${err instanceof Error ? err.message : String(err)}`);
+        continue;
+      }
+
+      let installed = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      // Install skill files
+      files.forEach(file => {
+        const src = path.join(skillsDir, file);
+        const dest = path.join(target.dir, file);
+
+        try {
+          if (fs.existsSync(dest) && !options.force) {
+            skipped++;
+            return;
+          }
+
+          fs.copyFileSync(src, dest);
           installed++;
+        } catch (err: unknown) {
+          console.log(`  ❌ Failed: ${file} (${err instanceof Error ? err.message : String(err)})`);
+          failed++;
         }
-      } catch (err: unknown) {
-        console.log(`  ❌ Failed: om.md (${err instanceof Error ? err.message : String(err)})`);
-        failed++;
-      }
-    }
+      });
 
-    // Install auto-detection instructions
-    const autoSrc = path.join(skillsDir, 'openmatrix.md');
-    const autoDest = path.join(claudeDir, 'commands', 'openmatrix.md');
+      // Install om.md to parent directory for Claude Code
+      if (target.name === 'Claude Code') {
+        const omSrc = path.join(skillsDir, 'om.md');
+        const omDest = path.join(claudeDir, 'commands', 'om.md');
 
-    if (fs.existsSync(autoSrc)) {
-      try {
-        if (fs.existsSync(autoDest) && !options.force) {
-          console.log(`  ⏭️  Skipped: openmatrix.md (already exists)`);
-          skipped++;
-        } else {
-          fs.copyFileSync(autoSrc, autoDest);
-          console.log(`  ✅ Installed: /om:openmatrix (auto-detection)`);
-          installed++;
+        if (fs.existsSync(omSrc)) {
+          try {
+            if (fs.existsSync(omDest) && !options.force) {
+              skipped++;
+            } else {
+              fs.copyFileSync(omSrc, omDest);
+              installed++;
+            }
+          } catch (err: unknown) {
+            failed++;
+          }
         }
-      } catch (err: unknown) {
-        console.log(`  ❌ Failed: openmatrix.md (${err instanceof Error ? err.message : String(err)})`);
-        failed++;
+
+        // Install openmatrix.md (auto-detection)
+        const autoSrc = path.join(skillsDir, 'openmatrix.md');
+        const autoDest = path.join(claudeDir, 'commands', 'openmatrix.md');
+
+        if (fs.existsSync(autoSrc)) {
+          try {
+            if (fs.existsSync(autoDest) && !options.force) {
+              skipped++;
+            } else {
+              fs.copyFileSync(autoSrc, autoDest);
+              installed++;
+            }
+          } catch (err: unknown) {
+            failed++;
+          }
+        }
       }
+
+      console.log(`   ✅ Installed: ${installed}`);
+      console.log(`   ⏭️  Skipped: ${skipped}`);
+      if (failed > 0) {
+        console.log(`   ❌ Failed: ${failed}`);
+      }
+
+      totalInstalled += installed;
+      totalSkipped += skipped;
+      totalFailed += failed;
     }
 
     console.log('\n' + '─'.repeat(50));
-    console.log(`📊 Summary:`);
-    console.log(`   ✅ Installed: ${installed}`);
-    console.log(`   ⏭️  Skipped: ${skipped}`);
-    console.log(`   ❌ Failed: ${failed}`);
-    console.log(`\n📁 Skills: ${commandsDir}`);
-    console.log(`📁 Default: ${omDest}`);
+    console.log(`📊 Total Summary:`);
+    console.log(`   ✅ Installed: ${totalInstalled}`);
+    console.log(`   ⏭️  Skipped: ${totalSkipped}`);
+    console.log(`   ❌ Failed: ${totalFailed}`);
 
-    if (installed > 0) {
+    console.log('\n📁 Installation locations:');
+    for (const target of targets) {
+      if (target.enabled) {
+        console.log(`   ${target.name}: ${target.dir}`);
+      }
+    }
+
+    if (totalInstalled > 0) {
       console.log('\n🎉 Skills installed successfully!');
       console.log('   Try: /om <your task>');
       console.log('   Or:  /om:start <your task>');
-      console.log('\n💡 Auto-detection enabled!');
-      console.log('   Type task descriptions directly:');
-      console.log('   - "实现用户登录功能" → auto invokes /om:start');
-      console.log('   - "fix the login bug" → auto invokes /om:start');
     }
 
-    if (failed > 0) {
+    if (hasMatrixCode) {
+      console.log('\n✅ MatrixCode detected! Skills also installed to ~/.matrix/skills/om/');
+    }
+
+    if (totalFailed > 0) {
       process.exit(1);
     }
   });
