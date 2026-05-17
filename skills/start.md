@@ -597,6 +597,11 @@ fi
 openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 创建文件: xxx"
 ```
 
+**注意**: `openmatrix complete` 会自动执行以下操作：
+1. 🔄 **同步 Worktree 改动** - 如果 Agent 在 worktree 中工作，自动将改动同步到主工作树
+2. 📝 **更新上下文** - 将执行摘要写入 context.md
+3. ✅ **标记完成** - 更新任务状态为下一阶段
+
 2. **全局上下文文件** — 所有任务的上下文累积在 `.openmatrix/{runId}/context.md`:
    - 每次任务完成后，通过 `--summary` 参数追加写入
    - 后续 Agent 可读取此文件了解前序任务的决策和发现

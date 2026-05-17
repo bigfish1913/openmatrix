@@ -285,6 +285,11 @@ Agent({
 openmatrix complete TASK-XXX --success
 ```
 
+**注意**: `openmatrix complete` 会自动执行以下操作：
+1. 🔄 **同步 Worktree 改动** - 如果 Agent 在 worktree 中工作，自动将改动同步到主工作树
+2. 📝 **更新上下文** - 将执行摘要写入全局 context.md
+3. ✅ **标记完成** - 更新任务状态并触发 Git 提交
+
 3. **获取下一个任务（必须执行，防止上下文压缩丢失）:**
 ```bash
 openmatrix step --json

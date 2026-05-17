@@ -6,6 +6,7 @@ import * as fs from 'fs/promises';
 import type { Task } from '../types/index.js';
 import { ensureOpenmatrixGitignore } from '../utils/gitignore.js';
 import { logError } from '../utils/error-handler.js';
+import { WorktreeSyncManager } from '../utils/worktree-sync.js';
 
 const execAsync = promisify(exec);
 
@@ -37,9 +38,11 @@ export class GitCommitManager {
   private repoPath: string;
   private gitRoot: string | null = null;
   private enabled: boolean = true;
+  private worktreeSyncManager: WorktreeSyncManager;
 
   constructor(repoPath: string = process.cwd()) {
     this.repoPath = repoPath;
+    this.worktreeSyncManager = new WorktreeSyncManager(repoPath);
   }
 
   /**
@@ -325,6 +328,9 @@ export class GitCommitManager {
       // 确保 .gitignore 中包含 .openmatrix（写入到 git 根目录）
       await ensureOpenmatrixGitignore(this.repoPath);
 
+      // 🔄 同步 worktree 改动到主工作树（关键步骤）
+      await this.syncWorktreeChanges();
+
       // 获取未提交的文件（用于生成 commit message，在 git add 之前获取）
       const files = await this.getUncommittedFiles();
       if (files.length === 0) {
@@ -457,5 +463,61 @@ export class GitCommitManager {
       changes: [],
       impactScope: []
     });
+  }
+
+  /**
+   * 同步 worktree 改动到主工作树
+   *
+   * 当 Agent 在 worktree 中工作时，改动会提交到 worktree 的分支。
+   * 此方法将这些改动同步回主工作树，确保提交可见。
+   */
+  private async syncWorktreeChanges(): Promise<void> {
+    try {
+      // 检查是否有 Agent worktree
+      const hasChanges = await this.worktreeSyncManager.hasUnsyncedChanges();
+      if (!hasChanges) {
+        console.log('✅ 未检测到 worktree 改动，跳过同步');
+        return;
+      }
+
+      console.log('🔄 检测到 worktree 改动，开始同步...');
+
+      // 执行完整同步
+      const { syncResults, cleanupResults } = await this.worktreeSyncManager.fullSync();
+
+      // 输出同步结果
+      for (const result of syncResults) {
+        if (result.success && result.syncedFiles.length > 0) {
+          console.log(`✅ 同步成功: ${result.syncedFiles.length} 个文件`);
+          console.log(`   文件: ${result.syncedFiles.slice(0, 5).join(', ')}${result.syncedFiles.length > 5 ? '...' : ''}`);
+          if (result.commitHash) {
+            console.log(`   来源提交: ${result.commitHash}`);
+          }
+        } else if (result.error) {
+          console.log(`⚠️ 同步跳过: ${result.error}`);
+        }
+      }
+
+      // 输出清理结果
+      for (const cleanup of cleanupResults) {
+        if (cleanup.success) {
+          console.log(`🧹 清理 worktree: ${cleanup.path}`);
+        } else {
+          console.log(`⚠️ 清理失败: ${cleanup.path}`);
+        }
+      }
+
+    } catch (error) {
+      // 同步失败不应该阻止提交，但需要记录警告
+      console.warn('⚠️ Worktree 同步失败:', error instanceof Error ? error.message : String(error));
+      logError(error, { operation: 'syncWorktreeChanges', file: this.repoPath });
+    }
+  }
+
+  /**
+   * 获取 WorktreeSyncManager 实例（供外部调用）
+   */
+  getWorktreeSyncManager(): WorktreeSyncManager {
+    return this.worktreeSyncManager;
   }
 }

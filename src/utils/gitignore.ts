@@ -91,6 +91,8 @@ const GITIGNORE_TEMPLATES: Record<string, string[]> = {
   ],
   openmatrix: [
     '.openmatrix/',
+    '.claude/worktrees/',
+    '.playwright-mcp/',
   ],
 };
 
