@@ -127,6 +127,25 @@ export const installSkillsCommand = new Command('install-skills')
         }
       }
 
+      // Install SKILL.md for MatrixCode (skill package manifest)
+      if (target.name === 'MatrixCode') {
+        const skillManifestSrc = path.join(skillsDir, 'SKILL.md');
+        const skillManifestDest = path.join(target.dir, 'SKILL.md');
+
+        if (fs.existsSync(skillManifestSrc)) {
+          try {
+            if (fs.existsSync(skillManifestDest) && !options.force) {
+              skipped++;
+            } else {
+              fs.copyFileSync(skillManifestSrc, skillManifestDest);
+              installed++;
+            }
+          } catch (err: unknown) {
+            failed++;
+          }
+        }
+      }
+
       console.log(`   ✅ Installed: ${installed}`);
       console.log(`   ⏭️  Skipped: ${skipped}`);
       if (failed > 0) {

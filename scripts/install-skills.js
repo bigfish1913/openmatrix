@@ -16,10 +16,12 @@ const targets = [
   {
     name: 'Claude Code',
     dir: path.join(os.homedir(), '.claude', 'commands', 'om'),
+    isClaudeCode: true,
   },
   {
     name: 'OpenCode',
     dir: path.join(os.homedir(), '.config', 'opencode', 'commands', 'om'),
+    isClaudeCode: false,
   },
 ];
 
@@ -33,6 +35,7 @@ if (fs.existsSync(matrixDir)) {
   targets.push({
     name: 'MatrixCode',
     dir: matrixSkillsDir,
+    isMatrixCode: true,
   });
 }
 
@@ -59,6 +62,31 @@ for (const target of targets) {
         installed++;
       } catch (copyErr) {
         console.log(`  ⚠️  Skipped: ${file} (${copyErr.message})`);
+      }
+    }
+
+    // For Claude Code: install om.md and openmatrix.md to parent directory
+    if (target.isClaudeCode) {
+      const claudeCommandsDir = path.join(os.homedir(), '.claude', 'commands');
+      const omSrc = path.join(skillsDir, 'om.md');
+      const omDest = path.join(claudeCommandsDir, 'om.md');
+      if (fs.existsSync(omSrc)) {
+        try {
+          fs.copyFileSync(omSrc, omDest);
+          installed++;
+        } catch (copyErr) {
+          console.log(`  ⚠️  Skipped: om.md (${copyErr.message})`);
+        }
+      }
+      const autoSrc = path.join(skillsDir, 'openmatrix.md');
+      const autoDest = path.join(claudeCommandsDir, 'openmatrix.md');
+      if (fs.existsSync(autoSrc)) {
+        try {
+          fs.copyFileSync(autoSrc, autoDest);
+          installed++;
+        } catch (copyErr) {
+          console.log(`  ⚠️  Skipped: openmatrix.md (${copyErr.message})`);
+        }
       }
     }
 
