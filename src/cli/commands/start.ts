@@ -55,6 +55,10 @@ interface StartOptions {
   e2eType?: string;
   /** 研究上下文 JSON 路径（来自 /om:research 产出的 context.json） */
   researchContext?: string;
+  /** Agent 执行模式：多 Agent 并行执行 */
+  parallel?: boolean;
+  /** Agent 执行模式：单 Agent 串行执行 */
+  singleAgent?: boolean;
 }
 
 export const startCommand = new Command('start')
@@ -74,6 +78,8 @@ export const startCommand = new Command('start')
   .option('--e2e-tests', '启用 E2E 测试')
   .option('--e2e-type <type>', 'E2E 测试类型 (web|visual)')
   .option('--research-context <path>', '研究上下文 JSON 路径 (来自 /om:research 的 context.json)')
+  .option('--parallel', '多 Agent 并行执行 (推荐，速度快)')
+  .option('--single-agent', '单 Agent 串行执行 (上下文连贯)')
   .action(async (input: string | undefined, options: StartOptions) => {
     const basePath = process.cwd();
     const omPath = path.join(basePath, '.openmatrix');
@@ -398,13 +404,21 @@ async function handleTasksJson(
   const executionMode = tasksInput.mode || options.mode || 'confirm-key';
   const approvalPoints = resolveApprovalPoints(executionMode);
 
+  // 解析 Agent 执行模式
+  const agentMode: 'parallel' | 'single' = options.singleAgent ? 'single' : 'parallel';
+
+  // 更新 maxConcurrentAgents（单 Agent = 1，多 Agent = 3）
+  const maxConcurrent = agentMode === 'single' ? 1 : 3;
+
   await stateManager.updateState({
     status: 'running',
     currentPhase: 'execution',
     config: {
       ...state.config,
       approvalPoints: approvalPoints as ('plan' | 'merge' | 'deploy')[],
-      quality: qualityConfig
+      quality: qualityConfig,
+      agentMode,
+      maxConcurrentAgents: maxConcurrent
     }
   });
 
@@ -473,13 +487,16 @@ async function handleTasksJson(
         title: resolvedInput.title,
         description: resolvedInput.description,
         quality: qualityLevel,
-        domain: researchContext?.domain
+        domain: researchContext?.domain,
+        agentMode,
+        maxConcurrent
       }
     }));
   } else {
     console.log(`\n📋 ${resolvedInput.title} - ${subTasks.length} 个子任务已创建`);
     console.log(`🎯 执行模式：${executionMode}`);
     console.log(`   质量级别：${qualityLevel}`);
+    console.log(`   Agent 模式：${agentMode === 'parallel' ? '多 Agent 并行' : '单 Agent 串行'}`);
     console.log('\n🚀 等待 Skill 执行任务...');
     console.log('   使用 /om:status 查看进度');
   }

@@ -142,6 +142,8 @@ export interface AppConfig {
   model: string;
   /** 质量配置 */
   quality?: QualityConfig;
+  /** Agent 执行模式：parallel（多 Agent 并行）或 single（单 Agent 串行） */
+  agentMode?: 'parallel' | 'single';
 }
 
 // ============ Quality Types ============

@@ -286,6 +286,70 @@ AskUserQuestion: `header: "E2E 测试"`, `multiSelect: false`
 | `视觉验证` | 需要浏览器可视化验证，可检查页面样式和布局 |
 | `不需要` | 仅进行单元测试和集成测试，节省时间 |
 
+#### 5.3 Agent 执行模式（所有任务类型都需要选择）
+
+**Agent 执行模式决定任务如何分配和执行，是影响效率的关键决策。**
+
+AskUserQuestion: `header: "Agent 模式"`, `multiSelect: false`
+
+**question:** 选择 Agent 执行模式（决定任务如何分配和执行）
+
+| label | description |
+|-------|-------------|
+| `多 Agent 并行 (推荐)` | 多个 Agent 同时执行独立任务，速度快，适合任务边界清晰的项目 |
+| `单 Agent 串行` | 一个 Agent 顺序执行所有任务，上下文连贯，适合复杂依赖任务 |
+
+**两种模式的详细对比：**
+
+| 特性 | 多 Agent 并行 | 单 Agent 串行 |
+|-----|--------------|--------------|
+| **执行速度** | ⚡ 快（并行执行） | 🐢 慢（顺序执行） |
+| **上下文连贯性** | ⚠️ 可能不连贯 | ✅ 完全连贯 |
+| **决策一致性** | ⚠️ 各 Agent 可能不同 | ✅ 单一决策者 |
+| **任务独立性** | ✅ 失败不影响其他 | ❌ 一个失败可能阻塞后续 |
+| **内存占用** | ⚠️ 较高（多个进程） | ✅ 较低（单进程） |
+| **依赖处理** | ⚠️ 需要等待依赖完成 | ✅ 自动处理依赖 |
+| **调试难度** | ⚠️ 多 Agent 日志分散 | ✅ 单一日志流 |
+| **适用场景** | 任务边界清晰、无复杂依赖 | 任务间强依赖、需要全局视角 |
+
+**推荐选择指南：**
+
+```
+任务特点判断流程:
+
+┌─────────────────────────────────────┐
+│ 任务之间是否有强依赖关系？           │
+│ (例如: 任务B 需要 任务A 的产出)      │
+└──────────────┬──────────────────────┘
+               │
+        ┌──────┴──────┐
+        │             │
+       有依赖        无依赖
+        │             │
+        ▼             ▼
+   单 Agent       多 Agent
+   串行模式       并行模式
+        │             │
+        │             │
+   ┌────┴────┐   ┌────┴────┐
+   │         │   │         │
+   │ 上下文   │   │ 速度快   │
+   │ 连贯     │   │ 效率高   │
+   │ 决策一致 │   │ 独立性   │
+   └──────────┘   └──────────┘
+```
+
+**典型场景推荐：**
+
+| 场景 | 推荐 | 理由 |
+|-----|------|------|
+| 重构模块结构 | 单 Agent | 需要全局视角，任务间强关联 |
+| 添加多个独立 API | 多 Agent | 任务独立，并行效率高 |
+| 实现完整功能流程 | 单 Agent | 有上下文依赖，需要连贯决策 |
+| 批量修复多个 bug | 多 Agent | 各 bug 独立，可并行 |
+| 从零搭建系统 | 单 Agent | 架构决策需要一致性 |
+| 添加多个测试文件 | 多 Agent | 测试文件独立，并行快 |
+
 #### 执行模式自动推断
 
 **执行模式不再通过问答选择，而是根据质量等级自动推断：**
@@ -336,7 +400,7 @@ Goals:
 
 **CLI 自动从当前 runId 目录读取 tasks-input.json 和 plan.md。**
 
-**根据质量等级自动设置执行参数：**
+**根据质量等级和 Agent 模式自动设置执行参数：**
 
 | 质量等级 | CLI 参数 | 执行方式 |
 |---------|---------|---------|
@@ -344,29 +408,43 @@ Goals:
 | 平衡模式 | `--quality balanced --mode auto` | 先开发后测试 |
 | 快速模式 | `--quality fast --mode auto` | 直接开发 |
 
-**开发任务**（有质量等级选择）：
+| Agent 模式 | CLI 参数 | 执行方式 |
+|-----------|---------|---------|
+| 多 Agent 并行 | `--parallel` | 多个 Agent 同时执行 |
+| 单 Agent 串行 | `--single-agent` | 一个 Agent 顺序执行 |
+
+**开发任务**（有质量等级 + Agent 模式选择）：
+
 ```bash
-openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --json
+# 多 Agent 并行模式（默认推荐）
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --parallel --json
+
+# 单 Agent 串行模式
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --single-agent --json
 ```
 
 如果存在研究上下文（`.openmatrix/{runId}/research/context.json`），增加 `--research-context` 参数：
 ```bash
-openmatrix start --tasks-json @tasks-input.json --research-context @research/context.json --quality <质量等级> --mode auto --json
+openmatrix start --tasks-json @tasks-input.json --research-context @research/context.json --quality <质量等级> --mode auto --parallel --json
 ```
 
 如果启用了 E2E 测试（功能测试），加上 `--e2e-tests`：
 ```bash
-openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --parallel --e2e-tests --json
 ```
 
 如果选择了视觉验证，加上 `--e2e-tests --e2e-type visual`：
 ```bash
-openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --e2e-type visual --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --parallel --e2e-tests --e2e-type visual --json
 ```
 
-**非开发任务**（无质量等级，默认全自动执行）：
+**非开发任务**（无质量等级，但需要 Agent 模式选择）：
 ```bash
-openmatrix start --tasks-json @tasks-input.json --mode auto --json
+# 多 Agent 并行模式
+openmatrix start --tasks-json @tasks-input.json --mode auto --parallel --json
+
+# 单 Agent 串行模式
+openmatrix start --tasks-json @tasks-input.json --mode auto --single-agent --json
 ```
 
 **注意**: `@tasks-input.json` 表示 CLI 自动从当前 runId 目录读取。CLI 会自动检测 `current.json` 定位 runId。

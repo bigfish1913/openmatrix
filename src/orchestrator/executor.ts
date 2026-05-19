@@ -46,8 +46,8 @@ export interface ExecutionResult {
  * 负责持续调度任务并返回 Subagent 任务列表供 Skills 执行
  */
 export class OrchestratorExecutor {
-  private scheduler: Scheduler;
-  private agentRunner: AgentRunner;
+  private scheduler!: Scheduler;
+  private agentRunner!: AgentRunner;
   private stateManager: StateManager;
   private approvalManager: ApprovalManager;
   private stateMachine: StateMachine;
@@ -78,16 +78,7 @@ export class OrchestratorExecutor {
 
     this._configReady = this.loadConfigFromState(stateManager);
 
-    this.scheduler = new Scheduler(stateManager, {
-      maxConcurrentTasks: this.config.maxConcurrent,
-      taskTimeout: this.config.taskTimeout
-    });
-
-    this.agentRunner = new AgentRunner(stateManager, approvalManager, {
-      maxConcurrent: this.config.maxConcurrent,
-      taskTimeout: this.config.taskTimeout
-    });
-
+    // scheduler 和 agentRunner 在 loadConfigFromState 中根据 state.config 初始化
     this.stateMachine = new StateMachine();
     this.phaseExecutor = new PhaseExecutor(stateManager, approvalManager);
     this.retryManager = new RetryManager();
@@ -107,9 +98,27 @@ export class OrchestratorExecutor {
       if (state.config?.taskTimeout) {
         this.config.taskTimeout = state.config.taskTimeout;
       }
+      // 只有在 state.config 中有明确的 agentMode 时才更新并发数
+      // 否则使用传入的 config.maxConcurrent
+      if (state.config?.agentMode === 'single') {
+        this.config.maxConcurrent = 1;
+      } else if (state.config?.maxConcurrentAgents && state.config?.maxConcurrentAgents !== 3) {
+        // 只有当 maxConcurrentAgents 不是默认值 3 时才更新
+        this.config.maxConcurrent = state.config.maxConcurrentAgents;
+      }
     } catch {
       // use default config
     }
+
+    // 初始化 scheduler 和 agentRunner（使用最终配置）
+    this.scheduler = new Scheduler(this.stateManager, {
+      maxConcurrentTasks: this.config.maxConcurrent,
+      taskTimeout: this.config.taskTimeout
+    });
+    this.agentRunner = new AgentRunner(this.stateManager, this.approvalManager, {
+      maxConcurrent: this.config.maxConcurrent,
+      taskTimeout: this.config.taskTimeout
+    });
   }
 
   /**
