@@ -49,9 +49,10 @@ priority: high
 ## Step 1: 检测数据源类型
 
 ```bash
-# 优先检查轻量流程
+# 优先检查轻量流程（根目录）
 ls -la .openmatrix/feature-session.json 2>/dev/null && echo "FEATURE_SESSION" || \
-ls -la .openmatrix/state.json 2>/dev/null && echo "STATE_JSON" || \
+# 检查完整流程（需要先获取 runId）
+(cat .openmatrix/current.json 2>/dev/null && ls -la .openmatrix/*/. 2>/dev/null | head -1 && echo "STATE_JSON") || \
 echo "NOT_FOUND"
 ```
 
@@ -192,10 +193,14 @@ ${quality === 'strict' ? `
 
 ## Step 2B: 完整流程恢复（state.json）
 
-### 读取全局状态
+### 获取 runId 并读取全局状态
 
 ```bash
-cat .openmatrix/state.json
+# 获取当前 runId
+cat .openmatrix/current.json 2>/dev/null
+
+# 读取对应目录的 state.json
+cat .openmatrix/${runId}/state.json
 ```
 
 ### 识别可恢复的任务

@@ -43,10 +43,11 @@ description: "Use when checking task execution progress, run status, completion 
 </objective>
 
 <process>
-1. 读取 `.openmatrix/state.json` 获取全局状态
-2. 读取 `.openmatrix/tasks/` 下所有任务
-3. 读取 `.openmatrix/approvals/` 下待处理审批
-4. 展示格式化状态概览
+1. 读取 `.openmatrix/current.json` 获取当前 runId
+2. 读取 `.openmatrix/{runId}/state.json` 获取全局状态
+3. 读取 `.openmatrix/{runId}/tasks/` 下所有任务
+4. 读取 `.openmatrix/{runId}/approvals/` 下待处理审批
+5. 展示格式化状态概览
 
 ## 输出格式
 

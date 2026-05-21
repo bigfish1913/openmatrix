@@ -235,11 +235,14 @@ AskUserQuestion: `header: "问题描述"`, `multiSelect: false`
 | 选择失败任务 | 从当前失败任务中选择 |
 | 取消 | 退出调试模式 |
 
-**如果有失败任务（检查 .openmatrix/state.json）：**
+**如果有失败任务（检查 .openmatrix/{runId}/state.json）：**
 ```bash
-cat .openmatrix/state.json 2>/dev/null | grep -o '"failed":[0-9]*'
+# 先获取 runId
+cat .openmatrix/current.json 2>/dev/null
+# 然后检查失败数
+cat .openmatrix/{runId}/state.json 2>/dev/null | grep -o '"failed":[0-9]*'
 ```
-如果 `statistics.failed > 0`，读取 `.openmatrix/tasks/` 目录找到 failed 任务并展示。
+如果 `statistics.failed > 0`，读取 `.openmatrix/{runId}/tasks/` 目录找到 failed 任务并展示。
 
 ## Step 2: 调用 CLI 初始化
 
