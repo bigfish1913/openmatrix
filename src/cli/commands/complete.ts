@@ -75,14 +75,18 @@ export const completeCommand = new Command('complete')
       ...(allDone ? { completedAt: now } : {})
     });
 
-    // 5. 追加写入全局 context.md (Agent Memory)
+    // 5. 追加写入全局 context.md (Agent Memory) + 写入 artifacts/result.md
     if (isSuccess) {
       // 读取 current.json 获取当前 runId，context.md 写入运行目录
       let contextDir = omPath;
+      let runId = '';
       try {
         const currentJson = await fs.readFile(path.join(omPath, 'current.json'), 'utf-8');
-        const { runId } = JSON.parse(currentJson);
-        if (runId) contextDir = path.join(omPath, runId);
+        const { runId: currentRunId } = JSON.parse(currentJson);
+        if (currentRunId) {
+          runId = currentRunId;
+          contextDir = path.join(omPath, runId);
+        }
       } catch {
         // fallback to omPath
       }
@@ -104,6 +108,32 @@ export const completeCommand = new Command('complete')
       } catch (error) {
         // 记录错误但不影响主流程
         logError(error, { operation: 'appendContextMd', file: contextFile, taskId });
+      }
+
+      // 5b. 写入 artifacts/result.md (解决 artifacts 为空的问题)
+      if (runId) {
+        const artifactsDir = path.join(omPath, runId, 'tasks', taskId, 'artifacts');
+        const resultFile = path.join(artifactsDir, 'result.md');
+        const resultContent = `# 任务执行结果
+
+## 任务信息
+- ID: ${taskId}
+- 标题: ${task.title}
+- 完成时间: ${timestamp}
+
+## 执行摘要
+${summary}
+
+## 状态
+✅ 已完成
+`;
+
+        try {
+          await fs.mkdir(artifactsDir, { recursive: true });
+          await fs.writeFile(resultFile, resultContent, 'utf-8');
+        } catch (error) {
+          logError(error, { operation: 'writeArtifactsResult', file: resultFile, taskId });
+        }
       }
     }
 
