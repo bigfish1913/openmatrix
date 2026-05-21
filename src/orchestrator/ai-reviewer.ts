@@ -53,6 +53,15 @@ export interface ReviewFixTask {
  * 5. 测试覆盖检查
  */
 export class AIReviewer {
+  private runId: string = '';
+
+  /**
+   * 设置当前运行 ID
+   */
+  setRunId(runId: string): void {
+    this.runId = runId;
+  }
+
   /**
    * 生成 AI Review 提示词
    */
@@ -106,7 +115,7 @@ export class AIReviewer {
 
 ## 输出格式
 
-在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
+在 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/\` 目录下创建:
 
 ### ai-review-report.md
 
@@ -348,7 +357,7 @@ ${reviewPrompt}
 
 ## 输出要求
 
-在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
+在 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/\` 目录下创建:
 - \`accept-report.md\` - 验收报告
 - \`ai-review-report.md\` - AI 审查报告
 

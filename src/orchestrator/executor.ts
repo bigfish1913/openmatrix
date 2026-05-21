@@ -98,14 +98,16 @@ export class OrchestratorExecutor {
       if (state.config?.taskTimeout) {
         this.config.taskTimeout = state.config.taskTimeout;
       }
-      // 只有在 state.config 中有明确的 agentMode 时才更新并发数
-      // 否则使用传入的 config.maxConcurrent
+      // agentMode 的优先级最高，明确指定时直接设置并发数
       if (state.config?.agentMode === 'single') {
         this.config.maxConcurrent = 1;
-      } else if (state.config?.maxConcurrentAgents && state.config?.maxConcurrentAgents !== 3) {
-        // 只有当 maxConcurrentAgents 不是默认值 3 时才更新
-        this.config.maxConcurrent = state.config.maxConcurrentAgents;
+      } else if (state.config?.agentMode === 'parallel') {
+        this.config.maxConcurrent = 3;
       }
+      // 注意：不再从 maxConcurrentAgents 覆盖，因为：
+      // 1. agentMode 已经明确了意图（single=1, parallel=3）
+      // 2. 构造函数传入的 maxConcurrent 用于测试等场景
+      // 3. CLI 通过 agentMode 而不是 maxConcurrentAgents 控制并发
     } catch {
       // use default config
     }
@@ -606,15 +608,25 @@ export class OrchestratorExecutor {
 
   /**
    * 获取 AgentRunner 实例
+   *
+   * 注意：此方法假设 executor 已完成初始化（通过 step() 或其他方法触发）
    */
   getAgentRunner(): AgentRunner {
+    if (!this.agentRunner) {
+      throw new Error('Executor not initialized. Call step() first or wait for initialization.');
+    }
     return this.agentRunner;
   }
 
   /**
    * 获取 Scheduler 实例
+   *
+   * 注意：此方法假设 executor 已完成初始化（通过 step() 或其他方法触发）
    */
   getScheduler(): Scheduler {
+    if (!this.scheduler) {
+      throw new Error('Executor not initialized. Call step() first or wait for initialization.');
+    }
     return this.scheduler;
   }
 

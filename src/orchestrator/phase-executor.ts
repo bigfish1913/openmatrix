@@ -464,7 +464,7 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 - 圈复杂度: < 10
 
 ## 输出要求
-完成后，在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
+完成后，在 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/\` 目录下创建:
 - \`result.md\` - 实现说明
 - \`changes.txt\` - 变更文件列表
 
@@ -705,7 +705,7 @@ fi
 
 ## 📊 质量报告格式
 
-在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建 \`quality-report.json\`:
+在 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/\` 目录下创建 \`quality-report.json\`:
 
 \`\`\`json
 {
@@ -851,7 +851,7 @@ ${task.acceptanceCriteria.map((c, i) => `${i + 1}. [ ] ${c}`).join('\n')}`);
 ## 验收流程
 
 ### 1. 检查验证阶段结果
-读取 \`.openmatrix/tasks/${task.id}/artifacts/verify-report.md\`
+读取 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/verify-report.md\`
 确认所有检查项已通过
 
 ### 2. 验证验收标准
@@ -910,7 +910,7 @@ fi
 - **确认代码能实际运行**（不是只编译通过）
 
 ## 输出要求
-在 \`.openmatrix/tasks/${task.id}/artifacts/\` 目录下创建:
+在 \`.openmatrix/${this.runId}/tasks/${task.id}/artifacts/\` 目录下创建:
 - \`accept-report.md\` - 验收报告
 
 ## 结果格式

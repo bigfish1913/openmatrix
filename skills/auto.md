@@ -145,18 +145,23 @@ openmatrix status --json | jq '.files'
 **这是最关键的步骤。必须执行以下命令，不能跳过：**
 
 ```bash
-openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --json
+# 多 Agent 并行模式（推荐，速度快）
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --parallel --json
+
+# 单 Agent 串行模式（上下文连贯）
+openmatrix start --tasks-json @tasks-input.json --quality <质量等级> --mode auto --single-agent --json
 ```
 
 如果启用了 E2E 测试，加上 `--e2e-tests`：
 ```bash
-openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --e2e-tests --json
+openmatrix start --tasks-json @tasks-input.json --quality strict --mode auto --parallel --e2e-tests --json
 ```
 
 此命令会:
 - 读取 plan.md 作为任务上下文
 - 调用 TaskPlanner 将 goals 拆分为子任务
 - 创建任务文件到 `.openmatrix/tasks/` 目录
+- 根据 Agent 模式设置并发数（parallel=3, single-agent=1）
 - 返回 JSON 包含 `subagentTasks` 列表
 
 ### Step 4: 读取 subagentTasks
