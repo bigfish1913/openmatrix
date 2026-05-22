@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import chalk from 'chalk';
 import type { TaskStatus } from '../../types/index.js';
+import * as path from 'path';
 
 export const retryCommand = new Command('retry')
   .description('重试失败的任务')
@@ -12,8 +13,9 @@ export const retryCommand = new Command('retry')
   .option('--json', '输出 JSON 格式')
   .action(async (taskId: string | undefined, options) => {
     const basePath = process.cwd();
+    const omPath = path.join(basePath, '.openmatrix');
 
-    const stateManager = new StateManager(basePath);
+    const stateManager = new StateManager(omPath);
     await stateManager.initialize();
 
     const state = await stateManager.getState();

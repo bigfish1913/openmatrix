@@ -15,7 +15,7 @@ import * as path from 'path';
 export const autoCommand = new Command('auto')
   .description('全自动执行任务 - 无阻塞，bypass permissions')
   .argument('[input]', '任务文件路径或描述')
-  .option('-q, --quality <level>', '质量级别 (strict|balanced|fast)', 'strict')
+  .option('-q, --quality <level>', '质量级别 (strict|balanced|fast)', 'balanced')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (input: string | undefined, options) => {
     const basePath = process.cwd();
