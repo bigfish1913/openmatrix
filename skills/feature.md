@@ -252,6 +252,14 @@ TodoWrite({
 })
 ```
 
+**同时更新 feature-session.json（AI 将 tasks 写入文件）：**
+
+```bash
+# 使用 AI 写入 JSON（而非 bash heredoc，因为 tasks 是 JS 数组）
+# AI 执行：Write 文件 .openmatrix/feature-session.json
+# 内容：{ sessionId, status, tasks: [...从 Step 4 获取的数组], currentTaskIndex: 0, quality: null, failureCount: {} }
+```
+
 状态同时在会话和 `.openmatrix/feature-session.json` 中管理。
 
 ## Step 6: 问答确认
@@ -303,6 +311,15 @@ AskUserQuestion: `header: "确认计划"`, `multiSelect: false`
 |-------|-------------|
 | `开始执行 (推荐)` | 按计划逐个执行 |
 | `调整计划` | 重新拆分任务 |
+
+**6.4 更新 quality 到 feature-session.json**
+
+问答完成后，更新会话状态：
+
+```bash
+# AI 使用 Write 工具更新 .openmatrix/feature-session.json
+# 内容：{ ...原有内容, quality: "${用户选择的质量等级}", e2eTests: ${e2eChoice} }
+```
 
 ## Step 7: 逐个执行小任务
 
@@ -516,7 +533,12 @@ Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix"
 
 提交成功后：
 1. **更新 TodoWrite 状态为 completed**
-2. **继续下一个任务**
+2. **更新 feature-session.json 的 currentTaskIndex**
+   ```bash
+   # AI 使用 Write 工具更新 .openmatrix/feature-session.json
+   # 内容：{ ...原有内容, currentTaskIndex: ${newIndex} }
+   ```
+3. **继续下一个任务**
 
 ## Step 10: 全部任务完成后
 
@@ -555,8 +577,12 @@ ${decisions}
 
 **清理操作：**
 - TodoWrite 所有任务保持 completed 状态
+- 更新 feature-session.json status 为 `completed`
+  ```bash
+  # AI 使用 Write 工具更新 .openmatrix/feature-session.json
+  # 内容：{ ...原有内容, status: "completed" }
+  ```
 - 持久化文件可选择保留或手动清理
-- 任务完成后状态标记为 `completed`
 
 </process>
 
