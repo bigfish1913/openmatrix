@@ -429,14 +429,16 @@ ${quality === 'strict' ? `
 })
 ```
 
-**7.3 等待 Agent 完成，写入进度文件**
+**7.4 等待 Agent 完成，写入进度文件**
 
 Agent 完成后，将输出中的关键决策和建议写入 `.openmatrix/feature-progress.md` 文件：
+
+**注意：以下命令中的变量需要在执行前由 AI 替换为实际值。**
 
 ```bash
 # Agent 完成后，追加写入进度文件
 echo "" >> .openmatrix/feature-progress.md
-echo "## 任务 N: ${task.content}" >> .openmatrix/feature-progress.md
+echo "## 任务 N: ${taskContent}" >> .openmatrix/feature-progress.md
 echo "${agentOutput}" >> .openmatrix/feature-progress.md
 echo "" >> .openmatrix/feature-progress.md
 ```
@@ -496,21 +498,20 @@ fi
 
 **只提交本次任务修改的文件（而非 `git add -A`）：**
 
+**注意：以下命令中的变量需要在执行前由 AI 替换为实际值。**
+
 ```bash
 # 获取本次任务修改的文件列表（从 Agent 输出中提取）
 git status --porcelain
 
-# 只提交任务涉及的文件
+# 只提交任务涉及的文件（AI 从 Agent 输出中提取文件列表）
 git add ${modifiedFiles}
-git commit -m "$(cat <<'EOF'
-feat(feature): ${originalTask} - ${currentChunk}
+git commit -m "feat(feature): ${originalTask} - ${currentChunk}
 
 改动详情：
 - ${changesSummary}
 
-Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix
-EOF
-)"
+Co-Authored-By: OpenMatrix https://github.com/bigfish1913/openmatrix"
 ```
 
 提交成功后：
