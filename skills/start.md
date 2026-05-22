@@ -456,7 +456,7 @@ openmatrix start --tasks-json @tasks-input.json --mode auto --parallel --json
 openmatrix start --tasks-json @tasks-input.json --mode auto --single-agent --json
 ```
 
-**注意**: `@tasks-input.json` 表示 CLI 自动从当前 runId 目录读取。CLI 会自动检测 `current.json` 定位 runId。
+**注意**: `@tasks-input.json` 表示 CLI 自动从当前 runId 目录读取文件。CLI 会检测 `.openmatrix/current.json` 获取 runId，然后读取 `.openmatrix/{runId}/tasks-input.json`。
 
 此命令返回 JSON 包含 `subagentTasks` 列表。
 

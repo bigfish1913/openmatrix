@@ -9,10 +9,13 @@ export const meetingCommand = new Command('meeting')
   .description('查看和处理待确认的 Meeting')
   .argument('[meetingId]', 'Meeting ID (可选)')
   .option('-l, --list', '列出所有待处理 Meeting')
+  .option('--create', '创建新 Meeting')
+  .option('--task <taskId>', '关联任务 ID (用于 --create)')
+  .option('--reason <reason>', '阻塞原因 (用于 --create) 或决策理由 (用于 decide)')
+  .option('--severity <severity>', '严重程度: critical/high/medium/low (用于 --create)')
   .option('--action <action>', '操作类型: provide-info, skip, retry, modify, decide, cancel')
   .option('--info <info>', '提供的信息 (用于 provide-info)')
   .option('--message <message>', '备注信息')
-  .option('--reason <reason>', '决策理由 (用于 decide)')
   .option('--new-plan <plan>', '新方案 (用于 modify)')
   .option('--skip-all', '跳过所有 Meeting')
   .action(async (meetingId: string | undefined, options) => {
@@ -26,6 +29,47 @@ export const meetingCommand = new Command('meeting')
     const meetingManager = new MeetingManager(stateManager, approvalManager);
 
     try {
+      // --create: 创建新 Meeting
+      if (options.create) {
+        if (!options.task) {
+          console.log('❌ 请提供 --task 参数指定关联任务');
+          return;
+        }
+
+        const task = await stateManager.getTask(options.task);
+        if (!task) {
+          console.log(`❌ 任务 ${options.task} 不存在`);
+          return;
+        }
+
+        const severity = options.severity || 'medium';
+        const reason = options.reason || '未指定原因';
+
+        // 创建阻塞 Meeting（使用 MeetingManager）
+        const result = await meetingManager.createBlockingMeeting(
+          options.task,
+          reason,
+          [severity]
+        );
+
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'created',
+            meetingId: result.meeting.id,
+            approvalId: result.approval.id,
+            taskId: options.task,
+            severity,
+            reason
+          }));
+        } else {
+          console.log(`✅ Meeting 已创建: ${result.meeting.id}`);
+          console.log(`   关联任务: ${options.task}`);
+          console.log(`   严重程度: ${severity}`);
+          console.log(`   阻塞原因: ${reason}`);
+        }
+        return;
+      }
+
       // 获取所有 pending 的 meeting approvals
       const pendingApprovals = await stateManager.getApprovalsByStatus('pending');
       const meetingApprovals = pendingApprovals.filter(a => a.type === 'meeting');
