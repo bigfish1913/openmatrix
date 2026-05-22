@@ -177,7 +177,7 @@ openmatrix test --json
 或指定目标：
 
 ```bash
-openmatrix test --target src/auth/ --json
+openmatrix test src/auth/ --json
 ```
 
 **CLI 返回 TestScanResult JSON：**

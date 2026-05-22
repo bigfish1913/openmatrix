@@ -120,12 +120,16 @@ description: "Use when generating a task execution report with statistics, task 
 <arguments>
 $ARGUMENTS
 
---format json|markdown  输出格式
---output path           输出路径
+-f, --format <format>   输出格式 (markdown/json/console)，默认 console
+-o, --output <path>     输出文件路径
+--efficiency            包含效率分析
+--graph                 包含依赖图
 </arguments>
 
 <examples>
-/om:report                    # 生成并显示报告
-/om:report --output report.md # 保存到文件
-/om:report --format json      # JSON 格式
+/om:report                         # 生成并显示报告 (默认 console 格式)
+/om:report -f markdown             # Markdown 格式输出
+/om:report -f json                 # JSON 格式输出
+/om:report -o report.md            # 保存到文件
+/om:report -f markdown -o report.md --efficiency  # 完整报告保存到文件
 </examples>
