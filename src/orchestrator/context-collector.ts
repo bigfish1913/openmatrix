@@ -1,6 +1,7 @@
 // src/orchestrator/context-collector.ts
 import * as fs from 'fs';
 import * as path from 'path';
+import { logError } from '../utils/error-handler.js';
 
 export interface DebugContext {
   state?: Record<string, unknown>;
@@ -32,7 +33,9 @@ export class ContextCollector {
     if (fs.existsSync(statePath)) {
       try {
         context.state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
-      } catch { /* ignore */ }
+      } catch (error: unknown) {
+        logError(error, { operation: 'readState', file: statePath });
+      }
     }
 
     // 读取任务文件
@@ -40,7 +43,9 @@ export class ContextCollector {
     if (fs.existsSync(taskPath)) {
       try {
         context.task = JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
-      } catch { /* ignore */ }
+      } catch (error: unknown) {
+        logError(error, { operation: 'readTask', file: taskPath });
+      }
     }
 
     // 读取日志
@@ -53,7 +58,9 @@ export class ContextCollector {
           .map(f => fs.readFileSync(path.join(logPath, f), 'utf-8'))
           .join('\n---\n');
         if (logs) context.logs = logs;
-      } catch { /* ignore */ }
+      } catch (error: unknown) {
+        logError(error, { operation: 'readLogs', file: logPath });
+      }
     }
 
     return context;
@@ -130,7 +137,9 @@ export class ContextCollector {
     if (fs.existsSync(statePath)) {
       try {
         context.systemState = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
-      } catch { /* ignore */ }
+      } catch (error: unknown) {
+        logError(error, { operation: 'readSystemState', file: statePath });
+      }
     }
 
     return context;
@@ -152,7 +161,10 @@ export class ContextCollector {
           results.push(fullPath.replace(process.cwd() + path.sep, ''));
         }
       }
-    } catch { /* ignore */ }
+    } catch (error: unknown) {
+      // 目录扫描失败可能是权限问题，记录但不中断
+      logError(error, { operation: 'scanFiles', file: dir });
+    }
 
     return results;
   }

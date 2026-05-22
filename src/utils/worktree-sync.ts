@@ -321,16 +321,39 @@ export class WorktreeSyncManager {
     try {
       const gitRoot = await this.getGitRoot();
 
+      // 0. 检查是否有未提交的改动（防止丢失工作）
+      try {
+        const { stdout: statusOutput } = await execAsync(
+          `git status --porcelain`,
+          { cwd: worktreePath }
+        );
+        if (statusOutput.trim().length > 0) {
+          // 有未提交改动，记录警告但不强制移除
+          console.warn(`⚠️ Worktree ${worktreePath} 有未提交改动，跳过清理`);
+          console.warn(`   未提交文件: ${statusOutput.trim().split('\n').length} 个`);
+          return false;
+        }
+      } catch {
+        // status 检查失败，继续尝试清理（可能 worktree 已损坏）
+      }
+
       // 1. 移除 worktree
-      await execAsync(`git worktree remove "${worktreePath}" --force`, { cwd: gitRoot });
+      await execAsync(`git worktree remove "${worktreePath}"`, { cwd: gitRoot });
 
       // 2. 清理可能的残留分支（如果是临时分支）
       // 注意：不自动删除分支，因为可能还需要
 
       return true;
     } catch (error) {
-      logError(error, { operation: 'cleanupWorktree', file: worktreePath });
-      return false;
+      // 如果普通移除失败，尝试强制移除（但已确认无未提交改动）
+      try {
+        const gitRoot = await this.getGitRoot();
+        await execAsync(`git worktree remove "${worktreePath}" --force`, { cwd: gitRoot });
+        return true;
+      } catch (forceError) {
+        logError(forceError, { operation: 'cleanupWorktreeForce', file: worktreePath });
+        return false;
+      }
     }
   }
 

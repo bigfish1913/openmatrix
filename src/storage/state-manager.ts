@@ -365,11 +365,13 @@ export class StateManager {
    * 保存 Phase 结果到任务子目录
    */
   async savePhaseResult(taskId: string, phase: string, result: Record<string, unknown>): Promise<void> {
-    await this.store.writeJson(`tasks/${taskId}/${phase}.json`, {
-      taskId,
-      phase,
-      timestamp: new Date().toISOString(),
-      ...result
+    await this.withFileLock(async () => {
+      await this.store.writeJson(`tasks/${taskId}/${phase}.json`, {
+        taskId,
+        phase,
+        timestamp: new Date().toISOString(),
+        ...result
+      });
     });
   }
 
@@ -384,7 +386,9 @@ export class StateManager {
    * 保存 Agent 上下文到 context.md
    */
   async saveTaskContext(taskId: string, content: string): Promise<void> {
-    await this.store.writeMarkdown(`tasks/${taskId}/context.md`, content);
+    await this.withFileLock(async () => {
+      await this.store.writeMarkdown(`tasks/${taskId}/context.md`, content);
+    });
   }
 
   /**
@@ -453,7 +457,9 @@ export class StateManager {
   // ============ Approval Methods ============
 
   async saveApproval(approval: Approval): Promise<void> {
-    await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    await this.withFileLock(async () => {
+      await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    });
   }
 
   async getApproval(approvalId: string): Promise<Approval | null> {
@@ -461,7 +467,9 @@ export class StateManager {
   }
 
   async updateApproval(approval: Approval): Promise<void> {
-    await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    await this.withFileLock(async () => {
+      await this.store.writeJson(`approvals/${approval.id}.json`, approval);
+    });
   }
 
   async getApprovalsByStatus(status: ApprovalStatus): Promise<Approval[]> {
@@ -576,8 +584,10 @@ export class StateManager {
    * 路径: .openmatrix/{runId}/research/session.json
    */
   async saveResearchSession(session: Record<string, unknown>): Promise<void> {
-    await this.store.ensureDir('research');
-    await this.store.writeJson('research/session.json', session);
+    await this.withFileLock(async () => {
+      await this.store.ensureDir('research');
+      await this.store.writeJson('research/session.json', session);
+    });
   }
 
   /**
@@ -591,8 +601,10 @@ export class StateManager {
    * 保存研究报告
    */
   async saveResearchReport(content: string): Promise<void> {
-    await this.store.ensureDir('research');
-    await this.store.writeMarkdown('research/RESEARCH.md', content);
+    await this.withFileLock(async () => {
+      await this.store.ensureDir('research');
+      await this.store.writeMarkdown('research/RESEARCH.md', content);
+    });
   }
 
   /**
@@ -614,8 +626,10 @@ export class StateManager {
     reportPath?: string;
     knowledgePath?: string;
   }): Promise<void> {
-    await this.store.ensureDir('research');
-    await this.store.writeJson('research/context.json', context);
+    await this.withFileLock(async () => {
+      await this.store.ensureDir('research');
+      await this.store.writeJson('research/context.json', context);
+    });
   }
 
   /**
@@ -652,8 +666,10 @@ export class StateManager {
    * 保存知识条目
    */
   async saveKnowledgeFinding(index: number, content: string): Promise<void> {
-    await this.store.ensureDir('research/knowledge');
-    await this.store.writeMarkdown(`research/knowledge/finding-${index}.md`, content);
+    await this.withFileLock(async () => {
+      await this.store.ensureDir('research/knowledge');
+      await this.store.writeMarkdown(`research/knowledge/finding-${index}.md`, content);
+    });
   }
 
   // ============ Brainstorm Methods ============
@@ -662,8 +678,10 @@ export class StateManager {
    * 保存头脑风暴会话
    */
   async saveBrainstormSession(session: Record<string, unknown>): Promise<void> {
-    await this.store.ensureDir('brainstorm');
-    await this.store.writeJson('brainstorm/session.json', session);
+    await this.withFileLock(async () => {
+      await this.store.ensureDir('brainstorm');
+      await this.store.writeJson('brainstorm/session.json', session);
+    });
   }
 
   /**
@@ -736,7 +754,9 @@ export class StateManager {
   // ============ Meeting Methods ============
 
   async saveMeeting(meeting: Meeting): Promise<void> {
-    await this.store.writeJson(`meetings/${meeting.id}.json`, meeting);
+    await this.withFileLock(async () => {
+      await this.store.writeJson(`meetings/${meeting.id}.json`, meeting);
+    });
   }
 
   async getMeeting(meetingId: string): Promise<Meeting | null> {

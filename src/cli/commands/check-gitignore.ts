@@ -5,6 +5,23 @@ import * as path from 'path';
 import chalk from 'chalk';
 
 /**
+ * 安全检查文件是否存在（只捕获 ENOENT，其他错误抛出）
+ */
+async function safeFileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') {
+      return false;
+    }
+    // 其他错误（权限、磁盘等）应该抛出
+    throw error;
+  }
+}
+
+/**
  * 项目类型对应的 gitignore 条目
  */
 const GITIGNORE_TEMPLATES: Record<string, string[]> = {
@@ -111,36 +128,30 @@ async function detectProjectType(projectRoot: string): Promise<string[]> {
   }
 
   // 检查 Python
-  try {
-    await fs.access(path.join(projectRoot, 'pyproject.toml'));
+  if (await safeFileExists(path.join(projectRoot, 'pyproject.toml'))) {
     types.push('python');
-  } catch {}
-  try {
-    await fs.access(path.join(projectRoot, 'requirements.txt'));
-    if (!types.includes('python')) types.push('python');
-  } catch {}
+  }
+  if (await safeFileExists(path.join(projectRoot, 'requirements.txt')) && !types.includes('python')) {
+    types.push('python');
+  }
 
   // 检查 Java
-  try {
-    await fs.access(path.join(projectRoot, 'pom.xml'));
+  if (await safeFileExists(path.join(projectRoot, 'pom.xml'))) {
     types.push('java');
-  } catch {}
-  try {
-    await fs.access(path.join(projectRoot, 'build.gradle'));
-    if (!types.includes('java')) types.push('java');
-  } catch {}
+  }
+  if (await safeFileExists(path.join(projectRoot, 'build.gradle')) && !types.includes('java')) {
+    types.push('java');
+  }
 
   // 检查 Go
-  try {
-    await fs.access(path.join(projectRoot, 'go.mod'));
+  if (await safeFileExists(path.join(projectRoot, 'go.mod'))) {
     types.push('go');
-  } catch {}
+  }
 
   // 检查 Rust
-  try {
-    await fs.access(path.join(projectRoot, 'Cargo.toml'));
+  if (await safeFileExists(path.join(projectRoot, 'Cargo.toml'))) {
     types.push('rust');
-  } catch {}
+  }
 
   // 检查 .NET
   try {
@@ -148,19 +159,22 @@ async function detectProjectType(projectRoot: string): Promise<string[]> {
     if (files.some(f => f.endsWith('.sln') || f.endsWith('.csproj'))) {
       types.push('dotnet');
     }
-  } catch {}
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== 'ENOENT') {
+      throw error; // 非 ENOENT 错误应该抛出
+    }
+  }
 
   // 检查 PHP
-  try {
-    await fs.access(path.join(projectRoot, 'composer.json'));
+  if (await safeFileExists(path.join(projectRoot, 'composer.json'))) {
     types.push('php');
-  } catch {}
+  }
 
   // 检查 Dart
-  try {
-    await fs.access(path.join(projectRoot, 'pubspec.yaml'));
+  if (await safeFileExists(path.join(projectRoot, 'pubspec.yaml'))) {
     types.push('dart');
-  } catch {}
+  }
 
   // 始终添加通用条目
   types.push('common');
