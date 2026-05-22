@@ -358,14 +358,21 @@ openmatrix start --init-only
 
 3. **写入 feature-session.json 并直接调用 feature：**
 
-写入 `.openmatrix/feature-session.json`：
+写入 `.openmatrix/feature-session.json`（与 `/om:feature` Step 0 结构一致）：
 ```json
 {
-  "taskDescription": "任务描述",
-  "designNotes": "关键设计要点（可选）",
-  "startedAt": "ISO时间戳"
+  "sessionId": "FEATURE-YYYYMMDDHHMMSS",
+  "status": "running",
+  "tasks": [],
+  "currentTaskIndex": 0,
+  "quality": null,
+  "failureCount": {},
+  "taskDescription": "任务描述（从头脑风暴提取）",
+  "designNotes": "关键设计要点（从 Step 5 提取）"
 }
 ```
+
+> **注意**: sessionId 使用当前时间戳生成，如 `FEATURE-20260522133000`。
 
 4. **调用 Skill：**
 ```
