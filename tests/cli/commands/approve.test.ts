@@ -96,7 +96,7 @@ const mockProcessedApproval: Approval = {
  */
 async function approveAction(approvalId?: string, options: { json?: boolean; decision?: string; comment?: string } = {}) {
   const basePath = process.cwd();
-  const omPath = `${basePath}/.openmatrix`;
+  const omPath = path.join(basePath, '.openmatrix');
 
   const stateManager = new StateManager(omPath);
   await stateManager.initialize();
