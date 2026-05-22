@@ -79,6 +79,8 @@ cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
 
 从返回结果提取 `runId`，后续所有文件写入 `.openmatrix/{runId}/` 目录。
 
+**注意**: bash 命令中的 `${runId}` 需要在执行前由 AI 替换为实际值。
+
 **如果没有 runId 或目录不存在：**
 ```bash
 openmatrix start --init-only --json
