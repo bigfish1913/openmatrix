@@ -4,6 +4,7 @@ import { ProgressReporter } from '../../utils/progress-reporter.js';
 import chalk from 'chalk';
 import * as chokidar from 'chokidar';
 import * as readline from 'readline';
+import * as path from 'path';
 
 export const statusCommand = new Command('status')
   .description('显示当前执行状态')
@@ -12,7 +13,9 @@ export const statusCommand = new Command('status')
   .option('--detailed', '显示详细任务信息')
   .option('--watch', '实时监控状态变化')
   .action(async (options) => {
-    const manager = new StateManager('.openmatrix');
+    const basePath = process.cwd();
+    const omPath = path.join(basePath, '.openmatrix');
+    const manager = new StateManager(omPath);
     const reporter = new ProgressReporter({ width: 30 });
 
     if (options.watch) {

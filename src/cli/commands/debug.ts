@@ -13,7 +13,7 @@ export const debugCommand = new Command('debug')
   .option('--list', '列出最近的调试会话')
   .action(async (description: string | undefined, options) => {
     const basePath = process.cwd();
-    const omPath = `${basePath}/.openmatrix`;
+    const omPath = path.join(basePath, '.openmatrix');
 
     // 初始化 .openmatrix 目录（如果不存在）
     if (!fs.existsSync(omPath)) {

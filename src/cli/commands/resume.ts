@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { Scheduler } from '../../orchestrator/scheduler.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import * as path from 'path';
 
 export const resumeCommand = new Command('resume')
   .description('恢复中断或暂停的任务')
@@ -11,7 +12,7 @@ export const resumeCommand = new Command('resume')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (taskId: string | undefined, options) => {
     const basePath = process.cwd();
-    const omPath = `${basePath}/.openmatrix`;
+    const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);
     await stateManager.initialize();

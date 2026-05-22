@@ -14,7 +14,7 @@ export const reportCommand = new Command('report')
   .option('--graph', '包含依赖图')
   .action(async (options) => {
     const basePath = process.cwd();
-    const omPath = `${basePath}/.openmatrix`;
+    const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);
     await stateManager.initialize();

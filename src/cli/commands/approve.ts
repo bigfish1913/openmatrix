@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
 import { logger } from '../../utils/logger.js';
+import * as path from 'path';
 
 export const approveCommand = new Command('approve')
   .description('审批待处理项')
@@ -12,7 +13,7 @@ export const approveCommand = new Command('approve')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (approvalId: string | undefined, options) => {
     const basePath = process.cwd();
-    const omPath = `${basePath}/.openmatrix`;
+    const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);
     await stateManager.initialize();
