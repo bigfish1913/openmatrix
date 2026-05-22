@@ -185,7 +185,7 @@ export const autoCommand = new Command('auto')
     // 设置自动模式和 RunId
     const phaseExecutor = executor.getPhaseExecutor();
     if (phaseExecutor) {
-      phaseExecutor.setRunId(state.runId);
+      executor.setRunId(state.runId);
       phaseExecutor.setAutoMode(true);
     }
 

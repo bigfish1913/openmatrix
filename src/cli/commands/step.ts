@@ -86,7 +86,10 @@ export const stepCommand = new Command('step')
         description: subagentTask.description,
         prompt: subagentTask.prompt,
         isolation: subagentTask.isolation,
-        timeout: subagentTask.timeout
+        taskId: subagentTask.taskId,
+        agentType: subagentTask.agentType,
+        timeout: subagentTask.timeout,
+        needsApproval: subagentTask.needsApproval
       },
       statistics: {
         total: stats.totalTasks,

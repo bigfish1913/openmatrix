@@ -90,7 +90,11 @@ export class FileStore {
       return files
         .filter((f) => f.isFile())
         .map((f) => f.name);
-    } catch (error) {
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code === 'ENOENT' || nodeError.code === 'EISDIR') {
+        return [];
+      }
       logError(error, { operation: 'listFiles', file: fullPath });
       return [];
     }
@@ -103,7 +107,11 @@ export class FileStore {
       return files
         .filter((f) => f.isDirectory())
         .map((f) => f.name);
-    } catch (error) {
+    } catch (error: unknown) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code === 'ENOENT' || nodeError.code === 'EISDIR') {
+        return [];
+      }
       logError(error, { operation: 'listDirs', file: fullPath });
       return [];
     }

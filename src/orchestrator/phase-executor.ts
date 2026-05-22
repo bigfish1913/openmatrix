@@ -120,6 +120,20 @@ export class PhaseExecutor {
   }
 
   /**
+   * 获取当前 runId — 优先使用手动设置的值，否则从 stateManager 读取
+   */
+  private async getRunId(): Promise<string> {
+    if (this.runId) return this.runId;
+    try {
+      const state = await this.stateManager.getState();
+      this.runId = state.runId;
+    } catch {
+      // fallback
+    }
+    return this.runId;
+  }
+
+  /**
    * 设置质量配置
    */
   setQualityConfig(config: Partial<QualityConfig>): void {
@@ -211,6 +225,9 @@ export class PhaseExecutor {
    * 准备阶段执行的 Subagent 任务
    */
   async preparePhaseExecution(task: Task): Promise<SubagentTask | null> {
+    // 确保 runId 已初始化（避免生成 .openmatrix//tasks/ 错误路径）
+    await this.getRunId();
+
     const currentPhase = this.getCurrentPhase(task);
 
     switch (currentPhase) {

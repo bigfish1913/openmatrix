@@ -92,6 +92,14 @@ export class OrchestratorExecutor {
     return this.phaseExecutor;
   }
 
+  /**
+   * 设置运行 ID（同时更新 PhaseExecutor 和 AIReviewer）
+   */
+  setRunId(runId: string): void {
+    this.phaseExecutor.setRunId(runId);
+    this.aiReviewer.setRunId(runId);
+  }
+
   private async loadConfigFromState(stateManager: StateManager): Promise<void> {
     try {
       const state = await stateManager.getState();
