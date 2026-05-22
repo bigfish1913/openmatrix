@@ -6,11 +6,11 @@ import * as chokidar from 'chokidar';
 import * as readline from 'readline';
 
 export const statusCommand = new Command('status')
-  .description('Show current execution status')
-  .option('--json', 'Output as JSON')
-  .option('--graph', 'Show dependency graph')
-  .option('--detailed', 'Show detailed task info')
-  .option('--watch', 'Watch for status changes in real-time')
+  .description('显示当前执行状态')
+  .option('--json', '输出 JSON 格式')
+  .option('--graph', '显示依赖关系图')
+  .option('--detailed', '显示详细任务信息')
+  .option('--watch', '实时监控状态变化')
   .action(async (options) => {
     const manager = new StateManager('.openmatrix');
     const reporter = new ProgressReporter({ width: 30 });
@@ -61,12 +61,12 @@ async function showStatus(
     }
 
     // Header
-    console.log(chalk.bold('\n📊 OpenMatrix Status'));
+    console.log(chalk.bold('\n📊 OpenMatrix 状态'));
     console.log('━'.repeat(42));
     console.log(`\n  Run ID: ${chalk.cyan(state.runId)}`);
-    console.log(`  Status: ${formatStatus(state.status)}`);
-    console.log(`  Phase:  ${chalk.yellow(state.currentPhase)}`);
-    console.log(`  Started: ${state.startedAt}\n`);
+    console.log(`  状态: ${formatStatus(state.status)}`);
+    console.log(`  阶段:  ${chalk.yellow(state.currentPhase)}`);
+    console.log(`  开始时间: ${state.startedAt}\n`);
 
     // Progress visualization
     if (state.statistics.totalTasks > 0) {
@@ -81,7 +81,7 @@ async function showStatus(
 
     // Dependency graph
     if (options.graph && tasks.length > 0) {
-      console.log('\n📊 Task Dependency Graph');
+      console.log('\n📊 任务依赖关系图');
       console.log('━'.repeat(42));
       console.log(reporter.renderDependencyGraph(tasks));
       console.log();
@@ -89,7 +89,7 @@ async function showStatus(
 
     // Detailed task list
     if (options.detailed && tasks.length > 0) {
-      console.log('\n📋 Task Details');
+      console.log('\n📋 任务详情');
       console.log('━'.repeat(42));
       for (const task of tasks) {
         console.log(reporter.renderTaskCard(task));
@@ -97,7 +97,7 @@ async function showStatus(
       }
     } else if (tasks.length > 0) {
       // Simple task list
-      console.log(chalk.bold('\n📋 Tasks'));
+      console.log(chalk.bold('\n📋 任务列表'));
       for (const task of tasks) {
         const icon = reporter.getStatusIcon(task.status);
         console.log(`  ${icon} ${task.id}: ${task.title}`);
@@ -106,14 +106,14 @@ async function showStatus(
     }
 
     // Quick tips
-    console.log(chalk.gray('💡 Tips:'));
-    console.log(chalk.gray('   --watch    Real-time status updates'));
-    console.log(chalk.gray('   --graph    Show dependency graph'));
-    console.log(chalk.gray('   --detailed Show detailed task info'));
-    console.log(chalk.gray('   --json     Output as JSON'));
+    console.log(chalk.gray('💡 提示:'));
+    console.log(chalk.gray('   --watch    实时状态更新'));
+    console.log(chalk.gray('   --graph    显示依赖关系图'));
+    console.log(chalk.gray('   --detailed 显示详细任务信息'));
+    console.log(chalk.gray('   --json     输出 JSON 格式'));
     console.log();
   } catch (error) {
-    console.error(chalk.red('Error:'), error);
+    console.error(chalk.red('错误:'), error);
   }
 }
 
@@ -135,9 +135,9 @@ async function runWatchMode(
   // 渲染状态
   const renderStatus = async () => {
     clearScreen();
-    console.log(chalk.bold.cyan('📊 OpenMatrix Watch Mode'));
+    console.log(chalk.bold.cyan('📊 OpenMatrix 实时监控'));
     console.log(chalk.gray('━'.repeat(42)));
-    console.log(chalk.gray('Press Ctrl+C to exit\n'));
+    console.log(chalk.gray('按 Ctrl+C 退出\n'));
 
     try {
       const state = await manager.getState();
@@ -145,22 +145,22 @@ async function runWatchMode(
 
       // 状态概览
       console.log(`Run ID: ${chalk.cyan(state.runId)}`);
-      console.log(`Status: ${formatStatus(state.status)}`);
-      console.log(`Phase:  ${chalk.yellow(state.currentPhase)}`);
-      console.log(`Updated: ${chalk.gray(new Date().toLocaleTimeString())}\n`);
+      console.log(`状态: ${formatStatus(state.status)}`);
+      console.log(`阶段:  ${chalk.yellow(state.currentPhase)}`);
+      console.log(`更新时间: ${chalk.gray(new Date().toLocaleTimeString())}\n`);
 
       // 进度条
       if (state.statistics.totalTasks > 0) {
         console.log(reporter.renderProgressBar(
           state.statistics.completed,
           state.statistics.totalTasks,
-          'Overall Progress'
+          '总体进度'
         ));
       }
 
       // 任务列表 (带动画图标)
       if (tasks.length > 0) {
-        console.log(chalk.bold('\n📋 Tasks:'));
+        console.log(chalk.bold('\n📋 任务列表:'));
         for (const task of tasks) {
           const icon = reporter.getStatusIcon(task.status);
           const statusColor = getStatusColor(task.status);
@@ -170,9 +170,9 @@ async function runWatchMode(
 
       // 底部提示
       console.log(chalk.gray('\n━'.repeat(42)));
-      console.log(chalk.gray('Watching for changes...'));
+      console.log(chalk.gray('正在监听状态变化...'));
     } catch (error) {
-      console.error(chalk.red('Error:'), error);
+      console.error(chalk.red('错误:'), error);
     }
   };
 
@@ -198,7 +198,7 @@ async function runWatchMode(
 
   rl.on('close', () => {
     watcher.close();
-    console.log(chalk.gray('\n👋 Watch mode ended'));
+    console.log(chalk.gray('\n👋 监控模式已结束'));
     process.exit(0);
   });
 

@@ -1,98 +1,128 @@
 // src/cli/commands/retry.ts
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
-import { RetryManager } from '../../orchestrator/retry-manager.js';
+import chalk from 'chalk';
+import type { TaskStatus } from '../../types/index.js';
 
 export const retryCommand = new Command('retry')
   .description('重试失败的任务')
-  .argument('[taskId]', '任务ID')
-  .option('--all', '重试所有失败任务')
-  .option('--reset', '重置重试计数')
-  .option('--json', '输出 JSON 格式 (供 Skill 解析)')
+  .argument('[taskId]', '任务ID (如 TASK-001)')
+  .option('--all', '重试所有失败任务', false)
+  .option('--reset', '重置重试计数', false)
+  .option('--json', '输出 JSON 格式')
   .action(async (taskId: string | undefined, options) => {
     const basePath = process.cwd();
-    const omPath = `${basePath}/.openmatrix`;
 
-    const stateManager = new StateManager(omPath);
+    const stateManager = new StateManager(basePath);
     await stateManager.initialize();
 
-    const retryManager = new RetryManager({
-      maxRetries: 3,
-      backoff: 'exponential',
-      baseDelay: 10000
-    });
+    const state = await stateManager.getState();
 
-    // 如果没有提供任务ID，列出失败任务
-    if (!taskId && !options.all) {
-      const tasks = await stateManager.listTasks();
-      const failed = tasks.filter(t => t.status === 'failed');
+    // 获取失败任务列表
+    const allTasks = await stateManager.listTasks();
+    const failedTasks = allTasks.filter(t => t.status === 'failed');
 
-      if (failed.length === 0) {
-        console.log('✅ 没有失败的任务');
-        return;
+    if (failedTasks.length === 0) {
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'no_failed_tasks', message: '没有失败任务' }));
+      } else {
+        console.log(chalk.green('✅ 没有失败任务需要重试'));
       }
-
-      console.log('❌ 失败任务列表:\n');
-      failed.forEach((task, i) => {
-        console.log(`  [${i + 1}] ${task.id}: ${task.title}`);
-        console.log(`      失败原因: ${task.error || '未知'}`);
-        console.log(`      重试次数: ${task.retryCount}/3`);
-        console.log(`      失败时间: ${task.updatedAt}`);
-      });
-
-      console.log('\n💡 使用 openmatrix retry <ID> 重试指定任务');
-      console.log('   使用 openmatrix retry --all 重试所有任务');
       return;
     }
 
-    // 重试任务
-    if (options.all) {
-      const tasks = await stateManager.listTasks();
-      const failed = tasks.filter(t => t.status === 'failed');
-
-      console.log(`🔄 重试 ${failed.length} 个失败任务...\n`);
-
-      for (const task of failed) {
-        await retryTask(stateManager, retryManager, task.id, options.reset);
-        console.log(`  ✅ ${task.id}: ${task.title}`);
-      }
-
-    } else if (taskId) {
-      const task = await stateManager.getTask(taskId);
+    // 如果指定了 taskId
+    if (taskId) {
+      const task = failedTasks.find(t => t.id === taskId);
       if (!task) {
-        console.log(`❌ 任务 ${taskId} 不存在`);
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'error', message: `任务 ${taskId} 不是失败状态` }));
+        } else {
+          console.log(chalk.red(`❌ 任务 ${taskId} 不是失败状态`));
+        }
         return;
       }
 
-      if (task.status !== 'failed') {
-        console.log(`❌ 任务 ${taskId} 状态不是失败`);
-        return;
-      }
+      await retryTask(stateManager, task, options.reset);
 
-      console.log(`🔄 重试任务 ${taskId}...\n`);
-      await retryTask(stateManager, retryManager, taskId, options.reset);
-      console.log(`  ✅ ${task.title}`);
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'success', taskId, reset: options.reset }));
+      } else {
+        console.log(chalk.green(`✅ 任务 ${taskId} 已加入重试队列`));
+      }
+      return;
     }
 
-    console.log('\n💡 使用 /om:resume 继续执行');
+    // 如果 --all
+    if (options.all) {
+      for (const task of failedTasks) {
+        await retryTask(stateManager, task, options.reset);
+      }
+
+      if (options.json) {
+        console.log(JSON.stringify({
+          status: 'success',
+          retriedCount: failedTasks.length,
+          tasks: failedTasks.map(t => t.id)
+        }));
+      } else {
+        console.log(chalk.green(`✅ 已重试 ${failedTasks.length} 个失败任务`));
+      }
+      return;
+    }
+
+    // 没有参数，显示失败任务列表
+    if (options.json) {
+      console.log(JSON.stringify({
+        status: 'failed_tasks',
+        tasks: failedTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          error: t.error,
+          retryCount: t.retryCount
+        }))
+      }));
+    } else {
+      console.log(chalk.bold.red('\n❌ 失败任务列表\n'));
+      for (let i = 0; i < failedTasks.length; i++) {
+        const task = failedTasks[i];
+        const retryInfo = `重试次数: ${task.retryCount}/${state.config.maxRetries || 3}`;
+        console.log(`[${i + 1}] ${chalk.yellow(task.id)}: ${task.title}`);
+        console.log(`    失败原因: ${task.error || '未知'}`);
+        console.log(`    ${retryInfo}`);
+        console.log();
+      }
+      console.log(chalk.gray('提示: 使用 retry <taskId> 重试指定任务'));
+      console.log(chalk.gray('提示: 使用 retry --all 重试所有失败任务'));
+      console.log(chalk.gray('提示: 使用 retry --reset 重试并重置计数'));
+    }
   });
 
+/**
+ * 重试单个任务
+ */
 async function retryTask(
   stateManager: StateManager,
-  retryManager: RetryManager,
-  taskId: string,
+  task: { id: string; retryCount: number },
   reset: boolean
 ): Promise<void> {
-  const task = await stateManager.getTask(taskId);
-  if (!task) return;
+  const updates: { status: TaskStatus; retryCount?: number } = {
+    status: 'pending' as TaskStatus
+  };
 
-  const newRetryCount = reset ? 0 : task.retryCount + 1;
+  if (reset) {
+    updates.retryCount = 0;
+  }
 
-  await stateManager.updateTask(taskId, {
-    status: 'pending',
-    retryCount: newRetryCount,
-    error: null
+  await stateManager.updateTask(task.id, updates);
+
+  // 更新全局统计
+  const state = await stateManager.getState();
+  await stateManager.updateState({
+    statistics: {
+      ...state.statistics,
+      failed: state.statistics.failed - 1,
+      pending: state.statistics.pending + 1
+    }
   });
-
-  retryManager.addToQueue(taskId, 'manual retry');
 }

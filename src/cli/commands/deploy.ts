@@ -62,7 +62,7 @@ export const deployCommand = new Command('deploy')
 
     } catch (error) {
       if (options.json) {
-        console.log(JSON.stringify({ error: String(error) }));
+        console.log(JSON.stringify({ status: 'error', message: String(error) }));
       } else {
         console.error(chalk.red('\n❌ 检测失败:'), error);
       }

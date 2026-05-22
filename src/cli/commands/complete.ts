@@ -25,7 +25,7 @@ export const completeCommand = new Command('complete')
     // 1. 读取任务
     const task = await stateManager.getTask(taskId);
     if (!task) {
-      console.log(JSON.stringify({ error: `任务 ${taskId} 不存在` }));
+      console.log(JSON.stringify({ status: 'error', message: `任务 ${taskId} 不存在` }));
       return;
     }
 
@@ -153,13 +153,13 @@ ${summary}
         });
 
         if (commitResult.success) {
-          console.error(`✅ Git 提交成功: ${commitResult.commitHash}`);
+          console.log(`✅ Git 提交成功: ${commitResult.commitHash}`);
         } else {
           const reason = commitResult.message || commitResult.error || 'Unknown reason';
-          console.error(`⚠️ Git 提交跳过: ${reason}`);
+          console.log(`⚠️ Git 提交跳过: ${reason}`);
         }
       } catch (error) {
-        console.error(`⚠️ Git 提交失败: ${error}`);
+        console.error(`❌ Git 提交失败: ${error}`);  // 真正的错误用 console.error
       }
     }
 

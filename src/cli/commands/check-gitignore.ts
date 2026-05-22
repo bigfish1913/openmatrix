@@ -296,7 +296,7 @@ export const checkGitignoreCommand = new Command('check-gitignore')
 
     } catch (error) {
       if (options.json) {
-        console.log(JSON.stringify({ error: String(error) }));
+        console.log(JSON.stringify({ status: 'error', message: String(error) }));
       } else {
         console.error(chalk.red('❌ 检查失败:'), error);
       }

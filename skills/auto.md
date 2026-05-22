@@ -142,6 +142,8 @@ openmatrix status --json | jq '.files'
 | 不存在，无参数 | 提示用户先执行 `/om:plan` |
 
 > **注意**: auto 不询问任何问题，直接执行。质量级别通过 `--quality` 参数指定（默认 strict）。
+>
+> **@ 语法说明**: `@tasks-input.json` 表示 CLI 自动从当前 runId 目录读取文件。CLI 会检测 `.openmatrix/current.json` 获取 runId，然后读取 `.openmatrix/{runId}/tasks-input.json`。
 
 ### Step 3: 调用 CLI 创建任务 ⚠️ 不可跳过
 

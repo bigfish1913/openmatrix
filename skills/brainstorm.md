@@ -51,7 +51,7 @@ description: "Use when the user wants to explore requirements, design alternativ
 
 <process>
 
-## 步骤 1: 探索项目上下文
+## Step 1: 探索项目上下文
 
 **在提问之前，先了解当前项目状态：**
 
@@ -72,7 +72,7 @@ ls docs/ 2>/dev/null
 - 了解技术栈、项目结构、最近变更
 - 如果用户引用了文件（如 `docs/task.md`），读取该文件
 
-## 步骤 2: 评估范围与领域检测
+## Step 2: 评估范围与领域检测
 
 **2.1 评估范围**
 
@@ -101,7 +101,7 @@ AskUserQuestion: `header: "领域调研"`, `multiSelect: false`
 
 用户选择「先调研」后，调用 `Skill: skill = "om:research", args = "任务描述"`。研究完成后，研究结论会作为头脑风暴的输入上下文。
 
-## 步骤 3: 逐一澄清需求
+## Step 3: 逐一澄清需求
 
 **核心原则：一次只问一个问题。每条消息只有一个问题。**
 
@@ -155,7 +155,7 @@ AskUserQuestion: `header: "MVP"`, `multiSelect: false`
 - **YAGNI** — 主动建议去掉不必要的功能
 - **深入追问** — 如果用户选"其他"，用开放式问题跟进
 
-## 步骤 4: 提出 2-3 种方案
+## Step 4: 提出 2-3 种方案
 
 理解需求后，**先在界面输出方案详情**（不放在 AskUserQuestion 里），再让用户选择。
 
@@ -192,7 +192,7 @@ AskUserQuestion: `header: "技术方案"`, `multiSelect: false`
 | 方案 B | 单体架构 |
 | 方案 C | 微服务架构 |
 
-## 步骤 5: 分步展示设计
+## Step 5: 分步展示设计
 
 **逐节展示设计方案，每节确认一次：**
 
@@ -229,7 +229,7 @@ AskUserQuestion: `header: "确认"`, `multiSelect: false`
 | 继续 | 设计合理，继续下一部分 |
 | 修改 | 我有调整建议 |
 
-## 步骤 6: 总结确认 + 自动路由判断
+## Step 6: 总结确认 + 自动路由判断
 
 所有设计部分确认后，**先在界面展示完整总结和路由判断**，再让用户确认：
 
@@ -280,7 +280,7 @@ AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 | 继续探索 | 还有问题需要进一步讨论 |
 | 仅生成文档 | 生成设计文档但不执行 |
 
-## 步骤 7: 输出设计文档
+## Step 7: 输出设计文档
 
 总结确认后，将设计写入文档，便于后续执行时参考：
 
@@ -340,7 +340,7 @@ AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 | 开始执行 (推荐) | 调用 /om:plan 生成技术方案后执行 |
 | 修改设计 | 需要调整设计方案 |
 
-## 步骤 8: 路由到 plan 或直接执行
+## Step 8: 路由到 plan 或直接执行
 
 用户选择"确认并执行"后，根据路由判断结果进入不同流程：
 
