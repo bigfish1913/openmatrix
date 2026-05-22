@@ -94,7 +94,7 @@ git status --porcelain
 
 ```bash
 mkdir -p .openmatrix
-cat > .openmatrix/feature-session.json << 'EOF'
+cat > .openmatrix/feature-session.json << EOF
 {
   "sessionId": "FEATURE-$(date +%Y%m%d%H%M%S)",
   "status": "running",
@@ -678,7 +678,7 @@ type: feat/fix/test/refactor/docs
 
 使用 `/om:resume` 继续执行（自动检测 `.openmatrix/feature-session.json` 或 `state.json`）
 
-## 挡久化文件说明
+## 持久化文件说明
 
 执行过程中产生以下文件：
 - `.openmatrix/feature-session.json` - 会话状态（任务列表、当前索引、质量等级）
