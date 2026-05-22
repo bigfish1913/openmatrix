@@ -2,6 +2,7 @@ import { FileStore } from './file-store.js';
 import type { GlobalState, Task, AppConfig, TaskStatus, Approval, ApprovalStatus, Meeting, MeetingStatus } from '../types/index.js';
 import { open, unlink, readFile } from 'fs/promises';
 import { join } from 'path';
+import { validateId } from '../utils/error-handler.js';
 
 const DEFAULT_CONFIG: AppConfig = {
   timeout: 120,
@@ -305,6 +306,10 @@ export class StateManager {
   }
 
   async getTask(taskId: string): Promise<Task | null> {
+    // 验证 taskId 格式防止路径遍历
+    if (!validateId(taskId, 'taskId')) {
+      return null;
+    }
     let task = await this.store.readJson<Task>(`tasks/${taskId}/task.json`);
     if (!task) {
       task = await this.store.readJson<Task>(`tasks/${taskId}.json`);
@@ -463,6 +468,10 @@ export class StateManager {
   }
 
   async getApproval(approvalId: string): Promise<Approval | null> {
+    // 验证 approvalId 格式防止路径遍历
+    if (!validateId(approvalId, 'approvalId')) {
+      return null;
+    }
     return await this.store.readJson<Approval>(`approvals/${approvalId}.json`);
   }
 
@@ -760,6 +769,10 @@ export class StateManager {
   }
 
   async getMeeting(meetingId: string): Promise<Meeting | null> {
+    // 验证 meetingId 格式防止路径遍历
+    if (!validateId(meetingId, 'meetingId')) {
+      return null;
+    }
     return await this.store.readJson<Meeting>(`meetings/${meetingId}.json`);
   }
 

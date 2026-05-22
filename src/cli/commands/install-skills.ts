@@ -105,6 +105,7 @@ export const installSkillsCommand = new Command('install-skills')
               installed++;
             }
           } catch (err: unknown) {
+            console.log(`  ❌ Failed: om.md (${err instanceof Error ? err.message : String(err)})`);
             failed++;
           }
         }
@@ -122,6 +123,7 @@ export const installSkillsCommand = new Command('install-skills')
               installed++;
             }
           } catch (err: unknown) {
+            console.log(`  ❌ Failed: om.md (${err instanceof Error ? err.message : String(err)})`);
             failed++;
           }
         }
@@ -141,6 +143,7 @@ export const installSkillsCommand = new Command('install-skills')
               installed++;
             }
           } catch (err: unknown) {
+            console.log(`  ❌ Failed: om.md (${err instanceof Error ? err.message : String(err)})`);
             failed++;
           }
         }

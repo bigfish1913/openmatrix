@@ -137,3 +137,33 @@ export function isFileSystemError(error: unknown): boolean {
   ];
   return fsPatterns.some(p => p.test(err.message));
 }
+
+/**
+ * ID 验证正则表达式
+ */
+export const ID_PATTERNS = {
+  taskId: /^TASK-\d{3,}$/,
+  approvalId: /^APPR-[A-Z0-9]+$/,
+  meetingId: /^meeting-[a-z0-9]+$/,
+  runId: /^run-\d{8}-[a-z0-9]{4}$/
+};
+
+/**
+ * 验证 ID 格式
+ * @returns true if valid, false otherwise
+ */
+export function validateId(id: string, type: keyof typeof ID_PATTERNS): boolean {
+  if (!id || typeof id !== 'string') return false;
+  // 防止路径遍历攻击：拒绝包含 .. 或 / 或 \ 的 ID
+  if (id.includes('..') || id.includes('/') || id.includes('\\')) return false;
+  return ID_PATTERNS[type].test(id);
+}
+
+/**
+ * 验证并返回 ID，如果无效则抛出错误
+ */
+export function validateIdOrThrow(id: string, type: keyof typeof ID_PATTERNS): void {
+  if (!validateId(id, type)) {
+    throw new Error(`Invalid ${type} format: ${id}`);
+  }
+}
