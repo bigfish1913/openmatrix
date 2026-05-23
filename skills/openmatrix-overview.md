@@ -1,8 +1,7 @@
 ---
-name: om
-description: "OpenMatrix - AI Agent 任务编排系统，自动化测试生成，覆盖率 >80%。提供 /om 命令族：/om:start、/om:feature、/om:brainstorm、/om:auto、/om:debug 等。"
-priority: critical
-always_load: true
+name: om:help
+description: "OpenMatrix 帮助 - 列出所有可用命令和质量门禁设置"
+priority: low
 ---
 
 # OpenMatrix Skills Package
