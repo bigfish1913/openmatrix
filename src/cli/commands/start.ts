@@ -262,16 +262,27 @@ async function handleTasksJson(
   let tasksInput: AIParsedInput;
 
   try {
-    // 支持 @file 语法读取文件
+    // 支持 @file 语法或直接路径读取文件
     let jsonStr = options.tasksJson!;
+    let isFilePath = false;
+
+    // 检测是否为文件路径
     if (jsonStr.startsWith('@')) {
-      const filePath = jsonStr.slice(1);
+      isFilePath = true;
+      jsonStr = jsonStr.slice(1);
+    } else if (jsonStr.endsWith('.json') || jsonStr.includes('/') || jsonStr.includes('\\')) {
+      // 如果以 .json 结尾或包含路径分隔符，视为文件路径
+      isFilePath = true;
+    }
+
+    if (isFilePath) {
+      const filePath = jsonStr;
 
       // 如果是相对路径，转换为绝对路径
       let resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(basePath, filePath);
 
       // 特殊处理：如果文件名是 tasks-input.json 且不带路径，尝试从 runId 目录读取
-      if (filePath === 'tasks-input.json' || filePath.endsWith('/tasks-input.json')) {
+      if (filePath === 'tasks-input.json' || filePath.endsWith('/tasks-input.json') || filePath.endsWith('\\tasks-input.json')) {
         // 先尝试从 runId 目录读取
         const state = await stateManager.getState();
         const runIdPath = path.join(omPath, state.runId, 'tasks-input.json');
