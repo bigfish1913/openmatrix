@@ -409,7 +409,9 @@ Goals:
 
 ### Step 7: 调用 CLI 创建任务（不可跳过）
 
-**CLI 自动从当前 runId 目录读取 tasks-input.json 和 plan.md。**
+**CLI 文件读取规则：**
+- `tasks-input.json` → 通过 `--tasks-json @tasks-input.json` 参数传递
+- `plan.md` → **自动读取，无需参数**（CLI 通过 `stateManager.getPlan()` 从 `.openmatrix/{runId}/plan.md` 自动加载）
 
 **根据质量等级和 Agent 模式自动设置执行参数：**
 

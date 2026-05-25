@@ -147,7 +147,10 @@ openmatrix status --json | jq '.files'
 
 ### Step 3: 调用 CLI 创建任务 ⚠️ 不可跳过
 
-**CLI 自动从当前 runId 目录读取 tasks-input.json 和 plan.md。**
+**CLI 文件读取规则：**
+- `tasks-input.json` → 通过 `--tasks-json @tasks-input.json` 参数传递
+- `plan.md` → **自动读取，无需参数**（CLI 通过 `stateManager.getPlan()` 从 `.openmatrix/{runId}/plan.md` 自动加载）
+
 
 **这是最关键的步骤。必须执行以下命令，不能跳过：**
 

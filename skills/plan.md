@@ -55,6 +55,7 @@ Step 5:  展示执行计划，确认后路由到 start/feature
 **违反以下任一规则将导致方案质量下降：**
 
 - **禁止跳过 Step 0** - runId 是文件隔离的关键
+- **禁止自己生成 runId** - 必须通过 `openmatrix start --init-only` 由 CLI 生成，不要用 bash `$RANDOM` 或 md5sum 生成
 - **禁止跳过 Step 2** - plan.md 是 Agent 执行的核心参考
 - **禁止跳过 Step 3** - goalTypes/goalComplexity 决定任务拆分策略
 - **禁止在 plan 阶段写任何业务代码** - 代码在 start/feature 阶段由 Agent 执行
@@ -72,6 +73,8 @@ plan 阶段只做方案设计和元数据提取，不写任何业务代码。
 
 ## Step 0: 获取当前 runId
 
+**重要：runId 必须由 CLI 生成，禁止 AI 自己生成。**
+
 **读取 current.json 获取当前运行 ID：**
 ```bash
 cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
@@ -79,14 +82,21 @@ cat .openmatrix/current.json 2>/dev/null || echo '{"runId":"run-default"}'
 
 从返回结果提取 `runId`，后续所有文件写入 `.openmatrix/{runId}/` 目录。
 
-**注意**: bash 命令中的 `${runId}` 需要在执行前由 AI 替换为实际值。
-
-**如果没有 runId 或目录不存在：**
+**如果 current.json 不存在或 runId 无效（如 "run-default"）：**
 ```bash
 openmatrix start --init-only --json
 ```
 
-CLI 返回当前 runId。
+CLI 返回包含真实 runId 的 JSON，例如：
+```json
+{"status": "initialized", "runId": "run-20260525-cbux"}
+```
+
+**禁止事项：**
+- ❌ 不要用 `echo "run-$(date)...$(RANDOM)"` 自己生成 runId
+- ❌ 不要用 md5sum 生成随机字符串
+- ❌ 不要手动创建 `.openmatrix/run-xxx/` 目录
+- ✅ 必须调用 `openmatrix start --init-only` 由 CLI 统一管理
 
 ## Step 1: 读取输入
 
