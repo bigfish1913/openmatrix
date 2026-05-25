@@ -168,7 +168,7 @@ ${quality === 'strict' ? `
 ❌ 修改与当前任务无关的文件
 
 ✅ 允许：git status, git diff, git log`,
-  run_in_background: true
+  run_in_background: false
 })
 ```
 

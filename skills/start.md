@@ -594,7 +594,7 @@ Agent({
   subagent_type: task.subagent_type,
   description: task.description,
   prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议\n\n🚫 **禁止执行以下 Git 命令**：\n- ❌ git commit\n- ❌ git checkout/merge/pull/push/rebase/branch\n\n✅ 允许：git status, git diff, git log",
-  run_in_background: true
+  run_in_background: false
 })
 ```
 
@@ -616,7 +616,7 @@ Agent({
   description: task.description,
   prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议\n\n🚫 **禁止执行以下 Git 命令**：\n- ❌ git commit — 所有提交统一通过 openmatrix complete 执行\n- ❌ git checkout — 不要切换分支\n- ❌ git merge — 不要合并其他分支\n- ❌ git pull — 不要拉取远程更新\n- ❌ git push — 不要推送代码\n- ❌ git rebase — 不要变基\n- ❌ git branch — 不要创建/删除分支\n\n✅ 允许：git status, git diff, git log",
   isolation: task.isolation,
-  run_in_background: true
+  run_in_background: false
 })
 ```
 

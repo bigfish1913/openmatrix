@@ -442,7 +442,7 @@ ${quality === 'strict' ? `
 ❌ 进行额外的重构
 
 ✅ 允许：git status, git diff, git log`,
-  run_in_background: true
+  run_in_background: false
 })
 ```
 
