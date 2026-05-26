@@ -62,7 +62,8 @@
       "Read(//c/Users/bigfish/.claude/commands/om/**)",
       "Bash(ls -la ~/Projects/matrixcode/.openmatrix/ 2>/dev/null || echo \"Directory not found\")",
       "Read(//c/Users/bigfish/Projects/matrixcode/.openmatrix/**)",
-      "Bash(node dist/cli/index.js start --tasks-json .openmatrix/run-20260525-51b2f/tasks-input.json --plan .openmatrix/run-20260525-51b2f/plan.md --quality strict --mode auto --single-agent --json)"
+      "Bash(node dist/cli/index.js start --tasks-json .openmatrix/run-20260525-51b2f/tasks-input.json --plan .openmatrix/run-20260525-51b2f/plan.md --quality strict --mode auto --single-agent --json)",
+      "Bash(node dist/cli/index.js check --max 200 --json)"
     ]
   }
 }

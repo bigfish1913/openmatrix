@@ -313,7 +313,8 @@ describe('E2E: openmatrix check --json', () => {
       const result = runCheckJson(projectRoot);
 
       for (const suggestion of result.suggestions) {
-        expect(suggestion.id).toMatch(/^UPG-\d{3}$/);
+        // ID 格式为 UPG- 后跟数字，至少 3 位（支持超过 999 个建议）
+        expect(suggestion.id).toMatch(/^UPG-\d{3,}$/);
       }
     });
 
