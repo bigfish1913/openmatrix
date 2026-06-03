@@ -1,6 +1,7 @@
 // src/cli/commands/retry.ts
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import chalk from 'chalk';
 import type { TaskStatus } from '../../types/index.js';
 import * as path from 'path';
@@ -12,7 +13,8 @@ export const retryCommand = new Command('retry')
   .option('--reset', '重置重试计数', false)
   .option('--json', '输出 JSON 格式')
   .action(async (taskId: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

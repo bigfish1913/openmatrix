@@ -5,6 +5,7 @@ import { StateManager } from '../../storage/state-manager.js';
 import { Scheduler } from '../../orchestrator/scheduler.js';
 import { AgentRunner } from '../../agents/agent-runner.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -12,7 +13,8 @@ export const stepCommand = new Command('step')
   .description('获取下一个待执行任务（自动转换状态并准备 Subagent 配置）')
   .option('--json', '输出 JSON 格式')
   .action(async (options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

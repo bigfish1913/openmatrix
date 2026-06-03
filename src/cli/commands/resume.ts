@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { Scheduler } from '../../orchestrator/scheduler.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import * as path from 'path';
 
 export const resumeCommand = new Command('resume')
@@ -11,7 +12,8 @@ export const resumeCommand = new Command('resume')
   .option('--all', '恢复所有可恢复任务')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (taskId: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

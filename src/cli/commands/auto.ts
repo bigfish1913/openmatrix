@@ -5,7 +5,7 @@ import { TaskParser } from '../../orchestrator/task-parser.js';
 import { TaskPlanner } from '../../orchestrator/task-planner.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
 import { OrchestratorExecutor } from '../../orchestrator/executor.js';
-import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
+import { ensureOpenmatrixGitignore, getProjectRoot } from '../../utils/gitignore.js';
 import { QUALITY_PRESETS, type QualityConfig } from '../../types/index.js';
 import type { TaskPriority } from '../../types/index.js';
 import { logger } from '../../utils/logger.js';
@@ -18,7 +18,8 @@ export const autoCommand = new Command('auto')
   .option('-q, --quality <level>', '质量级别 (strict|balanced|fast)', 'balanced')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (input: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     // 确保目录存在

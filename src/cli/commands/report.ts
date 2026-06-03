@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ProgressReporter } from '../../utils/progress-reporter.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import type { GlobalState, Task, Approval } from '../../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -13,7 +14,8 @@ export const reportCommand = new Command('report')
   .option('--efficiency', '包含效率分析')
   .option('--graph', '包含依赖图')
   .action(async (options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

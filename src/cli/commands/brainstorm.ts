@@ -1,7 +1,7 @@
 // src/cli/commands/brainstorm.ts
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
-import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
+import { ensureOpenmatrixGitignore, getProjectRoot } from '../../utils/gitignore.js';
 import { InteractiveQuestionGenerator } from '../../orchestrator/interactive-question-generator.js';
 import { TaskParser } from '../../orchestrator/task-parser.js';
 import { logger } from '../../utils/logger.js';
@@ -54,7 +54,8 @@ export const brainstormCommand = new Command('brainstorm')
   .option('--complete', '标记头脑风暴完成，准备执行 start')
   .option('--results <json>', '头脑风暴结果 JSON (从 Skill 传入)')
   .action(async (input: string | undefined, options: BrainstormOptions) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     // 确保目录存在

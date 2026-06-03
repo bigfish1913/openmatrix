@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import { logger } from '../../utils/logger.js';
 import * as path from 'path';
 
@@ -12,7 +13,8 @@ export const approveCommand = new Command('approve')
   .option('-c, --comment <comment>', '备注说明')
   .option('--json', '输出 JSON 格式 (供 Skill 解析)')
   .action(async (approvalId: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

@@ -1,6 +1,6 @@
 // src/cli/commands/research.ts
 import { Command } from 'commander';
-import { ensureOpenmatrixGitignore } from '../../utils/gitignore.js';
+import { ensureOpenmatrixGitignore, getProjectRoot } from '../../utils/gitignore.js';
 import type { ResearchAgentConfig, ResearchSession } from '../../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -46,7 +46,8 @@ export const researchCommand = new Command('research')
   .option('--complete', '标记研究完成，生成报告和任务上下文')
   .option('--results <json>', '研究结果 JSON (从 Skill 传入)')
   .action(async (topic: string | undefined, options: ResearchOptions) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
     const researchPath = path.join(omPath, 'research');
     const knowledgePath = path.join(researchPath, 'knowledge');

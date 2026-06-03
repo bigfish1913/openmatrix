@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
 import { MeetingManager } from '../../orchestrator/meeting-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import * as path from 'path';
 
 export const meetingCommand = new Command('meeting')
@@ -19,7 +20,8 @@ export const meetingCommand = new Command('meeting')
   .option('--new-plan <plan>', '新方案 (用于 modify)')
   .option('--skip-all', '跳过所有 Meeting')
   .action(async (meetingId: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

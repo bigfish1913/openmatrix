@@ -1,5 +1,6 @@
 // src/cli/commands/debug.ts
 import { Command } from 'commander';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DebugManager } from '../../orchestrator/debug-manager.js';
@@ -12,7 +13,8 @@ export const debugCommand = new Command('debug')
   .option('--json', '输出 JSON 格式')
   .option('--list', '列出最近的调试会话')
   .action(async (description: string | undefined, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     // 初始化 .openmatrix 目录（如果不存在）

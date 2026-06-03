@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { ProgressReporter } from '../../utils/progress-reporter.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import chalk from 'chalk';
 import * as chokidar from 'chokidar';
 import * as readline from 'readline';
@@ -13,7 +14,8 @@ export const statusCommand = new Command('status')
   .option('--detailed', '显示详细任务信息')
   .option('--watch', '实时监控状态变化')
   .action(async (options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
     const manager = new StateManager(omPath);
     const reporter = new ProgressReporter({ width: 30 });

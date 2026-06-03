@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { GitCommitManager } from '../../orchestrator/git-commit-manager.js';
+import { getProjectRoot } from '../../utils/gitignore.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { logError } from '../../utils/error-handler.js';
@@ -16,7 +17,8 @@ export const completeCommand = new Command('complete')
   .option('--error <text>', '错误信息 (失败时)')
   .option('--json', '输出 JSON 格式')
   .action(async (taskId: string, options) => {
-    const basePath = process.cwd();
+    // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
+    const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
 
     const stateManager = new StateManager(omPath);

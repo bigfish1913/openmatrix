@@ -8,14 +8,30 @@ const execAsync = promisify(exec);
 
 /**
  * 获取 git 仓库根目录（支持 .git 在父级目录的情况）
+ *
+ * @param basePath 起始目录路径
+ * @returns git 仓库根目录，如果不是 git 仓库则返回 basePath
  */
-async function getGitRoot(basePath: string): Promise<string> {
+export async function getGitRoot(basePath: string): Promise<string> {
   try {
     const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd: basePath });
     return stdout.trim();
   } catch {
     return basePath;
   }
+}
+
+/**
+ * 获取项目根目录（用于 CLI 命令确定 basePath）
+ *
+ * 优先使用 git root，确保 .openmatrix 目录在正确的位置。
+ * 如果不在 git 仓库中，使用 process.cwd() 作为后备。
+ *
+ * @returns 项目根目录路径
+ */
+export async function getProjectRoot(): Promise<string> {
+  const cwd = process.cwd();
+  return getGitRoot(cwd);
 }
 
 // ============ 项目类型检测 ============
