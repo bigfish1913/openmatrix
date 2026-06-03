@@ -1,7 +1,7 @@
 {
   "name": "openmatrix",
-  "version": "0.2.39",
-  "description": "AI Agent task orchestration system with Claude Code Skills integration",
+  "version": "0.2.40",
+  "description": "AI Agent task orchestration system with Claude Code Skills integration (Plugin Edition)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -10,6 +10,8 @@
   "files": [
     "dist",
     "skills",
+    "hooks",
+    ".claude-plugin",
     "scripts",
     "README.md"
   ],
@@ -19,7 +21,7 @@
     "test": "vitest",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "postinstall": "node scripts/install-skills.js"
+    "postinstall": "node scripts/install-plugin.js"
   },
   "keywords": [
     "claude",

@@ -7,9 +7,10 @@ const os = require('os');
 // Change to home directory to avoid cwd issues
 process.chdir(os.homedir());
 
-// Get the package skills directory - use the path relative to this script
+// Get the package directories - use the path relative to this script
 const scriptDir = __dirname;
 const skillsDir = path.join(scriptDir, '..', 'skills');
+const hooksDir = path.join(scriptDir, '..', 'scripts', 'hooks');
 
 // Target directories for different AI coding tools
 const targets = [
@@ -17,6 +18,7 @@ const targets = [
     name: 'Claude Code',
     dir: path.join(os.homedir(), '.claude', 'commands', 'om'),
     parentDir: path.join(os.homedir(), '.claude', 'commands'),
+    hooksDir: path.join(os.homedir(), '.claude', 'hooks'),
     isClaudeCode: true,
   },
   {
@@ -45,6 +47,11 @@ if (!fs.existsSync(skillsDir)) {
 
 // Get list of skill files from package
 const skillFiles = fs.readdirSync(skillsDir).filter(f => f.endsWith('.md'));
+
+// Get list of hook files from package (if hooks directory exists)
+const hookFiles = fs.existsSync(hooksDir)
+  ? fs.readdirSync(hooksDir).filter(f => f.endsWith('.js') || f.endsWith('.py'))
+  : [];
 
 // Files to exclude from om/ subfolder (these go to parent directory)
 const excludeFromSubfolder = ['om.md', 'openmatrix.md'];
@@ -130,6 +137,43 @@ for (const target of targets) {
   } catch (err) {
     console.log(`⚠️  ${target.name}: skipped (${err.message})`);
     console.log(`   Please run: mkdir -p ${target.dir}`);
+  }
+}
+
+// Install hooks for Claude Code
+if (hookFiles.length > 0) {
+  const claudeCodeTarget = targets.find(t => t.isClaudeCode);
+  if (claudeCodeTarget && claudeCodeTarget.hooksDir) {
+    try {
+      // Create hooks directory if it doesn't exist
+      if (!fs.existsSync(claudeCodeTarget.hooksDir)) {
+        fs.mkdirSync(claudeCodeTarget.hooksDir, { recursive: true });
+      }
+
+      let hooksInstalled = 0;
+      let hooksSkipped = 0;
+
+      // Copy hook files
+      for (const file of hookFiles) {
+        const src = path.join(hooksDir, file);
+        const dest = path.join(claudeCodeTarget.hooksDir, file);
+        try {
+          fs.copyFileSync(src, dest);
+          hooksInstalled++;
+        } catch (copyErr) {
+          console.log(`  ⚠️  Hook skipped: ${file} (${copyErr.message})`);
+          hooksSkipped++;
+        }
+      }
+
+      if (hooksInstalled > 0) {
+        console.log(`✅ Claude Code Hooks: ${hooksInstalled} hooks installed, ${hooksSkipped} skipped`);
+        console.log(`   Location: ${claudeCodeTarget.hooksDir}`);
+        console.log(`   Note: Add to ~/.claude/settings.json hooks.SessionStart to activate`);
+      }
+    } catch (err) {
+      console.log(`⚠️  Claude Code Hooks: skipped (${err.message})`);
+    }
   }
 }
 

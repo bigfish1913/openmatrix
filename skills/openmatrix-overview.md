@@ -1,6 +1,6 @@
 ---
-name: om:help
-description: "OpenMatrix 帮助 - 列出所有可用命令和质量门禁设置"
+name: om:openmatrix-overview
+description: "OpenMatrix help - lists all available skills and quality gate settings. Use when user asks for help, available commands, or wants to understand OpenMatrix capabilities. Shows skill list, quality levels (strict/balanced/fast), and quick start guide."
 priority: low
 ---
 

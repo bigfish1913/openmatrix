@@ -1,0 +1,21 @@
+{
+  "name": "openmatrix",
+  "description": "AI Agent task orchestration system with quality gates (TDD, coverage, lint, security) and multiple execution modes",
+  "version": "0.2.39",
+  "author": {
+    "name": "bigfish1913",
+    "email": ""
+  },
+  "homepage": "https://github.com/bigfish1913/openmatrix",
+  "repository": "https://github.com/bigfish1913/openmatrix",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "task-orchestration",
+    "tdd",
+    "quality-gates",
+    "multi-agent",
+    "automation",
+    "claude-code"
+  ]
+}
