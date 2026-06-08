@@ -20,6 +20,7 @@ import { completeCommand } from './commands/complete.js';
 import { stepCommand } from './commands/step.js';
 import { deployCommand } from './commands/deploy.js';
 import { testCommand } from './commands/test.js';
+import { reviewDoCommand } from './commands/review-do.js';
 
 // 读取 package.json 版本
 let version = '0.0.0';
@@ -57,6 +58,7 @@ program.addCommand(researchCommand);
 program.addCommand(debugCommand);
 program.addCommand(deployCommand);
 program.addCommand(testCommand);
+program.addCommand(reviewDoCommand);
 
 // 默认帮助
 program.parse();
