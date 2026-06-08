@@ -104,6 +104,14 @@ export class StateManager {
       this.store = new FileStore(join(this.basePath, current.runId));
       const existing = await this.store.readJson<GlobalState>('state.json');
       if (existing) {
+        // ========== runId 一致性验证 ==========
+        // 确保 state.json 中的 runId 与 current.json 一致
+        if (existing.runId && existing.runId !== current.runId) {
+          console.warn(`[StateManager] 警告: runId 不一致 - current.json=${current.runId}, state.json=${existing.runId}`);
+          // 以 current.json 为准进行修正
+          existing.runId = current.runId;
+        }
+
         existing.statistics = {
           totalTasks: existing.statistics?.totalTasks ?? 0,
           completed: existing.statistics?.completed ?? 0,
@@ -788,5 +796,116 @@ export class StateManager {
     }
 
     return meetings.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  // ============ State Consistency Validation ============
+
+  /**
+   * 验证状态一致性
+   * 检查 current.json、state.json 和实际任务文件是否一致
+   *
+   * @returns 验证结果，包含问题和建议修复方案
+   */
+  async validateConsistency(): Promise<{
+    valid: boolean;
+    issues: string[];
+    fixes: string[];
+  }> {
+    const issues: string[] = [];
+    const fixes: string[] = [];
+
+    // 1. 检查 current.json 是否存在
+    const current = await this.rootStore.readJson<CurrentRunIndex>('current.json');
+    if (!current?.runId) {
+      issues.push('current.json 缺失或 runId 为空');
+      fixes.push('运行 openmatrix start --init-only 初始化');
+      return { valid: false, issues, fixes };
+    }
+
+    // 2. 检查 runId 目录是否存在
+    const runDir = join(this.basePath, current.runId);
+    const runStore = new FileStore(runDir);
+    const stateExists = await runStore.exists('state.json');
+    if (!stateExists) {
+      issues.push(`runId 目录 ${current.runId} 缺失 state.json`);
+      fixes.push('检查是否有嵌套的 .openmatrix 目录，或重新初始化');
+      return { valid: false, issues, fixes };
+    }
+
+    // 3. 检查 state.json 中的 runId 是否匹配
+    const state = await runStore.readJson<GlobalState>('state.json');
+    if (!state) {
+      issues.push('state.json 无法解析');
+      fixes.push('删除 state.json 并重新初始化');
+      return { valid: false, issues, fixes };
+    }
+
+    if (state.runId !== current.runId) {
+      issues.push(`runId 不匹配: current.json=${current.runId}, state.json=${state.runId}`);
+      fixes.push(`修正 state.json 中的 runId 为 ${current.runId}`);
+    }
+
+    // 4. 验证任务统计是否一致
+    const tasks = await this.listTasks();
+    const actualCounts = {
+      pending: tasks.filter(t => t.status === 'pending').length,
+      scheduled: tasks.filter(t => t.status === 'scheduled').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      blocked: tasks.filter(t => t.status === 'blocked').length,
+      waiting: tasks.filter(t => t.status === 'waiting').length,
+      verify: tasks.filter(t => t.status === 'verify').length,
+      accept: tasks.filter(t => t.status === 'accept').length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      failed: tasks.filter(t => t.status === 'failed').length,
+      retry_queue: tasks.filter(t => t.status === 'retry_queue').length
+    };
+
+    const stats = state.statistics || {};
+    const mismatches: string[] = [];
+    if (stats.pending !== actualCounts.pending) mismatches.push(`pending: 统计=${stats.pending}, 实际=${actualCounts.pending}`);
+    if (stats.scheduled !== actualCounts.scheduled) mismatches.push(`scheduled: 统计=${stats.scheduled}, 实际=${actualCounts.scheduled}`);
+    if (stats.inProgress !== actualCounts.inProgress) mismatches.push(`inProgress: 统计=${stats.inProgress}, 实际=${actualCounts.inProgress}`);
+    if (stats.completed !== actualCounts.completed) mismatches.push(`completed: 统计=${stats.completed}, 实际=${actualCounts.completed}`);
+    if (stats.failed !== actualCounts.failed) mismatches.push(`failed: 统计=${stats.failed}, 实际=${actualCounts.failed}`);
+
+    if (mismatches.length > 0) {
+      issues.push(`任务统计不一致: ${mismatches.join('; ')}`);
+      fixes.push('统计将在下次状态更新时自动修正');
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues,
+      fixes
+    };
+  }
+
+  /**
+   * 修复状态统计
+   * 基于实际任务文件重新计算统计
+   */
+  async repairStatistics(): Promise<void> {
+    await this.withFileLock(async () => {
+      const tasks = await this.listTasks();
+      const state = await this.getState();
+
+      const newStats = {
+        totalTasks: tasks.length,
+        pending: tasks.filter(t => t.status === 'pending').length,
+        scheduled: tasks.filter(t => t.status === 'scheduled').length,
+        inProgress: tasks.filter(t => t.status === 'in_progress').length,
+        blocked: tasks.filter(t => t.status === 'blocked').length,
+        waiting: tasks.filter(t => t.status === 'waiting').length,
+        verify: tasks.filter(t => t.status === 'verify').length,
+        accept: tasks.filter(t => t.status === 'accept').length,
+        completed: tasks.filter(t => t.status === 'completed').length,
+        failed: tasks.filter(t => t.status === 'failed').length,
+        retry_queue: tasks.filter(t => t.status === 'retry_queue').length
+      };
+
+      const newState = { ...state, statistics: newStats };
+      await this.store.writeJson('state.json', newState);
+      this.stateCache = newState;
+    });
   }
 }

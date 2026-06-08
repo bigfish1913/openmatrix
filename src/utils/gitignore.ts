@@ -1,5 +1,6 @@
 // src/utils/gitignore.ts
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -22,6 +23,56 @@ export async function getGitRoot(basePath: string): Promise<string> {
 }
 
 /**
+ * 检查路径是否存在 .openmatrix 目录
+ */
+function hasOpenmatrixDir(basePath: string): boolean {
+  return fsSync.existsSync(path.join(basePath, '.openmatrix'));
+}
+
+/**
+ * 解析项目根目录 - 标准化状态定位流程
+ *
+ * 优先级：
+ * 1. 环境变量 OPENMATRIX_ROOT（显式指定）
+ * 2. Git root + 验证 .openmatrix 存在
+ * 3. 向上搜索 .openmatrix 目录（支持子目录调用）
+ * 4. 当前目录（后备）
+ *
+ * @returns 项目根目录路径
+ */
+export async function resolveProjectRoot(): Promise<string> {
+  const cwd = process.cwd();
+
+  // 1. 环境变量优先（显式指定最可靠）
+  if (process.env.OPENMATRIX_ROOT) {
+    const envRoot = process.env.OPENMATRIX_ROOT;
+    if (hasOpenmatrixDir(envRoot)) {
+      return envRoot;
+    }
+  }
+
+  // 2. Git root + 验证
+  const gitRoot = await getGitRoot(cwd);
+  if (hasOpenmatrixDir(gitRoot)) {
+    return gitRoot;
+  }
+
+  // 3. 向上搜索 .openmatrix（支持从子目录调用）
+  let searchPath = cwd;
+  for (let i = 0; i < 10; i++) { // 最多向上搜索 10 层
+    if (hasOpenmatrixDir(searchPath)) {
+      return searchPath;
+    }
+    const parent = path.dirname(searchPath);
+    if (parent === searchPath) break; // 到达根目录
+    searchPath = parent;
+  }
+
+  // 4. 后备：git root（即使没有 .openmatrix，新项目会在这里创建）
+  return gitRoot !== cwd ? gitRoot : cwd;
+}
+
+/**
  * 获取项目根目录（用于 CLI 命令确定 basePath）
  *
  * 优先使用 git root，确保 .openmatrix 目录在正确的位置。
@@ -30,8 +81,7 @@ export async function getGitRoot(basePath: string): Promise<string> {
  * @returns 项目根目录路径
  */
 export async function getProjectRoot(): Promise<string> {
-  const cwd = process.cwd();
-  return getGitRoot(cwd);
+  return resolveProjectRoot();
 }
 
 // ============ 项目类型检测 ============

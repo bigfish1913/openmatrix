@@ -262,3 +262,70 @@ feature     start
 
 可用命令: `/om:brainstorm`, `/om:start`, `/om:feature`, `/om:auto`, `/om:status`, `/om:meeting`, `/om:report`, `/om:resume`, `/om:retry`, `/om:research`, `/om:approve`, `/om:check`, `/om:debug`
 </notes>
+
+<cli-contract>
+## CLI-Skill 层契约
+
+### cwd 管理约定
+
+**Skill 层（AI）职责：**
+- 不依赖 `process.cwd()` 进行路径计算
+- 不假设 CLI 在特定目录执行
+- 通过 CLI 输出的 `basePath` 字段确定项目根目录
+
+**CLI 层职责：**
+- 使用 `getProjectRoot()` 获取项目根目录（基于 git root）
+- 所有状态文件路径基于 `basePath` 计算
+- 输出 JSON 时包含 `basePath` 字段供 Skill 参考
+
+### 状态定位标准化
+
+**CLI 统一调用：**
+```typescript
+// 所有 CLI 命令必须使用 git root 定位项目
+const basePath = await getProjectRoot();
+const omPath = path.join(basePath, '.openmatrix');
+```
+
+**状态文件路径约定：**
+```
+.openmatrix/
+├── current.json          → 指向当前 runId
+├── {runId}/              → 运行目录
+│   ├── state.json        → 全局状态
+│   ├── tasks/            → 任务文件
+│   │   └── TASK-XXX/
+│   │       ├── task.json
+│   │       └── artifacts/
+│   ├── approvals/
+│   ├── meetings/
+│   ├── plan.md
+│   └── tasks-input.json
+```
+
+### 状态一致性验证
+
+**Skill 层应定期检查：**
+- 使用 `openmatrix status --validate --json` 验证状态
+- 发现不一致时提示用户使用 `--repair` 修复
+
+**CLI 提供验证命令：**
+```bash
+openmatrix status --validate          # 验证状态一致性
+openmatrix status --validate --repair # 修复状态统计
+openmatrix status --validate --json   # JSON 输出
+```
+
+### 防止路径分裂
+
+**禁止行为：**
+- ❌ CLI 命令使用 `process.cwd()` 计算 basePath
+- ❌ Skill 层假设 cwd 是项目根目录
+- ❌ 在子目录创建嵌套 `.openmatrix`
+
+**正确行为：**
+- ✅ CLI 使用 `getProjectRoot()` 获取 git root
+- ✅ Skill 层读取 CLI 输出的 `basePath`
+- ✅ 状态文件统一在 git root 下的 `.openmatrix`
+
+</cli-contract>

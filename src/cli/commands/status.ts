@@ -13,12 +13,20 @@ export const statusCommand = new Command('status')
   .option('--graph', '显示依赖关系图')
   .option('--detailed', '显示详细任务信息')
   .option('--watch', '实时监控状态变化')
+  .option('--validate', '验证状态一致性')
+  .option('--repair', '修复状态统计（与 --validate 配合使用）')
   .action(async (options) => {
     // 使用 git root 确保 basePath 正确，避免 cwd 变化导致的路径分裂
     const basePath = await getProjectRoot();
     const omPath = path.join(basePath, '.openmatrix');
     const manager = new StateManager(omPath);
     const reporter = new ProgressReporter({ width: 30 });
+
+    // 验证模式
+    if (options.validate) {
+      await runValidateMode(manager, options);
+      return;
+    }
 
     if (options.watch) {
       await runWatchMode(manager, reporter, options);
@@ -32,6 +40,8 @@ interface StatusOptions {
   graph?: boolean;
   detailed?: boolean;
   watch?: boolean;
+  validate?: boolean;
+  repair?: boolean;
 }
 
 /**
@@ -112,10 +122,12 @@ async function showStatus(
 
     // Quick tips
     console.log(chalk.gray('💡 提示:'));
-    console.log(chalk.gray('   --watch    实时状态更新'));
-    console.log(chalk.gray('   --graph    显示依赖关系图'));
-    console.log(chalk.gray('   --detailed 显示详细任务信息'));
-    console.log(chalk.gray('   --json     输出 JSON 格式'));
+    console.log(chalk.gray('   --watch     实时状态更新'));
+    console.log(chalk.gray('   --graph     显示依赖关系图'));
+    console.log(chalk.gray('   --detailed  显示详细任务信息'));
+    console.log(chalk.gray('   --validate  验证状态一致性'));
+    console.log(chalk.gray('   --repair    修复状态统计（与 --validate 配合）'));
+    console.log(chalk.gray('   --json      输出 JSON 格式'));
     console.log();
   } catch (error) {
     console.error(chalk.red('错误:'), error);
@@ -240,4 +252,54 @@ export function getStatusColor(status: string): (text: string) => string {
     accept: chalk.cyan
   };
   return colorMap[status] || chalk.white;
+}
+
+/**
+ * 验证模式 - 检查状态一致性
+ */
+async function runValidateMode(manager: StateManager, options: StatusOptions): Promise<void> {
+  try {
+    await manager.initialize();
+    const result = await manager.validateConsistency();
+
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(chalk.bold('\n🔍 状态一致性验证'));
+    console.log('━'.repeat(42));
+
+    if (result.valid) {
+      console.log(chalk.green('✅ 状态一致性验证通过'));
+      console.log(chalk.gray('   所有状态文件和任务统计均正确'));
+    } else {
+      console.log(chalk.red('❌ 发现状态不一致问题:\n'));
+      for (const issue of result.issues) {
+        console.log(chalk.red(`   • ${issue}`));
+      }
+      console.log();
+      console.log(chalk.yellow('💡 建议修复方案:'));
+      for (const fix of result.fixes) {
+        console.log(chalk.yellow(`   • ${fix}`));
+      }
+
+      if (options.repair) {
+        console.log(chalk.cyan('\n🔧 正在修复状态统计...'));
+        await manager.repairStatistics();
+        console.log(chalk.green('✅ 状态统计已修复'));
+
+        // 重新验证
+        const recheck = await manager.validateConsistency();
+        if (recheck.valid) {
+          console.log(chalk.green('✅ 修复后验证通过'));
+        } else {
+          console.log(chalk.yellow('⚠️ 仍有问题需要手动处理'));
+        }
+      }
+    }
+    console.log();
+  } catch (error) {
+    console.error(chalk.red('错误:'), error);
+  }
 }
