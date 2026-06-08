@@ -497,6 +497,26 @@ CLI 返回 JSON 中 `subagentTasks` 数组包含待执行任务：
 - **禁止询问"是否继续"** — 直接执行下一个任务
 - **禁止输出"让我知道是否..."后停止** — 继续执行
 - **禁止因为上下文压缩而忘记剩余任务** — 通过 `openmatrix step --json` 重新获取状态
+- **禁止在 auto 模式下输出建议性内容** — auto 模式只输出执行状态，不输出"下一步建议"
+
+**⚠️ 全自动执行模式（auto）的铁律：**
+
+用户选择 `--mode auto` 后，AI 必须：
+1. **不输出任何"建议"、"下一步"、"请确认"等内容**
+2. **不调用 AskUserQuestion**
+3. **遇到歧义 → 自动创建 Meeting，继续执行**
+4. **遇到 blocked → 轮询等待，继续执行**
+5. **遇到验证失败 → 自动重试（最多 3 次），继续执行**
+6. **只输出简洁的状态信息**：`✅ TASK-XXX 完成` / `⏳ 等待...` / `❌ 失败，重试中...`
+
+**红旗警告（auto 模式）：**
+
+| 错误行为 | 正确行为 |
+|---------|---------|
+| "下一步建议：继续执行 TASK-XXX" | 直接执行 TASK-XXX，不输出建议 |
+| "请确认是否继续" | 不询问，直接继续 |
+| "建议用户..." | auto 模式下不输出建议 |
+| "遇到歧义，询问用户" | 创建 Meeting，继续执行 |
 
 **文件持久化循环（防止上下文压缩丢失状态）:**
 ```bash
@@ -710,7 +730,38 @@ openmatrix step --json
 |--------|------|---------|
 | `next` | 有下一个任务 | 继续执行返回的 `subagent` 配置 |
 | `done` | 所有任务完成 | 进入最终提交 |
-| `blocked` | 无可执行任务 | 检查是否有 Meeting，用 `/om:meeting` 处理 |
+| `blocked` | 无可执行任务（有 pending 任务等待） | **等待当前任务完成，重新调用 step** |
+
+**⚠️ blocked 状态处理（关键：低优先级任务不能被忽略）：**
+
+当 `openmatrix step` 返回 `blocked` 时，意味着：
+- 有 pending 任务等待执行（通常是低优先级任务）
+- 但当前并发槽位被占满，或有依赖未完成
+
+**正确处理流程：**
+```bash
+# 1. 检查是否有正在执行的任务
+openmatrix status --json | jq '.statistics.inProgress'
+
+# 2. 如果有正在执行的任务，等待其完成（轮询）
+while [ "$(openmatrix status --json | jq -r '.statistics.inProgress')" -gt 0 ]; do
+  echo "⏳ 等待当前任务完成... ($(openmatrix status --json | jq -r '.statistics.inProgress') 个正在执行)"
+  sleep 5
+done
+
+# 3. 任务完成后，重新获取下一个任务
+openmatrix step --json
+```
+
+**注意：不要在 blocked 状态时跳到 Meeting 或终止执行。blocked 只是"暂时无法获取任务"，不是"执行完成"。**
+
+**红旗警告：**
+
+| 错误想法 | 正确做法 |
+|---------|---------|
+| "blocked 就停止" | blocked 要等待，继续轮询 |
+| "没有任务了" | 检查 statistics.pending，有 pending 就继续等待 |
+| "低优先级不重要" | 所有任务都必须执行，不能跳过 |
 
 5. **审批点处理（根据执行模式）:**
 

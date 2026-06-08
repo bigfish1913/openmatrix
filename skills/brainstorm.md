@@ -289,12 +289,12 @@ AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 mkdir -p docs/openmatrix
 ```
 
-**写入设计文档到 `docs/openmatrix/YYYY-MM-DD-<topic>-design.md`：**
+**写入设计文档到 `docs/openmatrix/{当前日期}-{topic}-design.md`（日期格式：YYYY-MM-DD，如 2026-06-08）：**
 
 ```markdown
 # 设计方案: 任务标题
 
-日期: YYYY-MM-DD
+日期: {当前日期，格式 YYYY-MM-DD}
 
 ## 核心目标
 - 目标 1
@@ -330,7 +330,7 @@ mkdir -p docs/openmatrix
 
 **先在界面告知文档已写入，再让用户选择：**
 
-（输出到界面：设计文档已写入 `docs/openmatrix/YYYY-MM-DD-<topic>-design.md`）
+（输出到界面：设计文档已写入 `docs/openmatrix/{当前日期}-{topic}-design.md`）
 
 AskUserQuestion: `header: "下一步"`, `multiSelect: false`
 **question:** 设计文档已写入，下一步？
@@ -437,7 +437,7 @@ brainstorm 澄清完成后，自动判断下一步路由：
 
 ## 设计文档
 
-- 每次头脑风暴都会输出设计文档到 `docs/openmatrix/YYYY-MM-DD-<topic>-design.md`
+- 每次头脑风暴都会输出设计文档到 `docs/openmatrix/{当前日期}-{topic}-design.md`（日期格式 YYYY-MM-DD）
 - 文档包含：核心目标、架构、数据模型、接口、技术方案、错误处理、测试策略、风险、验收标准
 - 设计文档是 `/om:plan` 生成技术方案时的重要参考
 - 文档内容来自步骤 5 逐节确认的设计

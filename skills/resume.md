@@ -116,16 +116,43 @@ ${显示前序任务的关键决策}
 
 从 `currentTaskIndex` 位置继续：
 
+**⚠️ 全自动执行模式处理：**
+
+首先检查原始执行模式：
+```bash
+# 从 state.json 或 feature-session.json 获取执行模式
+cat .openmatrix/${runId}/state.json | jq -r '.config.mode' || \
+cat .openmatrix/feature-session.json | jq -r '.mode'
+```
+
+| 执行模式 | 处理方式 |
+|---------|---------|
+| `auto` (全自动) | **自动选择默认选项，跳过所有 AskUserQuestion** |
+| 其他模式 | 交互式询问用户 |
+
 **如果当前任务是 in_progress 状态（之前失败）：**
 
-AskUserQuestion: `header: "继续方式"`, `multiSelect: false`
+| 执行模式 | 自动处理 |
+|---------|---------|
+| `auto` | **自动选择"重试当前任务"，不询问用户** |
+| 其他 | AskUserQuestion 询问 |
+
+AskUserQuestion: `header: "继续方式"`, `multiSelect: false`（仅非 auto 模式）
 **question:** 当前任务之前验证失败，如何继续？
 
 | label | description |
 |-------|-------------|
-| `重试当前任务` | 重新执行当前任务块 |
+| `重试当前任务 (推荐)` | 重新执行当前任务块 |
 | `跳过当前任务` | 标记为完成，继续下一任务（风险较高） |
 | `重新拆分` | 返回 /om:feature 重新规划 |
+
+**红旗警告：**
+
+| 错误想法 | 正确做法 |
+|---------|---------|
+| "auto 模式也要问一下" | auto 模式必须自动处理，不打断流程 |
+| "让用户确认一下更安全" | 用户选择 auto 就是期望全自动，不要打断 |
+| "这个决策点很重要" | auto 模式下用默认策略，用户信任自动化 |
 
 **如果当前任务是 pending 状态（正常恢复）：**
 
