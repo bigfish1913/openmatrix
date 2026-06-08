@@ -117,20 +117,41 @@ export const startCommand = new Command('start')
       await stateManager.reset();
     }
 
-    // 检查是否已有运行中的任务
+    // 检查是否已有运行中的任务 - 增强检测：验证是否有真正在执行的任务
     if (state.status === 'running') {
-      if (options.json) {
-        console.log(JSON.stringify({
-          status: 'error',
-          message: '已有任务在执行中',
-          hint: '使用 /om:status 查看状态，或 /om:resume 恢复执行'
-        }));
+      const tasks = await stateManager.listTasks();
+      const activeTasks = tasks.filter(t =>
+        t.status === 'in_progress' ||
+        t.status === 'verify' ||
+        t.status === 'accept' ||
+        t.status === 'scheduled'
+      );
+
+      // 如果状态是 running 但没有活跃任务，说明是残留状态，自动清理
+      if (activeTasks.length === 0) {
+        console.log('⚠️  检测到残留的 running 状态（无活跃任务），自动清理...');
+        await stateManager.reset();
+        // 继续执行新任务，stateManager 已重置
       } else {
-        console.log('⚠️  已有任务在执行中');
-        console.log('   使用 /om:status 查看状态');
-        console.log('   使用 /om:resume 恢复执行');
+        // 真正有任务在执行
+        if (options.json) {
+          console.log(JSON.stringify({
+            status: 'error',
+            message: '已有任务在执行中',
+            activeTasks: activeTasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
+            hint: '使用 /om:status 查看状态，或 /om:resume 恢复执行'
+          }));
+        } else {
+          console.log('⚠️  已有任务在执行中');
+          console.log(`   活跃任务: ${activeTasks.length} 个`);
+          for (const t of activeTasks) {
+            console.log(`   - ${t.id}: ${t.title} (${t.status})`);
+          }
+          console.log('   使用 /om:status 查看详情');
+          console.log('   使用 /om:resume 恢复执行');
+        }
+        return;
       }
-      return;
     }
 
     // ============================

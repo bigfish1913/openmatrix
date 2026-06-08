@@ -66,7 +66,8 @@
       "Bash(node dist/cli/index.js check --max 200 --json)",
       "Bash(mkdir -p ~/.claude/hooks)",
       "Bash(rm -rf ~/.claude/plugins/cache/claude-plugins-official/openmatrix/0.2.40)",
-      "Bash(node scripts/install-plugin.js)"
+      "Bash(node scripts/install-plugin.js)",
+      "Bash(dir \"C:\\\\Users\\\\bigfish\\\\Projects\\\\matrixcode\\\\.openmatrix\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\bigfish\\.claude"
