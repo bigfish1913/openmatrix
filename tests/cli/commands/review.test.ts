@@ -1,12 +1,12 @@
-// tests/cli/commands/review-do.test.ts
+// tests/cli/commands/review.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { reviewDoCommand } from '../../../src/cli/commands/review-do.js';
+import { reviewCommand } from '../../../src/cli/commands/review.js';
 import { Command } from 'commander';
 
-describe('reviewDoCommand', () => {
-  const testDir = path.join(process.cwd(), '.openmatrix-test-review-do');
+describe('reviewCommand', () => {
+  const testDir = path.join(process.cwd(), '.openmatrix-test-review');
 
   beforeEach(async () => {
     // 创建测试目录
@@ -24,19 +24,19 @@ describe('reviewDoCommand', () => {
   });
 
   it('should create command with correct name', () => {
-    expect(reviewDoCommand.name()).toBe('review-do');
+    expect(reviewCommand.name()).toBe('review');
   });
 
   it('should have description', () => {
-    expect(reviewDoCommand.description()).toContain('Review实现与Plan对比');
+    expect(reviewCommand.description()).toContain('代码审查');
   });
 
   it('should have correct options', () => {
-    const options = reviewDoCommand.options;
+    const options = reviewCommand.options;
     expect(options.some(o => o.long === '--json')).toBe(true);
-    expect(options.some(o => o.long === '--plan')).toBe(true);
     expect(options.some(o => o.long === '--max-loops')).toBe(true);
-    expect(options.some(o => o.long === '--skip-start')).toBe(true);
+    expect(options.some(o => o.long === '--skip-plan')).toBe(true);
+    expect(options.some(o => o.long === '--skip-tests')).toBe(true);
   });
 
   it('should initialize session with default values', async () => {
@@ -52,36 +52,36 @@ describe('reviewDoCommand', () => {
 
     // 模拟命令执行
     const program = new Command();
-    program.addCommand(reviewDoCommand);
+    program.addCommand(reviewCommand);
 
     // 恢复 cwd
     process.cwd = originalCwd;
 
     // 验证命令可以正常解析
-    expect(reviewDoCommand).toBeDefined();
+    expect(reviewCommand).toBeDefined();
   });
 
   it('should handle missing plan.md', async () => {
     // 不创建 plan.md
     const program = new Command();
-    program.addCommand(reviewDoCommand);
+    program.addCommand(reviewCommand);
 
-    expect(reviewDoCommand).toBeDefined();
+    expect(reviewCommand).toBeDefined();
   });
 });
 
-describe('updateReviewDoSession', () => {
+describe('updateReviewSession', () => {
   it('should be exported', async () => {
-    const { updateReviewDoSession } = await import('../../../src/cli/commands/review-do.js');
-    expect(updateReviewDoSession).toBeDefined();
-    expect(typeof updateReviewDoSession).toBe('function');
+    const { updateReviewSession } = await import('../../../src/cli/commands/review.js');
+    expect(updateReviewSession).toBeDefined();
+    expect(typeof updateReviewSession).toBe('function');
   });
 });
 
-describe('getImplementationStatus', () => {
+describe('getReviewStatus', () => {
   it('should be exported', async () => {
-    const { getImplementationStatus } = await import('../../../src/cli/commands/review-do.js');
-    expect(getImplementationStatus).toBeDefined();
-    expect(typeof getImplementationStatus).toBe('function');
+    const { getReviewStatus } = await import('../../../src/cli/commands/review.js');
+    expect(getReviewStatus).toBeDefined();
+    expect(typeof getReviewStatus).toBe('function');
   });
 });
