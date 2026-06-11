@@ -144,6 +144,8 @@ export class AgentRunner {
     const phaseContext = this.buildPhaseContext(task);
     const accumulatedContext = await this.buildAccumulatedContext(task);
     const ambiguityInstruction = this.buildAmbiguityDetectionInstruction(task);
+    const planSection = this.extractPlanSection(task);
+    const planConfirmation = planSection ? this.buildPlanConfirmationInstruction(task) : '';
     const testContext = task.assignedAgent === 'tester' ? await this.buildTestContext() : '';
     const state = await this.stateManager.getState();
     const runId = state.runId;
@@ -151,6 +153,10 @@ export class AgentRunner {
     return `# 任务执行
 
 ${ambiguityInstruction}
+
+${planSection}
+
+${planConfirmation}
 
 ## 任务信息
 - ID: ${task.id}
@@ -280,6 +286,57 @@ ${agentPrompt.instructions}
 - **Low**: 记录并继续执行
 
 **重要**: 如果无法解析歧义检测结果，视为无歧义继续执行。`;
+  }
+
+  /**
+   * 从 task.description 中提取执行计划（plan.md）章节
+   * globalContext 格式包含 "## 执行计划" 章节
+   */
+  private extractPlanSection(task: Task): string {
+    const description = task.description;
+    if (!description) return '';
+
+    // 查找 "## 执行计划" 章节
+    const planMatch = description.match(/## 执行计划\n([\s\S]*?)(?:\n## |\n---|$)/);
+    if (!planMatch) return '';
+
+    const planContent = planMatch[1].trim();
+    if (!planContent) return '';
+
+    return `## 📋 执行计划（必须严格遵守）
+
+以下是已审批的技术方案，你必须按照此方案执行：
+
+${planContent}
+
+**⚠️ 重要提示**:
+- 执行前必须完整阅读上述计划
+- 实现必须严格遵循计划中的架构设计和技术方案
+- 如发现计划与实际情况冲突，必须先报告再执行`;
+  }
+
+  /**
+   * 构建 plan 确认指令 - 要求 Agent 在执行前确认理解
+   */
+  private buildPlanConfirmationInstruction(task: Task): string {
+    return `## ✅ 执行计划确认（必须在开始前输出）
+
+在开始实现之前，请输出以下确认信息：
+
+\`\`\`
+<plan_confirmation>
+{
+  "confirmed": true,
+  "keyRequirements": [
+    "从计划中提取的关键需求1",
+    "从计划中提取的关键需求2"
+  ],
+  "implementationApproach": "简述你将如何按照计划实现"
+}
+</plan_confirmation>
+\`\`\`
+
+**注意**: 如果无法确认计划的某些内容，请使用歧义检测机制报告。`;
   }
 
   /**
