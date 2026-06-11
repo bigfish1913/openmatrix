@@ -5,6 +5,7 @@ import { TaskParser } from '../../orchestrator/task-parser.js';
 import { TaskPlanner } from '../../orchestrator/task-planner.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
 import { OrchestratorExecutor } from '../../orchestrator/executor.js';
+import { AgentRunner } from '../../agents/agent-runner.js';
 import { ensureOpenmatrixGitignore, getProjectRoot } from '../../utils/gitignore.js';
 import { QUALITY_PRESETS, type QualityConfig } from '../../types/index.js';
 import type { TaskPriority } from '../../types/index.js';
@@ -496,16 +497,16 @@ async function handleTasksJson(
   }
 
   // 无审批点，返回任务列表供 Skill 执行
+  // 使用 AgentRunner.prepareSubagentTask() 生成完整的 SubagentTask（包含 prompt 字段）
+  const agentRunner = new AgentRunner(stateManager, approvalManager, {
+    maxConcurrent,
+    taskTimeout: state.config.taskTimeout || 600000
+  });
+
   const allTasks = await stateManager.listTasks();
-  const subagentTasks = allTasks.map(t => ({
-    taskId: t.id,
-    agentType: t.assignedAgent,
-    title: t.title,
-    description: t.description,
-    priority: t.priority,
-    dependencies: t.dependencies,
-    timeout: t.timeout
-  }));
+  const subagentTasks = await Promise.all(
+    allTasks.map(t => agentRunner.prepareSubagentTask(t))
+  );
 
   if (options.json) {
     console.log(JSON.stringify({
@@ -747,16 +748,18 @@ async function finalizeAndOutput(
   }
 
   // 无审批点，返回任务列表供 Skill 执行
+  // 使用 AgentRunner.prepareSubagentTask() 生成完整的 SubagentTask（包含 prompt 字段）
+  const agentMode = state.config.agentMode || 'parallel';
+  const maxConcurrent = agentMode === 'single' ? 1 : 3;
+  const agentRunner = new AgentRunner(stateManager, approvalManager, {
+    maxConcurrent,
+    taskTimeout: state.config.taskTimeout || 600000
+  });
+
   const allTasks = await stateManager.listTasks();
-  const subagentTasks = allTasks.map(t => ({
-    taskId: t.id,
-    agentType: t.assignedAgent,
-    title: t.title,
-    description: t.description,
-    priority: t.priority,
-    dependencies: t.dependencies,
-    timeout: t.timeout
-  }));
+  const subagentTasks = await Promise.all(
+    allTasks.map(t => agentRunner.prepareSubagentTask(t))
+  );
 
   if (options.json) {
     console.log(JSON.stringify({
