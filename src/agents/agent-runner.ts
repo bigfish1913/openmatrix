@@ -201,7 +201,33 @@ ${agentPrompt.instructions}
 
 注意: 任务完成后，由 Skill 调用 \`openmatrix complete\` 并传入 --summary 参数，
 该摘要会自动追加到全局 \`.openmatrix/context.md\` 供后续 Agent 参考。
-`;
+
+## ⛔ 禁止行为（严格遵守）
+
+**作为子 Agent，你绝对禁止以下行为：**
+
+### 1. 禁止调用 Skill 指令
+- ❌ **严禁**使用任何 \`/om:xxx\` 指令（如 \`/om:start\`, \`/om:feature\`, \`/om:brainstorm\` 等）
+- ❌ **严禁**启动新的任务编排流程
+- ❌ **严禁**调用其他 Skill 工具
+- ✅ **只能**执行当前分配的具体任务（编码、测试、审查等）
+
+### 2. 禁止任务管理操作
+- ❌ **严禁**创建新的任务计划
+- ❌ **严禁**拆分任务或生成子任务
+- ❌ **严禁**修改任务状态（由 \`openmatrix complete\` 统一管理）
+
+### 3. 禁止越权操作
+- ❌ **严禁**修改 \`.openmatrix/\` 目录下的状态文件（state.json, task.json 等）
+- ❌ **严禁**执行 \`openmatrix start\`, \`openmatrix reset\` 等管理命令
+- ✅ **只能**执行当前任务相关的业务代码修改
+
+### 4. 角色定位
+- **你是**：任务执行者（coder/tester/reviewer/executor）
+- **你不是**：任务调度者或流程管理者
+- **你的职责**：完成当前分配的具体任务，不干预整体流程
+
+**违反以上任何一条将导致任务失败！**`;
   }
 
   /**
