@@ -251,9 +251,104 @@ cat .openmatrix/${runId}/state.json
 
 ### 用户选择后
 
-调用 CLI 恢复执行: `openmatrix resume {taskId}`
+**调用 CLI 恢复并获取可执行任务：**
 
-CLI 会从上次暂停点继续。
+```bash
+# 恢复任务状态
+openmatrix resume {taskId} --json
+```
+
+**⚠️ 重要：resume 只恢复状态，不返回可执行任务。**
+
+**必须接着调用 step 获取任务：**
+
+```bash
+openmatrix step --json
+```
+
+返回结果包含 `subagentTasks` 列表（与 /om:start 相同格式）：
+
+```json
+{
+  "status": "tasks_ready",
+  "subagentTasks": [
+    {
+      "taskId": "TASK-001",
+      "subagent_type": "general-purpose",
+      "description": "coder: 实现功能",
+      "prompt": "完整任务提示词...",
+      "timeout": 300000
+    }
+  ]
+}
+```
+
+### 执行恢复的任务
+
+**与 /om:start Step 9 相同的执行逻辑：**
+
+<LOOP-ENFORCEMENT>
+**禁止在还有未完成任务时停止** — 必须执行完所有任务。
+
+```typescript
+Agent({
+  subagent_type: task.subagent_type,
+  description: task.description,
+  prompt: task.prompt + "\n\n⚠️ 完成后请输出简短摘要（不超过3行）：\n1. 关键决策\n2. 创建/修改的文件\n3. 对后续任务的建议\n\n🚫 **禁止执行以下 Git 命令**：\n- ❌ git commit\n- ❌ git checkout/merge/pull/push/rebase/branch\n\n✅ 允许：git status, git diff, git log",
+  isolation: task.isolation,
+  run_in_background: false
+})
+```
+
+**每个 Agent 完成后：**
+
+```bash
+# 1. 验证（根据任务类型）
+npm test -- --run 2>&1
+
+# 2. 标记完成
+openmatrix complete TASK-XXX --success --summary "关键决策: xxx; 文件: xxx"
+
+# 3. 提交
+git add . && git commit -m "feat(TASK-XXX): 描述"
+
+# 4. 获取下一个任务（必须从磁盘读取，防止上下文压缩丢失）
+openmatrix step --json
+```
+
+**返回值解析：**
+
+| status | 含义 | 后续操作 |
+|--------|------|---------|
+| `tasks_ready` | 有任务可执行 | 继续执行返回的 subagentTasks |
+| `done` | 所有任务完成 | 进入最终提交 |
+| `blocked` | 无可执行任务（有 pending 等待依赖） | **轮询等待后重试** |
+
+**⚠️ blocked 状态处理（关键）：**
+
+```bash
+# 检查是否有正在执行的任务
+openmatrix status --json | jq '.statistics.inProgress'
+
+# 如果有正在执行的任务，等待其完成
+while [ "$(openmatrix status --json | jq -r '.statistics.inProgress')" -gt 0 ]; do
+  echo "⏳ 等待当前任务完成..."
+  sleep 5
+done
+
+# 任务完成后，重新获取下一个任务
+openmatrix step --json
+```
+
+**红旗警告：**
+
+| 错误想法 | 正确做法 |
+|---------|---------|
+| "blocked 就停止" | blocked 要等待，继续轮询 |
+| "没有任务了" | 检查 statistics.pending，有 pending 就继续等待 |
+| "低优先级不重要" | 所有任务都必须执行，不能跳过 |
+
+</LOOP-ENFORCEMENT>
 
 ### 显示恢复结果
 

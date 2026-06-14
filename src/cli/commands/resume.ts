@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { StateManager } from '../../storage/state-manager.js';
 import { Scheduler } from '../../orchestrator/scheduler.js';
 import { ApprovalManager } from '../../orchestrator/approval-manager.js';
+import { AgentRunner } from '../../agents/agent-runner.js';
 import { getProjectRoot } from '../../utils/gitignore.js';
 import * as path from 'path';
 
@@ -97,8 +98,40 @@ export const resumeCommand = new Command('resume')
       currentPhase: 'execution'
     });
 
-    console.log('\n✅ 任务已恢复');
-    console.log('💡 使用 /om:status 查看执行进度');
+    // 准备可执行的任务列表供 Skill 执行
+    // 使用 AgentRunner.prepareSubagentTask() 生成完整的 SubagentTask（包含 prompt 字段）
+    const approvalManager = new ApprovalManager(stateManager);
+    const agentMode = state.config.agentMode || 'parallel';
+    const maxConcurrent = agentMode === 'single' ? 1 : 3;
+    const agentRunner = new AgentRunner(stateManager, approvalManager, {
+      maxConcurrent,
+      taskTimeout: state.config.taskTimeout || 600000
+    });
+
+    const allTasks = await stateManager.listTasks();
+    const pendingTasks = allTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+    const subagentTasks = await Promise.all(
+      pendingTasks.map(t => agentRunner.prepareSubagentTask(t))
+    );
+
+    if (options.json) {
+      console.log(JSON.stringify({
+        status: 'tasks_ready',
+        message: '任务已恢复，等待 Skill 执行',
+        statistics: {
+          totalTasks: allTasks.length,
+          pending: allTasks.filter(t => t.status === 'pending').length,
+          inProgress: allTasks.filter(t => t.status === 'in_progress').length,
+          blocked: allTasks.filter(t => t.status === 'blocked').length,
+          waiting: allTasks.filter(t => t.status === 'waiting').length
+        },
+        subagentTasks
+      }));
+    } else {
+      console.log('\n✅ 任务已恢复');
+      console.log(`📋 ${subagentTasks.length} 个任务待执行`);
+      console.log('💡 使用 /om:status 查看执行进度');
+    }
   });
 
 async function resumeTask(
