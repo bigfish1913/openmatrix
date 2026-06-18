@@ -229,6 +229,129 @@ AskUserQuestion: `header: "确认"`, `multiSelect: false`
 | 继续 | 设计合理，继续下一部分 |
 | 修改 | 我有调整建议 |
 
+## Step 5.5: 前端原型生成（可选）
+
+**仅在任务涉及前端页面/UI 时执行此步骤。**
+
+### 5.5.1 检测是否涉及前端
+
+**前端检测信号：**
+- 提到 Web 应用、网页、网站
+- 提到 UI、界面、页面布局
+- 提到表单、按钮、导航、图表
+- 提到 React/Vue/Angular/Next.js 等前端框架
+- 提到移动端 App（需要 UI）
+- 提到 Dashboard、管理后台
+
+**如果检测到前端：**
+
+AskUserQuestion: `header: "前端原型"`, `multiSelect: false`
+**question:** 这个任务涉及前端页面，是否生成 HTML 原型作为可视化参考？
+
+| label | description |
+|-------|-------------|
+| 生成原型 (推荐) | 生成可运行的静态 HTML 原型，作为开发指导 |
+| 不生成原型 | 节省 token，仅使用文字描述（适合熟悉的设计模式） |
+
+**⚠️ Token 提醒：**
+```
+生成 HTML 原型会消耗额外 token（约 5-10k tokens），
+但收益是：
+- 可视化设计概念，减少歧义
+- 提供具体 UI 参考，加速开发
+- 验证布局和交互逻辑
+```
+
+### 5.5.2 生成 HTML 原型（用户选择"生成原型"）
+
+**调用 frontend-design skill：**
+
+```
+Skill 工具: skill = "frontend-design", args = "基于当前设计生成 HTML 原型"
+
+提供设计上下文：
+- 已确认的架构设计
+- 数据模型和实体
+- 关键页面/功能列表
+- UI 设计要求（从 Step 3-5 提取）
+```
+
+**frontend-design 执行：**
+1. 生成静态 HTML 文件（包含 CSS）
+2. 文件写入 `.openmatrix/prototypes/` 目录
+3. 返回原型文件路径列表
+
+### 5.5.3 原型注入上下文
+
+**原型生成完成后：**
+
+1. **读取原型文件内容：**
+```bash
+cat .openmatrix/prototypes/*.html
+```
+
+2. **将原型信息注入设计文档：**
+
+在 `docs/openmatrix/{日期}-{topic}-design.md` 中追加：
+
+```markdown
+## 前端原型
+
+**原型文件路径:**
+- `.openmatrix/prototypes/index.html` - 主页面原型
+- `.openmatrix/prototypes/login.html` - 登录页原型
+- `.openmatrix/prototypes/dashboard.html` - Dashboard 原型
+
+**原型关键设计:**
+- 响应式布局（Desktop/Mobile）
+- 导航栏：顶部固定，包含 Logo、菜单、用户信息
+- 登录表单：居中卡片布局，包含邮箱、密码、记住我选项
+- Dashboard：左侧导航 + 右侧内容区域，数据卡片网格布局
+
+**使用方式:**
+开发时请参考原型文件中的 HTML 结构和 CSS 类名，
+确保实现与原型视觉效果一致。
+```
+
+3. **告知用户原型已生成：**
+
+（输出到界面：）
+```
+✅ 前端原型已生成！
+
+原型文件:
+  - .openmatrix/prototypes/index.html
+  - .openmatrix/prototypes/login.html
+
+📦 原型特点:
+  - 纯静态 HTML + CSS（无 JavaScript）
+  - 可直接在浏览器打开查看
+  - 设计已注入文档，后续开发可参考
+
+💡 建议: 在开发前先打开原型预览，确认 UI 设计符合预期。
+```
+
+### 5.5.4 用户预览原型（可选）
+
+AskUserQuestion: `header: "预览原型"`, `multiSelect: false`
+**question:** 原型已生成，是否需要我进一步调整设计？
+
+| label | description |
+|-------|-------------|
+| 设计满意 | 原型符合预期，继续下一步 |
+| 调整原型 | 有具体修改建议（请描述） |
+| 重新生成 | 整体设计方向不满意 |
+
+**如果用户选择"调整原型"：**
+- 收集用户修改建议
+- 调用 frontend-design skill 修改原型
+- 更新原型文件和设计文档
+
+**如果用户选择"设计满意"：**
+- 继续到 Step 6（总结确认）
+
+---
+
 ## Step 6: 总结确认 + 自动路由判断
 
 所有设计部分确认后，**先在界面展示完整总结和路由判断**，再让用户确认：
