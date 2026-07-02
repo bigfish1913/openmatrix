@@ -45,6 +45,29 @@ description: "Use when the user wants to explore requirements, design alternativ
 在展示设计方案并获得用户批准之前，**不得**调用任何实现技能、写任何代码、搭建任何项目或采取任何实现行动。
 </HARD-GATE>
 
+<MANDATORY-EXECUTION-ORDER>
+## 执行顺序 - 必须严格按此顺序，不得跳过任何步骤
+
+```
+Step 1:  探索项目上下文（ls/git log/package.json）
+Step 2:  评估范围与领域检测（子系统分解/Research集成）
+Step 3:  逐一澄清需求（目的/约束/成功标准）
+Step 4:  提出 2-3 种方案（展示方案详情 + 用户选择）
+Step 5:  分步展示设计（架构/数据模型/API/错误处理/测试）
+Step 5.5: 前端原型生成（检测前端 → 询问是否生成原型 → 生成 → 注入文档）
+            ⛔ 检测到前端必须询问，不得跳过
+Step 6:  总结确认 + 自动路由判断
+Step 7:  输出设计文档
+Step 8:  路由到 plan 或直接执行
+```
+
+**违反以下任一规则将导致流程失败：**
+
+- **禁止跳过 Step 5.5** — 检测到前端信号必须询问原型生成
+- **禁止在 Step 5.5 之前判断"无前端"** — 必须在 Step 5 完成后检测
+- **禁止直接进入 Step 6** — Step 5.5 是强制步骤，前端项目必须执行
+</MANDATORY-EXECUTION-ORDER>
+
 <objective>
 通过协作对话，将想法转化为完整的设计方案。先理解项目上下文，逐一提问澄清需求，提出 2-3 种方案并给出推荐，展示设计并获得批准后再进入执行。
 </objective>
