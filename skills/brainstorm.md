@@ -57,15 +57,18 @@ Step 5:  分步展示设计（架构/数据模型/API/错误处理/测试）
 Step 5.5: 前端原型生成（检测前端 → 询问是否生成原型 → 生成 → 注入文档）
             ⛔ 检测到前端必须询问，不得跳过
 Step 6:  总结确认 + 自动路由判断
-Step 7:  输出设计文档
+Step 7:  输出设计文档（写入 design.md）
+Step 7.5: 质量门禁检查（调用 om:gate --checkpoint document）
+            ⛔ 文档输出后必须执行 gate 检查
 Step 8:  路由到 plan 或直接执行
 ```
 
 **违反以下任一规则将导致流程失败：**
 
 - **禁止跳过 Step 5.5** — 检测到前端信号必须询问原型生成
+- **禁止跳过 Step 7.5** — 文档输出后必须执行 gate 检查
 - **禁止在 Step 5.5 之前判断"无前端"** — 必须在 Step 5 完成后检测
-- **禁止直接进入 Step 6** — Step 5.5 是强制步骤，前端项目必须执行
+- **禁止直接进入 Step 8** — Step 7.5 是强制步骤
 </MANDATORY-EXECUTION-ORDER>
 
 <objective>
@@ -502,8 +505,35 @@ mkdir -p docs/openmatrix
 
 （输出到界面：设计文档已写入 `docs/openmatrix/{当前日期}-{topic}-design.md`）
 
+## Step 7.5: 质量门禁检查（文档输出节点）
+
+**调用 om:gate 检查设计文档与需求的对齐度：**
+
+```
+Skill 工具: skill = "om:gate", args = "--checkpoint document"
+```
+
+**om:gate 执行：**
+1. 读取用户原始需求（从 Step 3 澄清的需求）
+2. 读取设计文档（刚生成的 design.md）
+3. 对比核心目标、约束、验收标准
+4. 输出对齐度评分和差距报告
+
+**根据 gate 结果决定下一步：**
+
+| 对齐度评分 | 处理方式 |
+|---------|---------|
+| >= 90 | 继续到 Step 8（路由执行） |
+| 70-89 | 用户确认：接受偏差或修正设计 |
+| 50-69 | 建议修正设计后重新 gate |
+| < 50 | 必须重新设计（回到 Step 5） |
+
+**用户选择"修改设计"或 gate 失败时：**
+- 返回 Step 5 调整设计
+- 调整后重新执行 Step 7 → Step 7.5
+
 AskUserQuestion: `header: "下一步"`, `multiSelect: false`
-**question:** 设计文档已写入，下一步？
+**question:** 设计文档已写入且 gate 检查完成，下一步？
 
 | label | description |
 |-------|-------------|

@@ -49,7 +49,9 @@ Step 1:  读取输入（brainstorm 设计文档 / 用户描述 / 研究上下文
 Step 2:  生成技术方案，写入 .openmatrix/{runId}/plan.md     <- 独立阶段
 Step 3:  提取结构化元数据（goals/goalTypes/goalComplexity）
 Step 4:  写入 .openmatrix/{runId}/tasks-input.json           <- 必须完成
-Step 5:  展示执行计划，确认后路由到 start/feature
+Step 5:  展示执行计划
+Step 5.5: 质量门禁检查（调用 om:gate --checkpoint plan）    <- 必须完成
+Step 6:  确认后路由到 start/feature
 ```
 
 **违反以下任一规则将导致方案质量下降：**
@@ -58,6 +60,7 @@ Step 5:  展示执行计划，确认后路由到 start/feature
 - **禁止自己生成 runId** - 必须通过 `openmatrix start --init-only` 由 CLI 生成，不要用 bash `$RANDOM` 或 md5sum 生成
 - **禁止跳过 Step 2** - plan.md 是 Agent 执行的核心参考
 - **禁止跳过 Step 3** - goalTypes/goalComplexity 决定任务拆分策略
+- **禁止跳过 Step 5.5** - 计划阶段必须执行 gate 检查
 - **禁止在 plan 阶段写任何业务代码** - 代码在 start/feature 阶段由 Agent 执行
 </MANDATORY-EXECUTION-ORDER>
 
@@ -207,7 +210,7 @@ AI 分析需求，生成完整的技术方案，用 Write 工具写入：
 - **goalComplexity** 必须与 goals 数组长度一致，一一对应
 - **研究上下文集成**: 如果检测到研究上下文，将研究的 goals/constraints/deliverables 与 AI 提取的内容合并（去重）
 
-## Step 5: 展示执行计划并路由
+## Step 5: 展示执行计划
 
 **展示执行计划：**
 
@@ -224,6 +227,35 @@ Goals:
 技术方案已写入: .openmatrix/{runId}/plan.md
 任务输入已写入: .openmatrix/{runId}/tasks-input.json
 ```
+
+## Step 5.5: 质量门禁检查（计划阶段节点）
+
+**调用 om:gate 检查 goals 与设计文档的对齐度：**
+
+```
+Skill 工具: skill = "om:gate", args = "--checkpoint plan"
+```
+
+**om:gate 执行：**
+1. 读取设计文档（brainstorm 产出或用户描述）
+2. 读取 tasks-input.json（刚生成的 goals）
+3. 对比 goals 是否完整覆盖设计文档中的功能需求
+4. 输出对齐度评分和差距报告
+
+**根据 gate 结果决定下一步：**
+
+| 对齐度评分 | 处理方式 |
+|---------|---------|
+| >= 90 | 继续到 Step 6（路由执行） |
+| 70-89 | 用户确认：接受偏差或修正 goals |
+| 50-69 | 建议修正 tasks-input.json 后重新 gate |
+| < 50 | 必须重新提取 goals（回到 Step 3） |
+
+**用户选择"修正 goals"或 gate 失败时：**
+- 返回 Step 3 调整 goals 提取
+- 调整后重新执行 Step 4 → Step 5 → Step 5.5
+
+## Step 6: 路由到执行
 
 **路由判断：**
 
@@ -264,12 +296,13 @@ $ARGUMENTS
 ## 流程定位
 
 ```
-brainstorm (澄清需求) → plan (生成方案) → start/feature (执行)
+brainstorm (澄清需求) → plan (生成方案 + gate检查) → start/feature (执行)
 ```
 
 plan 是连接需求和执行的桥梁：
 - 输入: brainstorm 产出的设计文档 / 用户描述
 - 输出: plan.md (AI Agent 参考) + tasks-input.json (CLI 解析)
+- gate: 确保 goals 完整覆盖设计需求
 
 ## 文件隔离
 
